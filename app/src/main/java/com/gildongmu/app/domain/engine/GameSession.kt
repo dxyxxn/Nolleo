@@ -219,7 +219,7 @@ class GameSession(
 
     private suspend fun playRound(round: RoundPlan) {
         val game: VoiceGame = when (round.game) {
-            GameKind.WORD_CHAIN -> WordChainGame(dictionary, random) { word -> callbacks.log("WordChain: lenient accept '$word'") }
+            GameKind.WORD_CHAIN -> WordChainGame(dictionary, random) { word -> callbacks.logSensitive("WordChain lenient accept", word) }
                 .also { g ->
                     restoredChainState?.let { g.restoreState(it) }
                     restoredChainState = null

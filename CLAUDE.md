@@ -55,7 +55,7 @@ These are large. Importing them with `@` would load them into every session, so 
 
 An Android workspace for building an app on **Pleos** (an Android-based in-vehicle platform) using the Pleos Playground SDKs. It contains two unrelated kinds of Gradle builds:
 
-- **Root project (`./`, module `:app`)** — the app under development. It is currently the bare Android Studio "No Activity" template: package `com.example.myapplication`, no Activity, no Pleos dependency yet.
+- **Root project (`./`, module `:app`)** — the app under development: **길동무 (Gildongmu)**, package `com.gildongmu.app`, Jetpack Compose UI, all five Pleos SDKs wired in. See `README.md` (architecture, SDK usage table) and `docs/state/` (latest work status and TODOs).
 - **`pleos-example/`** — three self-contained reference apps, each its own git repo with its own Gradle wrapper. They are **not** included in the root build; build them from their own directories. Treat them as reference material for how to call each SDK.
     - `pleos-sample-vehicle-app` — Vehicle SDK (`ai.pleos.playground:Vehicle:2.3.2`): vehicle properties (door, HVAC, seat, window, …). Most detailed README; the typed Door Position flow is the canonical integration reference.
     - `pleos-sample-navi-app` — NaviHelper SDK (`ai.pleos.playground:NaviHelper:3.0.5`): route requests and navigation events, sent via NaviService to the default navigation app. Uses Hilt + kapt.
@@ -70,7 +70,7 @@ Root app:
 ./gradlew assembleDebug
 ./gradlew installDebug
 ./gradlew testDebugUnitTest                                   # JVM unit tests
-./gradlew testDebugUnitTest --tests "com.example.myapplication.ExampleUnitTest"   # single test
+./gradlew testDebugUnitTest --tests "com.gildongmu.app.domain.engine.ModeArbiterTest"   # single test class
 ./gradlew connectedDebugAndroidTest                           # instrumented, needs device/emulator
 ./gradlew lintDebug
 ```
@@ -92,7 +92,7 @@ The root project and the samples use very different toolchains; don't copy build
 | AGP | 9.5.0 (built-in Kotlin; no `kotlin-android` plugin) | 8.8.x + Kotlin 1.9/2.0 plugins |
 | compileSdk / minSdk | 37 / 28 | 35 / 23–33 |
 | Java target | 11 | 17 (vehicle, fusedlocation), 11 (navi) |
-| UI | Views + AppCompat/Material (no Compose yet) | Jetpack Compose + Material3 |
+| UI | Jetpack Compose + Material3 (compose plugin = KGP 2.2.10 bundled with AGP 9.5) | Jetpack Compose + Material3 |
 | Shrinking | AGP 9 `optimization {}` block + `src/main/keepRules/*.keep` | `proguardFiles(...)` |
 
 Configuration cache is enabled in the root `gradle.properties`.
