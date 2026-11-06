@@ -1,0 +1,16 @@
+{
+  "name": "normal",
+  "description": "정답 위주, 1.0~2.5초 지연. 평소 반응 시연·기준값 캘리브레이션용",
+  "entries": [
+    { "delayMs": 1300, "answer": "{correct}" },
+    { "delayMs": 1800, "answer": "{correct}" },
+    { "delayMs": 1100, "answer": "{correct}" },
+    { "delayMs": 2400, "answer": "{wrong}" },
+    { "delayMs": 1500, "answer": "{correct}" },
+    { "delayMs": 1000, "answer": "{correct}" },
+    { "delayMs": 2000, "answer": "{correct}" },
+    { "delayMs": 1700, "answer": "{correct}" },
+    { "delayMs": 1200, "answer": "{correct}" },
+    { "delayMs": 2200, "answer": "{correct}" }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "sleepy",
+  "description": "운전자 차례의 응답 지연이 2초 → 6초 → 무응답(타임아웃)으로 늘어나 졸음 케어 1단계가 걸리는 대본. 동승자는 평소 속도로 답한다(driverOnly). answer 가 null 이면 무응답",
+  "driverOnly": true,
+  "entries": [
+    { "delayMs": 2000, "answer": "{correct}" },
+    { "delayMs": 3500, "answer": "{correct}" },
+    { "delayMs": 4500, "answer": "{wrong}" },
+    { "delayMs": 6000, "answer": "{correct}" },
+    { "delayMs": 6500, "answer": "{wrong}" },
+    { "delayMs": 9000, "answer": null },
+    { "delayMs": 6000, "answer": "{correct}" },
+    { "delayMs": 9000, "answer": null }
+  ]
+}
