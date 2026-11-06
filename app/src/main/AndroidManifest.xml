@@ -2,14 +2,68 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!--
+        퍼미션은 코드가 실제로 호출하는 API 의 것만 선언한다 (CLAUDE.md "Adding a Pleos SDK" 3번).
+        샘플 앱의 퍼미션 목록은 복사하지 않는다.
+    -->
+    <!-- Pleos Vehicle SDK: Brake.registerBrakePedalStatus / check·getCurrent (protection: normal) -->
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />
+    <!-- Pleos Vehicle SDK: Seat.checkSeatOccupancyCapabilities / getCurrentSeatOccupancy (protection: normal) -->
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
+    <!-- NaviHelper: getDestinationInfo / getRouteStateInfo / getTBTInfo / getCurrentLocationInfo -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
+    <!-- NaviHelper: requestRoute / cancelRoute -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
+    <!-- TextToSpeech / SpeechToText SDK -->
+    <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
+    <uses-permission android:name="pleos.car.permission.STT_SERVICE" />
+    <!-- FusedLocation SDK (protection: dangerous → 런타임 요청) -->
+    <uses-permission android:name="pleos.car.permission.FUSED_LOCATION" />
+    <!-- AAOS CarPropertyManager: GEAR_SELECTION, PARKING_BRAKE_ON (normal) -->
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+    <!-- AAOS CarPropertyManager: PERF_VEHICLE_SPEED (dangerous → 런타임 요청) -->
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
+    <!-- Android 플랫폼 SpeechRecognizer 폴백 전용. Pleos STT 가 동작하면 요청하지 않는다. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <application
-        android:allowBackup="true"
+        android:name=".app.GildongmuApp"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.MyApplication" />
+        android:theme="@style/Theme.Gildongmu"
+        tools:targetApi="31">
+
+        <!-- CCP(로터리) 미지원: 모든 필수 조작은 터치만으로 가능하다 (DEV_GUIDE §7.4). -->
+        <meta-data
+            android:name="com.hmg.rotary.ROTARY_SUPPORTED"
+            android:value="false" />
+
+        <activity
+            android:name=".app.MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|uiMode|keyboard|keyboardHidden|navigation"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:resizeableActivity="true"
+            android:theme="@style/Theme.Gildongmu"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                주행 중에도 음성 모드 화면(glanceable 상태판)을 보여 주기 위한 AAOS DO 선언.
+                규제 비트(CarUxRestrictions)는 앱이 직접 반영한다 (DEV_GUIDE §7.1).
+            -->
+            <meta-data
+                android:name="distractionOptimized"
+                android:value="true" />
+        </activity>
+    </application>
 
 </manifest>

@@ -19,8 +19,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Pleos Playground SDK (Vehicle / NaviHelper / TextToSpeech / SpeechToText / FusedLocation)
+        maven("https://nexus-playground.pleos.ai/repository/maven-releases/")
     }
 }
 
-rootProject.name = "My Application"
+rootProject.name = "Gildongmu"
 include(":app")
