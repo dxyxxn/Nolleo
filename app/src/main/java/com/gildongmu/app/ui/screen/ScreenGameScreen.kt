@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gildongmu.app.app.AppContainer
 import com.gildongmu.app.core.navi.TripUnits
+import com.gildongmu.app.domain.engine.SessionPlanner
 import com.gildongmu.app.domain.games.ChosungQuizGame
 import com.gildongmu.app.ui.common.ChoiceButton
 import com.gildongmu.app.ui.common.MinTouch
@@ -51,11 +52,13 @@ fun ScreenGameScreen(
     val sessionState by container.coordinator.sessionState.collectAsStateWithLifecycle()
 
     Column(modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("정차 중 · 화면 게임", style = MaterialTheme.typography.headlineSmall, color = GdColors.Good, modifier = Modifier.weight(1f))
             trip?.remainTimeSec?.let {
                 Text("도착까지 ${TripUnits.formatDuration(it)}", style = MaterialTheme.typography.titleMedium, color = GdColors.Muted)
             }
+            // 정차 중에는 언제든 게임을 끝내고 홈으로 갈 수 있다 (점수가 있으면 요약 화면을 거친다)
+            ChoiceButton("게임 끝내기", selected = false, onClick = container.coordinator::endSession)
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (chosungOpen) {
@@ -70,9 +73,15 @@ fun ScreenGameScreen(
                 GameCards(onOpenChosung = { onOpenChosung(true) })
             }
         }
-        val next = sessionState?.nextRoundAtRemainSec
+        // 주차 중에는 여정 시간이 흐르지 않으므로 "주행 약 N분 뒤"로 안내한다
+        val eta = SessionPlanner.secondsUntilNextRound(trip?.remainTimeSec, sessionState?.nextRoundAtRemainSec)
+        val etaText = when {
+            eta == null -> ""
+            eta <= 60 -> " · 출발하면 바로 다음 음성 판"
+            else -> " · 다음 음성 판: 주행 약 ${TripUnits.formatDuration(eta)} 뒤"
+        }
         Text(
-            "정차 중에만 열려요 · 출발하면 음성 게임으로 바뀌어요" + (next?.let { " · 다음 음성 판: 남은 ${TripUnits.formatDuration(it)}" } ?: ""),
+            "정차 중에만 열려요 · 출발하면 음성 게임으로 바뀌어요$etaText",
             style = MaterialTheme.typography.titleSmall,
             color = GdColors.Muted,
         )

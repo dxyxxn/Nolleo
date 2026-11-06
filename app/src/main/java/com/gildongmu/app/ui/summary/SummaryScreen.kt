@@ -34,7 +34,7 @@ fun SummaryScreen(container: AppContainer, summary: SessionSummary, modifier: Mo
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 32.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Text("도착! 오늘의 길동무", style = MaterialTheme.typography.headlineLarge, color = GdColors.Primary)
+        Text(if (summary.endedByUser) "오늘의 길동무 · 여기까지 했어요" else "도착! 오늘의 길동무", style = MaterialTheme.typography.headlineLarge, color = GdColors.Primary)
         Text(summary.destinationName, style = MaterialTheme.typography.titleLarge, color = GdColors.Muted)
 
         GdCard(Modifier.fillMaxWidth()) {

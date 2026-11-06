@@ -232,7 +232,7 @@ class GameSession(
         callbacks.onVoiceRoundActive(true)
         speech.markNewStream()
         _state.update {
-            it.copy(roundIndex = round.index, roundGame = round.game, turnsInRound = round.questionCount, turnInRound = resumeTurnInRound)
+            it.copy(roundIndex = round.index, roundGame = round.game, turnsInRound = round.questionCount, turnInRound = resumeTurnInRound, lastAnswer = null)
         }
         callbacks.log("round ${round.index + 1}/${plan.roundCount} start: ${round.game.label} x${round.questionCount}")
 

@@ -96,6 +96,15 @@ object SessionPlanner {
         return SessionPlan(kept + fresh, basisRemainSec = actualRemainSec)
     }
 
+    /**
+     * 다음 판까지 남은 여정 시간(초). 판은 "도착까지 남은 시간이 [startAtRemainSec] 이하"가 되면 시작하므로
+     * 사용자에게는 그 차이를 "약 N분 뒤"로 보여 준다. 기준을 모르면 null, 이미 지났으면 0.
+     */
+    fun secondsUntilNextRound(remainSec: Int?, startAtRemainSec: Int?): Int? {
+        if (remainSec == null || startAtRemainSec == null) return null
+        return (remainSec.toLong() - startAtRemainSec.toLong()).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+    }
+
     fun gameFor(index: Int, choice: GameChoice): GameKind = when (choice) {
         GameChoice.QUIZ -> GameKind.REGION_QUIZ
         GameChoice.WORD_CHAIN -> GameKind.WORD_CHAIN

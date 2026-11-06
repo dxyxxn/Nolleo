@@ -361,9 +361,9 @@ class GameCoordinator(private val c: AppContainer) {
         override fun logSensitive(label: String, value: String) = AppLog.sensitive("GameSession", label, value)
     }
 
-    private fun finishSession(summary: SessionSummary) {
+    private fun finishSession(summary: SessionSummary, showSummary: Boolean = true) {
         val s = _session.value
-        _summary.value = summary
+        _summary.value = if (showSummary) summary else null
         s?.drowsy?.currentBaseline?.let { b -> scope.launch { c.preferences.saveBaseline(activeDriverId, b) } }
         scope.launch { c.preferences.saveSession(null) }
         _session.value = null
@@ -374,15 +374,23 @@ class GameCoordinator(private val c: AppContainer) {
         c.tripRepository.endTrip()
         c.audioFocus.abandon()
         _stage1Card.value = null
-        AppLog.i(TAG, "session ended → summary")
+        AppLog.i(TAG, if (showSummary) "session ended → summary" else "session ended → home")
     }
 
-    /** 사용자가 여정을 끝냄 (TTS 없이 요약으로) */
+    /**
+     * 사용자가 "게임 끝내기"를 누름 (TTS 없이 바로 정리). 진행 중인 발화·인식은 즉시 멈춘다.
+     * 한 문제라도 했으면 지금까지의 점수를 요약 화면으로 보여 주고("처음으로" → 홈), 아니면 바로 홈으로 간다.
+     * 내비의 길 안내는 취소하지 않는다.
+     */
     fun endSession() {
         val s = _session.value ?: return
         sessionJob?.cancel()
         c.speechRouter.stopAll()
-        finishSession(s.buildSummary())
+        val summary = s.buildSummary().copy(endedByUser = true)
+        val played = summary.roundsPlayed.isNotEmpty() || summary.scores.values.any { it > 0 } ||
+            summary.correctCounts.values.any { it > 0 }
+        AppLog.i(TAG, "user ended the game (played=$played)")
+        finishSession(summary, showSummary = played)
     }
 
     fun dismissSummary() {

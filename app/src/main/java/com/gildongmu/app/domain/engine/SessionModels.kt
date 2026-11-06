@@ -86,6 +86,8 @@ data class SessionSummary(
     val roundsPlayed: List<GameKind>,
     val stage1Count: Int,
     val longestChain: Int,
+    /** 도착 전에 사용자가 "게임 끝내기"로 끝냄 */
+    val endedByUser: Boolean = false,
 ) {
     val totalCorrect: Int get() = correctCounts.values.sum()
     val winner: Player? get() = players.maxByOrNull { scores[it.id] ?: 0 }?.takeIf { (scores[it.id] ?: 0) > 0 }

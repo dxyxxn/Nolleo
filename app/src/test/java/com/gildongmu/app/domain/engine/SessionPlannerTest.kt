@@ -113,6 +113,16 @@ class SessionPlannerTest {
     }
 
     @Test
+    fun secondsUntilNextRound_isRemainMinusThreshold() {
+        // "남은 시간이 3시간 32분일 때 시작" 인 판을, 남은 4시간 10분 시점에서 보면 38분 뒤
+        assertEquals(38 * 60, SessionPlanner.secondsUntilNextRound(250 * 60, 212 * 60))
+        assertEquals("이미 지났으면 0", 0, SessionPlanner.secondsUntilNextRound(200 * 60, 212 * 60))
+        assertEquals(null, SessionPlanner.secondsUntilNextRound(null, 212 * 60))
+        assertEquals(null, SessionPlanner.secondsUntilNextRound(250 * 60, null))
+        assertEquals("보너스 판(즉시 시작)", 0, SessionPlanner.secondsUntilNextRound(3600, Int.MAX_VALUE))
+    }
+
+    @Test
     fun previewText_formats() {
         val plan = SessionPlanner.plan(250 * 60, GameChoice.QUIZ)
         val text = SessionPlanner.previewText(250 * 60, plan) { "4시간 10분" }

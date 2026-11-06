@@ -18,7 +18,8 @@
 | M2 여정 | `1f1209c` | NaviHelperTripSource, SimulatedTripSource(×30 압축·TBT 2회), TripRepository(오류·60초 무응답 폴백), TripUnits, SessionPlanner | `requestRoute` → `onRouteStarted(14820s, 378km)` 수신, 단위=초 확정, 테스트 13개 |
 | M3 음성 | `07fda00` | Pleos/Android/대본 엔진, SpeechRouter, AudioFocusHelper, AnswerCollector(지연 측정) | Pleos TTS/STT ON_DEVICE 초기화·발화 완료·STT 타임아웃 측정, 포커스 충돌 없음 |
 | M4~M6 게임·졸음·P1·UI | `ea6942f` | 콘텐츠(170+48+40, 사전 3,582), 지역 퀴즈·끝말잇기·초성 퀴즈, GameSession, FusedLocation·지역 판정, DrowsinessMonitor(1단계), TBT 일시정지, 요약 화면, Compose 화면 전부, 디버그 패널, 상태 저장/복원 | 기기에서 전체 흐름 확인(아래 1.2), 테스트 총 101개 |
-| M7 마감 | (이 커밋) | README, DEMO_SCENARIO, PHASE2_NOTES, CONTENT_SOURCES, release 서명 APK, CLAUDE.md 현행화, 이 문서 | `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 0 errors) |
+| M7 마감 | `9f0b89c` | README, DEMO_SCENARIO, PHASE2_NOTES, CONTENT_SOURCES, release 서명 APK, CLAUDE.md 현행화, 이 문서 | `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 0 errors) |
+| 피드백 반영 | (이 커밋) | 게임 끝내기 버튼, 중간 종료 요약 제목, 쉬는 시간 안내를 "약 N분 뒤"로 (아래 1.6) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 102개 |
 
 M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로 묶었다.
 
@@ -74,6 +75,18 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - AAOS 런타임 권한 대화상자에서 `CAR_SPEED` 는 "위치" 그룹으로 표시되고, `FUSED_LOCATION` 은 라벨이 없어 "알 수 없는 작업"으로 보인다(플랫폼 측 표기).
 - HOME 키는 이 에뮬레이터에서 앱 창을 가리지 않는다(전용 홈 패널) → 백그라운드 검증은 다른 앱을 같은 창에 띄워서 했다.
 
+### 1.6 사용자 피드백 반영 (11/6)
+피드백: ① 일시정지하거나 멈췄을 때 홈으로 돌아가는 "닫기"가 없다 ② 쉬는 시간 화면의 "남은 시간이 3시간 N분일 때 다음 판을 시작해요"가 "3시간 뒤에 시작"으로 읽힌다(실제 뜻은 "도착까지 남은 시간이 3시간 N분이 되는 시점").
+
+| 변경 | 내용 |
+|---|---|
+| 게임 끝내기 | 음성 화면 하단: 일시정지·쉬는 시간·출발 대기·모든 판 완료 때 "게임 끝내기"를 기존 버튼(계속/지금 시작/한 판 더) 옆에 표시. 문제를 내고 듣는 중에는 "일시정지" 하나만(주행 중 터치 1개 원칙). 정차 중 화면 게임: 상단에 항상 |
+| 끝낸 뒤 | TTS·STT 즉시 중단, 오디오 포커스 반납, 저장된 진행 상태 삭제, 내비 경로는 유지. 맞힌 문제나 마친 판이 있으면 요약("오늘의 길동무 · 여기까지 했어요") → 처음으로, 없으면 바로 홈 (`GameCoordinator.endSession`, `SessionSummary.endedByUser`) |
+| 쉬는 시간 문구 | "다음 판은 약 N분 뒤에 시작해요"(1분 이하면 "곧 다음 판을 시작해요") + "판 사이에는 말을 걸지 않아요 · 바로 하려면 '지금 시작'". 정차 화면 하단은 "다음 음성 판: 주행 약 N분 뒤"(주차 중에는 여정 시간이 흐르지 않으므로). 계산: `SessionPlanner.secondsUntilNextRound` = 남은 시간 − 판 시작 기준 |
+| 기타 | 새 판을 시작할 때 이전 판의 마지막 답 줄(`lastAnswer`)을 지움 |
+
+확인(release APK, 에뮬레이터): 일시정지 → "게임 끝내기 / 계속", 쉬는 시간 → "다음 판은 약 23분 뒤에 시작해요" + "게임 끝내기 / 지금 시작", 1문제 맞힌 뒤 끝내기 → "여기까지 했어요" 요약 → 처음으로 → 홈, 아무것도 하지 않고 끝내기 → 바로 홈. 테스트 102개(`secondsUntilNextRound` 추가).
+
 ---
 
 ## 2. 추후 작업할 내용 (우선순위 순)
@@ -86,6 +99,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 5. **기획서 접수양식 5번과 README SDK 표 대조** — Vehicle 활용에 "AAOS Car API(기어·속도·주행 규제) + Pleos Vehicle(브레이크·좌석)"로 구체화했으니 기획서 문구도 맞출 것.
 6. (선택) 실제 마이크 시연 — 에뮬레이터 Microphone 을 호스트 입력으로 켜고 응답 입력 "마이크"로 Pleos STT 인식 품질 확인.
 7. (선택) Pleos Playground Client ID/Secret 을 받으면 `local.properties` 에 넣어 HYBRID 모드 품질 비교.
+8. (결정 필요) 판 간격 — 지금은 약 45분마다 한 판(4시간 10분 여정이면 판 사이 약 39분 휴식). 아이와 함께 갈 때 길게 느껴지면 `SessionPlanner.SLOT_SEC` 를 줄이거나 "쉬지 않고 이어 하기" 옵션을 추가.
 
 ### 2.2 12/3 2차 PT 전 (기능, `docs/PHASE2_NOTES.md` 상세)
 1. 졸음 케어 2단계(15분 내 Stage1 2회 또는 느림+정답률<50%) → 휴식 권유 → 졸음쉼터 탐색(오프라인 테이블 + FusedLocation) → `NaviHelper.addWaypoint` 길 안내 → `FusedLocation.addProximityAlert` 도착 감지

@@ -34,12 +34,14 @@ import com.gildongmu.app.app.Stage1Card
 import com.gildongmu.app.core.navi.TripUnits
 import com.gildongmu.app.domain.engine.MicState
 import com.gildongmu.app.domain.engine.SessionPhase
+import com.gildongmu.app.domain.engine.SessionPlanner
 import com.gildongmu.app.domain.engine.SessionState
 import com.gildongmu.app.domain.model.GameMode
 import com.gildongmu.app.domain.model.PauseReason
 import com.gildongmu.app.domain.model.TripSourceKind
 import com.gildongmu.app.domain.model.UxState
 import com.gildongmu.app.ui.common.Badge
+import com.gildongmu.app.ui.common.ChoiceButton
 import com.gildongmu.app.ui.common.PrimaryButton
 import com.gildongmu.app.ui.theme.GdColors
 
@@ -90,13 +92,21 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     when {
                         mode == GameMode.PAUSED -> PausedBlock(reasons, coordinator::resume)
-                        else -> CenterBlock(s, ux)
+                        else -> CenterBlock(s, ux, trip?.remainTimeSec)
                     }
                 }
 
                 stage1?.let { Stage1Overlay(it) }
                 Spacer(Modifier.height(16.dp))
-                BottomBar(mode, s, reasons, coordinator::pause, coordinator::resume, coordinator::startNextRoundNow)
+                BottomBar(
+                    mode = mode,
+                    s = s,
+                    reasons = reasons,
+                    onPause = coordinator::pause,
+                    onResume = coordinator::resume,
+                    onNextRound = coordinator::startNextRoundNow,
+                    onEnd = coordinator::endSession,
+                )
             }
             if (wide) {
                 ScorePanel(container, s, Modifier.width(380.dp).fillMaxHeight())
@@ -106,18 +116,33 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CenterBlock(s: SessionState, ux: UxState) {
+private fun CenterBlock(s: SessionState, ux: UxState, remainSec: Int?) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(24.dp)) {
         when (s.phase) {
             SessionPhase.WAITING -> BigText("곧 음성 게임을 시작해요")
             SessionPhase.RESTING -> {
+                // 판은 여정 전체에 나눠 배치된다(예: 4시간 → 5판). 판 사이는 운전에 집중하도록 말을 걸지 않는 시간.
                 BigText("쉬는 시간이에요")
-                val next = s.nextRoundAtRemainSec
+                val eta = SessionPlanner.secondsUntilNextRound(remainSec, s.nextRoundAtRemainSec)
                 Text(
-                    if (next != null) "남은 시간이 ${TripUnits.formatDuration(next)}일 때 다음 판을 시작해요" else "다음 판을 준비하고 있어요",
+                    when {
+                        eta == null -> "다음 판을 준비하고 있어요"
+                        eta <= 60 -> "곧 다음 판을 시작해요"
+                        else -> "다음 판은 약 ${TripUnits.formatDuration(eta)} 뒤에 시작해요"
+                    },
                     style = MaterialTheme.typography.titleLarge,
+                    color = GdColors.Text,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    "판 사이에는 말을 걸지 않아요 · 바로 하려면 '지금 시작'",
+                    style = MaterialTheme.typography.titleMedium,
                     color = GdColors.Muted,
                     textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
             SessionPhase.ALL_DONE -> {
@@ -215,12 +240,24 @@ private fun BottomBar(
     onPause: () -> Unit,
     onResume: () -> Unit,
     onNextRound: () -> Unit,
+    onEnd: () -> Unit,
 ) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Icon(painterResource(R.drawable.ic_lock), contentDescription = null, tint = GdColors.Muted, modifier = Modifier.size(36.dp))
-        Text("화면 조작 잠금", style = MaterialTheme.typography.titleMedium, color = GdColors.Muted, modifier = Modifier.weight(1f))
-        // 터치 가능한 것은 이 버튼 하나 (일시정지 / 계속 / 지금 시작)
+        Text(
+            "화면 조작 잠금",
+            style = MaterialTheme.typography.titleMedium,
+            color = GdColors.Muted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        // 문제를 내고 듣는 동안에는 "일시정지" 하나만. 멈춰 있거나 쉬는 동안에만 "게임 끝내기"를 함께 보여 준다.
         val userResumable = reasons.any { it == PauseReason.USER || it == PauseReason.BACKGROUND || it == PauseReason.AUDIO_UNAVAILABLE }
+        val idle = s.phase == SessionPhase.RESTING || s.phase == SessionPhase.WAITING || s.phase == SessionPhase.ALL_DONE
+        if (mode == GameMode.PAUSED || idle) {
+            ChoiceButton("게임 끝내기", selected = false, onClick = onEnd)
+        }
         when {
             mode == GameMode.PAUSED -> PrimaryButton("계속", onClick = onResume, enabled = userResumable, icon = R.drawable.ic_play, color = GdColors.Accent, contentColor = GdColors.OnAccent)
             s.phase == SessionPhase.RESTING || s.phase == SessionPhase.WAITING ->

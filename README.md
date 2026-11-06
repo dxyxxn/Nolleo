@@ -50,7 +50,9 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 1. 첫 실행 시 권한 2개 허용: **차량 속도**(`android.car.permission.CAR_SPEED`), **차량 위치**(`pleos.car.permission.FUSED_LOCATION`)
 2. 홈에서 목적지(프리셋 또는 "내비 목적지") · 운전자 · 동승자 수 · 게임을 고르고 **출발**
 3. Virtual Console 에서 기어 **D** → 음성 게임 시작 / 기어 **P** → 판을 마무리하고 화면 게임(초성 퀴즈)
-4. 제목 **"길동무"를 길게 누르면 디버그 패널**(DEV): 입력 소스 강제 선택, 시뮬레이션 기어·속도·지역·남은 시간, 대본, 졸음 지표, 최근 로그
+4. 판은 여정 전체에 나눠 둡니다(4시간 10분 → 약 49분마다 10분짜리 한 판, 모두 5판). 판 사이 **쉬는 시간**에는 말을 걸지 않고 "다음 판은 약 N분 뒤에 시작해요"를 보여 줍니다. 바로 하려면 **지금 시작**.
+5. **게임 끝내기**: 음성 화면에서는 일시정지·쉬는 시간에, 정차 중 화면 게임에서는 상단에 있습니다(문제를 내고 듣는 중에는 운전 중 조작을 줄이려고 **일시정지** 하나만 보임). 맞힌 문제나 마친 판이 있으면 "오늘의 길동무 · 여기까지 했어요" 요약 → **처음으로**, 없으면 바로 홈으로 갑니다. 내비 길 안내는 취소하지 않습니다.
+6. 제목 **"길동무"를 길게 누르면 디버그 패널**(DEV): 입력 소스 강제 선택, 시뮬레이션 기어·속도·지역·남은 시간, 대본, 졸음 지표, 최근 로그
 
 3분 시연 대본은 [`docs/DEMO_SCENARIO.md`](docs/DEMO_SCENARIO.md) 를 보세요.
 
@@ -138,7 +140,7 @@ GameMode    IDLE(세션 없음) · VOICE(주행/정차/DO) · SCREEN(주차 && !
 ```bash
 ./gradlew lintDebug testDebugUnitTest assembleRelease
 ```
-- 단위 테스트 101개 (ModeArbiter·DriveStateDeriver·SessionPlanner·AnswerMatcher·두음법칙·끝말잇기·지역 판정·콘텐츠 자산 검증·졸음 모니터·저장본 코덱·GameSession 통합)
+- 단위 테스트 102개 (ModeArbiter·DriveStateDeriver·SessionPlanner·AnswerMatcher·두음법칙·끝말잇기·지역 판정·콘텐츠 자산 검증·졸음 모니터·저장본 코덱·GameSession 통합)
 - 주행 중 CPU 0~0.5%, 메모리 PSS 약 50 MB (에뮬레이터 `top`/`dumpsys meminfo` 측정)
 
 ## 7. 문서
