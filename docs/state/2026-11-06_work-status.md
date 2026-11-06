@@ -1,7 +1,7 @@
 # 길동무 작업 현황 — 2026-11-06
 
 - 브랜치: `feat/gildongmu-prototype` (main 에서 분기, 아직 main 에 병합·push 하지 않음)
-- 기준 지시서: `docs/GILDONGMU_PROTOTYPE_PROMPT.md` (커밋하지 않고 로컬에 남겨 둠)
+- 기준 지시서: `docs/GILDONGMU_PROTOTYPE_PROMPT.md` (사용자가 `ff8783f` 에서 `.gitignore` 변경과 함께 커밋)
 - 변수: 팀명 `Team-DonDoAYeon` · 패키지 `com.gildongmu.app` · 앱 이름 `길동무` · Pleos Client ID/Secret 없음 → TTS/STT `Mode.ON_DEVICE`
 - 검증 환경: Pleos Connect Emulator v2.1.0 AVD(cold boot, 2560×1440), Gradle 9.6.0 / AGP 9.5.0 / built-in Kotlin 2.2.10 / compileSdk 37
 
@@ -105,7 +105,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 
 ### 2.1 11/15 1차 접수 전 (사람이 해야 할 일)
 1. **시연 영상 녹화** — `docs/DEMO_SCENARIO.md` 대본(3분). 녹화 전 체크리스트(권한·포트 포워딩·데모 모드·대본 선택·볼륨) 확인. 녹화 후 README 상단 "시연 영상" 링크 채우기.
-2. **브랜치 병합·push** — `feat/gildongmu-prototype` → main 병합 후 GitHub push. Private 저장소면 심사용 계정을 Collaborator 로 초대. `docs/GILDONGMU_PROTOTYPE_PROMPT.md` 를 공개 저장소에 올릴지 결정(현재 미커밋).
+2. **브랜치 병합·push** — `feat/gildongmu-prototype` → main 병합 후 GitHub push. Private 저장소면 심사용 계정을 Collaborator 로 초대. `docs/GILDONGMU_PROTOTYPE_PROMPT.md` 는 `ff8783f` 에서 커밋됨 — 공개 저장소에 그대로 둘지 push 전에 확인.
 3. **서명 키 백업** — `C:\Users\rlaeh\.android\gildongmu-release.jks` 와 `local.properties` 의 비밀번호를 팀 비밀 저장소에 보관. 최종(2027/2) APK 도 같은 키로 서명해야 한다.
 4. **콘텐츠 사람 검수** — 지역 퀴즈 170문항·일반 48문항을 팀원이 한 번 더 확인(AI 생성 + 1회 검수 상태).
 5. **기획서 접수양식 5번과 README SDK 표 대조** — Vehicle 활용에 "AAOS Car API(기어·속도·주행 규제) + Pleos Vehicle(브레이크·좌석)"로 구체화했으니 기획서 문구도 맞출 것.
