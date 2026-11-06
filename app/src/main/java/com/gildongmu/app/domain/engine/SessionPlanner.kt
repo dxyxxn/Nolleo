@@ -23,7 +23,7 @@ object SessionPlanner {
     const val MAX_ROUND_SEC = 10 * 60
     const val MIN_GAP_SEC = 2 * 60
     const val SEC_PER_QUESTION = 30
-    const val DEMO_QUESTION_COUNT = 4
+    const val DEMO_QUESTION_COUNT = 6
     const val REPLAN_THRESHOLD = 0.2
 
     fun plan(remainSec: Int, choice: GameChoice, demo: Boolean = false): SessionPlan {

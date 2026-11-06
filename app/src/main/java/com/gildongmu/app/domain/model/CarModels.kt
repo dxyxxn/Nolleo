@@ -71,5 +71,5 @@ enum class PauseReason(val title: String, val detail: String) {
     AUDIO_FOCUS("통화가 끝나면 이어서 할게요", "다른 소리가 먼저 나오고 있어요"),
     AUDIO_UNAVAILABLE("소리를 낼 수 없어요", "잠시 후 계속을 눌러 주세요"),
     USER("잠시 멈췄어요", "계속을 누르면 같은 문제부터 다시 들려 드려요"),
-    BACKGROUND("잠시 멈췄어요", "앱이 다시 보이면 계속을 눌러 주세요"),
+    BACKGROUND("잠시 멈췄어요", "계속을 누르면 같은 문제부터 다시 들려 드려요"),
 }

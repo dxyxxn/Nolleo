@@ -46,6 +46,9 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
     /** 실제 1초 = 여정 [timeScale] 초 */
     val timeScale = MutableStateFlow(30f)
 
+    /** 주차(휴게소 등) 중에는 여정 시간이 흐르지 않는다 — 실제 내비의 남은 시간도 정차 중엔 그대로다 */
+    val moving = MutableStateFlow(true)
+
     private var preset: DestinationPreset? = null
     private var elapsedTripSec: Double = 0.0
     private var tickJob: Job? = null
@@ -66,7 +69,7 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
         tickJob = scope.launch {
             while (isActive) {
                 delay(TICK_MS)
-                elapsedTripSec += TICK_MS / 1000.0 * timeScale.value
+                if (moving.value) elapsedTripSec += TICK_MS / 1000.0 * timeScale.value
                 publish()
                 maybeFireTbt()
                 val remain = remainSec()

@@ -1,33 +1,35 @@
 package com.gildongmu.app.app
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.gildongmu.app.core.car.AaosCarStateSource
-import com.gildongmu.app.ui.theme.GdColors
+import com.gildongmu.app.core.location.FusedLocationSource
+import com.gildongmu.app.core.log.AppLog
+import com.gildongmu.app.ui.GildongmuRoot
+import com.gildongmu.app.ui.MainViewModel
 import com.gildongmu.app.ui.theme.GildongmuTheme
+import kotlinx.coroutines.launch
 
+/** 단일 액티비티. 화면은 Compose, 게임 세션은 앱 범위(AppContainer.coordinator)에 있다. */
 class MainActivity : ComponentActivity() {
 
     private val container: AppContainer get() = (application as GildongmuApp).container
+    private val viewModel: MainViewModel by viewModels()
+    private var micPermissionAsked = false
 
     private val permissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+            AppLog.i("Permission", result.entries.joinToString { "${it.key.substringAfterLast('.')}=${it.value}" })
             container.onPermissionsChanged()
         }
 
@@ -35,59 +37,50 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         container.start()
 
-        // CCP Back (DEV_GUIDE §7.4): 최상단에서는 종료하지 않고 숨긴다. 하위 화면은 Compose BackHandler 가 먼저 받는다.
+        // CCP Back (DEV_GUIDE §7.4): 최상단에서는 종료하지 않고 숨긴다. 하위 화면·패널은 Compose BackHandler 가 먼저 받는다.
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 moveTaskToBack(true)
             }
         })
 
-        permissionLauncher.launch(arrayOf(AaosCarStateSource.SPEED_PERMISSION))
-
-        setContent {
-            GildongmuTheme {
-                val decision by container.modeController.decision.collectAsStateWithLifecycle()
-                val signals by container.carRepository.signals.collectAsStateWithLifecycle()
-                val ux by container.carRepository.ux.collectAsStateWithLifecycle()
-                val session by container.modeController.sessionActive.collectAsStateWithLifecycle()
-                Column(
-                    Modifier.fillMaxSize().background(GdColors.Background).padding(32.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Text("길동무 — M1", style = MaterialTheme.typography.headlineLarge, color = GdColors.Text)
-                    Text("모드: ${decision.mode.label}", style = MaterialTheme.typography.headlineMedium, color = GdColors.Primary)
-                    Text("주행: ${decision.driveState.label} (${decision.reason})", color = GdColors.Text, style = MaterialTheme.typography.titleLarge)
-                    Text("신호: $signals", color = GdColors.Muted, style = MaterialTheme.typography.bodyMedium)
-                    Text("규제: DO=${ux.requiresDO} bits=${ux.activeRestrictions}", color = GdColors.Muted, style = MaterialTheme.typography.bodyMedium)
-                    Button(
-                        onClick = { container.modeController.sessionActive.value = !session },
-                        modifier = Modifier.heightIn(min = 76.dp),
-                    ) { Text(if (session) "세션 종료" else "세션 시작") }
-                    val trip by container.tripRepository.snapshot.collectAsStateWithLifecycle()
-                    val tripKind by container.tripRepository.activeKind.collectAsStateWithLifecycle()
-                    val naviStatus by container.naviTrip.status.collectAsStateWithLifecycle()
-                    val fallback by container.tripRepository.fallbackReason.collectAsStateWithLifecycle()
-                    Text("내비: ${naviStatus.label} · 소스: ${tripKind.label} ${fallback ?: ""}", color = GdColors.Muted)
-                    Text("여정: $trip", color = GdColors.Muted, style = MaterialTheme.typography.bodySmall)
-                    androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        com.gildongmu.app.core.navi.DestinationPreset.ALL.forEach { preset ->
-                            Button(
-                                onClick = { container.tripRepository.beginTrip(preset) },
-                                modifier = Modifier.heightIn(min = 76.dp),
-                            ) { Text(preset.title) }
-                        }
+        requestRuntimePermissions()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                container.coordinator.needsMicPermission.collect { needed ->
+                    // RECORD_AUDIO 는 Android 폴백 인식기가 선택될 때만 요청한다
+                    if (needed && !micPermissionAsked) {
+                        micPermissionAsked = true
+                        permissionLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
                     }
                 }
             }
         }
+
+        setContent {
+            GildongmuTheme {
+                GildongmuRoot(container, viewModel)
+            }
+        }
+    }
+
+    private fun requestRuntimePermissions() {
+        // dangerous: android.car.permission.CAR_SPEED, pleos.car.permission.FUSED_LOCATION
+        val needed = listOf(AaosCarStateSource.SPEED_PERMISSION, FusedLocationSource.PERMISSION).filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+        if (needed.isNotEmpty()) permissionLauncher.launch(needed.toTypedArray())
     }
 
     override fun onStart() {
         super.onStart()
         container.setForeground(true)
+        container.coordinator.onForeground()
     }
 
     override fun onStop() {
+        // 백그라운드 전환 = 화면 갱신·STT 중단, 포커스 반납, 상태 저장 (Suspend 진입 포함)
+        container.coordinator.onBackground()
         container.setForeground(false)
         super.onStop()
     }

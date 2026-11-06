@@ -1,0 +1,592 @@
+package com.gildongmu.app.app
+
+import com.gildongmu.app.core.SdkStatus
+import com.gildongmu.app.core.SourceMode
+import com.gildongmu.app.core.log.AppLog
+import com.gildongmu.app.core.navi.DestinationPreset
+import com.gildongmu.app.core.navi.TripEvent
+import com.gildongmu.app.core.navi.TripUnits
+import com.gildongmu.app.core.speech.AnswerInput
+import com.gildongmu.app.core.speech.FocusChange
+import com.gildongmu.app.core.speech.ListenHint
+import com.gildongmu.app.core.speech.ScriptedSpeechEngine
+import com.gildongmu.app.core.speech.SpeechEngineKind
+import com.gildongmu.app.core.speech.SpeechMode
+import com.gildongmu.app.core.speech.SttEvent
+import com.gildongmu.app.data.AppSettings
+import com.gildongmu.app.domain.drowsy.DriverBaseline
+import com.gildongmu.app.domain.drowsy.DrowsinessMonitor
+import com.gildongmu.app.domain.engine.GameSession
+import com.gildongmu.app.domain.engine.SessionCallbacks
+import com.gildongmu.app.domain.engine.SessionInputs
+import com.gildongmu.app.domain.engine.SessionPhase
+import com.gildongmu.app.domain.engine.SessionPlanner
+import com.gildongmu.app.domain.engine.SessionSnapshot
+import com.gildongmu.app.domain.engine.SessionState
+import com.gildongmu.app.domain.engine.SessionSummary
+import com.gildongmu.app.domain.engine.SpeechPort
+import com.gildongmu.app.domain.games.ChosungQuizGame
+import com.gildongmu.app.domain.model.DriveState
+import com.gildongmu.app.domain.model.GameChoice
+import com.gildongmu.app.domain.model.GameMode
+import com.gildongmu.app.domain.model.GearPosition
+import com.gildongmu.app.domain.model.PauseReason
+import com.gildongmu.app.domain.model.Player
+import com.gildongmu.app.domain.model.SessionPlan
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+data class DriverProfile(val id: Int, val name: String)
+
+data class HomeState(
+    val presetId: String? = null,
+    /** 내비에 이미 설정된 목적지로 출발 */
+    val useNaviRoute: Boolean = false,
+    val driverId: Int = 1,
+    val passengerCount: Int = 1,
+    val choice: GameChoice = GameChoice.ALTERNATE,
+)
+
+data class PlanPreview(val text: String, val plan: SessionPlan, val remainSec: Int, val destinationName: String)
+
+data class Stage1Card(val driverName: String, val atWallMs: Long)
+
+/**
+ * 앱 계층의 오케스트레이터: 홈 설정 → 세션 시작, 차량·내비·위치 SDK 입력을 GameSession 에 연결하고
+ * 오디오 포커스·TBT 자동 일시정지·백그라운드·상태 저장을 처리한다.
+ */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+class GameCoordinator(private val c: AppContainer) {
+
+    private val scope = c.appScope
+    private val mode = c.modeController
+
+    val drivers = listOf(DriverProfile(1, "아빠"), DriverProfile(2, "엄마"), DriverProfile(3, "운전자"))
+    private val seatNames = listOf("조수석", "뒷좌석 왼쪽", "뒷좌석 오른쪽")
+
+    private val _settings = MutableStateFlow(AppSettings())
+    val settings: StateFlow<AppSettings> = _settings.asStateFlow()
+
+    private val _home = MutableStateFlow(HomeState())
+    val home: StateFlow<HomeState> = _home.asStateFlow()
+
+    private val _session = MutableStateFlow<GameSession?>(null)
+    val session: StateFlow<GameSession?> = _session.asStateFlow()
+
+    val sessionState: StateFlow<SessionState?> = _session
+        .flatMapLatest { s -> s?.state ?: flowOf(null) }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
+    private val _summary = MutableStateFlow<SessionSummary?>(null)
+    val summary: StateFlow<SessionSummary?> = _summary.asStateFlow()
+
+    private val _stage1Card = MutableStateFlow<Stage1Card?>(null)
+    val stage1Card: StateFlow<Stage1Card?> = _stage1Card.asStateFlow()
+
+    private val _restorable = MutableStateFlow<SessionSnapshot?>(null)
+    val restorable: StateFlow<SessionSnapshot?> = _restorable.asStateFlow()
+
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message.asStateFlow()
+
+    /** 화면 게임(초성 퀴즈) — 세션 동안 점수를 유지한다 */
+    private var _chosung: ChosungQuizGame? = null
+    val chosungGame: ChosungQuizGame?
+        get() = _chosung ?: c.content.content.value?.chosungItems?.takeIf { it.size >= 4 }?.let { ChosungQuizGame(it).also { g -> _chosung = g } }
+
+    private val arrived = MutableStateFlow(false)
+    private var sessionJob: Job? = null
+    private var stage1HideJob: Job? = null
+    private var tbtClearJob: Job? = null
+    private var backgroundInterrupted = false
+    private var activeDriverId: Int = 1
+
+    // ── GameSession 입력 ─────────────────────────────────────────
+    val gameMode: StateFlow<GameMode> = mode.decision.map { it.mode }.stateIn(scope, SharingStarted.Eagerly, GameMode.IDLE)
+    private val screenAvailable = mode.decision.map { it.screenAvailable }.stateIn(scope, SharingStarted.Eagerly, false)
+    private val driveState = mode.decision.map { it.driveState }.stateIn(scope, SharingStarted.Eagerly, mode.decision.value.driveState)
+    private val remainSec: StateFlow<Int?> = combine(c.tripRepository.snapshot, arrived) { snap, done ->
+        if (done) 0 else snap?.remainTimeSec
+    }.stateIn(scope, SharingStarted.Eagerly, null)
+
+    private val inputs = SessionInputs(
+        mode = gameMode,
+        screenAvailable = screenAvailable,
+        remainSec = remainSec,
+        regionCode = c.locationRepository.regionCode,
+        driveState = driveState,
+    )
+
+    /** 홈 화면 플랜 미리보기 ("4시간 10분 → 5판") */
+    val planPreview: StateFlow<PlanPreview?> = combine(_home, c.naviTrip.activeNaviDestination, _settings) { h, navi, s ->
+        val (remain, name) = when {
+            h.useNaviRoute && navi?.remainTimeSec != null -> navi.remainTimeSec to navi.destinationName
+            else -> DestinationPreset.byId(h.presetId)?.let { it.estimatedSec to it.poiName } ?: return@combine null
+        }
+        val plan = SessionPlanner.plan(remain, h.choice, s.demoMode)
+        PlanPreview(SessionPlanner.previewText(remain, plan, TripUnits::formatDuration), plan, remain, name)
+    }.stateIn(scope, SharingStarted.Eagerly, null)
+
+    /** 착좌 센서(Pleos Vehicle Seat)로 감지한 동승자 수 — 홈에서 자동 제안 */
+    val detectedPassengers: StateFlow<Int?> = c.vehicleSdk.seatOccupancy
+        .map { m -> if (m.isEmpty()) null else m.values.count { it } }
+        .stateIn(scope, SharingStarted.Eagerly, null)
+
+    /** Pleos STT 가 안 되고 Android 인식기가 마이크 퍼미션만 기다리는 상태 */
+    val needsMicPermission: StateFlow<Boolean> = combine(
+        c.pleosSpeech.sttStatus, c.androidSpeech.needsMicPermission, c.speechRouter.mode,
+    ) { pleosStt, androidNeeds, m ->
+        androidNeeds && !pleosStt.isAvailable && pleosStt !is SdkStatus.Connecting && m != SpeechMode.SCRIPTED
+    }.stateIn(scope, SharingStarted.Eagerly, false)
+
+    private val speechPort = object : SpeechPort {
+        override suspend fun speak(text: String) {
+            if (!ensureFocus()) return
+            c.speechRouter.speak(text)
+        }
+
+        override fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent> = c.speechRouter.listen(timeoutMs, hint)
+
+        override fun stop() = c.speechRouter.stopAll()
+
+        override fun markNewStream() = c.speechRouter.markNewStream()
+    }
+
+    fun initialize() {
+        scope.launch {
+            val s = c.preferences.loadSettings()
+            _settings.value = s
+            applySettings(s)
+            _home.value = HomeState(
+                presetId = s.lastPresetId,
+                driverId = s.lastDriverId,
+                passengerCount = s.lastPassengerCount.coerceIn(0, 3),
+                choice = s.lastChoice,
+            )
+            c.content.load()
+            val saved = c.preferences.loadSession()
+            if (saved != null && c.clock.wallMs() - saved.savedAtWallMs < RESTORE_MAX_AGE_MS) {
+                _restorable.value = saved
+                AppLog.i(TAG, "restorable session found (round ${saved.roundIndex + 1})")
+            } else if (saved != null) {
+                c.preferences.saveSession(null)
+            }
+        }
+        observeFocus()
+        observeTrip()
+        observeTbt()
+        observePauseFocusPolicy()
+        driveState.onEach { c.simTrip.moving.value = it != DriveState.PARKED }.launchIn(scope)
+    }
+
+    private fun applySettings(s: AppSettings) {
+        c.carRepository.mode.value = s.carMode
+        c.tripRepository.mode.value = s.tripMode
+        c.locationRepository.mode.value = s.locationMode
+        c.speechRouter.mode.value = s.speechMode
+        setAnswerInputInternal(s.answerInput)
+        c.simTrip.timeScale.value = s.simTimeScale
+    }
+
+    private fun updateSettings(transform: (AppSettings) -> AppSettings) {
+        val next = transform(_settings.value)
+        _settings.value = next
+        applySettings(next)
+        scope.launch { c.preferences.saveSettings(next) }
+    }
+
+    // ── 홈 ──────────────────────────────────────────────────────
+
+    fun selectPreset(id: String) = _home.update { it.copy(presetId = id, useNaviRoute = false) }
+    fun selectNaviRoute() = _home.update { it.copy(useNaviRoute = true) }
+    fun selectDriver(id: Int) = _home.update { it.copy(driverId = id) }
+    fun setPassengers(count: Int) = _home.update { it.copy(passengerCount = count.coerceIn(0, 3)) }
+    fun selectChoice(choice: GameChoice) = _home.update { it.copy(choice = choice) }
+    fun dismissMessage() {
+        _message.value = null
+    }
+
+    private fun buildPlayers(h: HomeState): List<Player> {
+        val driverName = drivers.firstOrNull { it.id == h.driverId }?.name ?: "운전자"
+        val driver = Player(id = 1, name = driverName, isDriver = true)
+        val passengers = (0 until h.passengerCount).map { i -> Player(id = 2 + i, name = seatNames[i], isDriver = false) }
+        return listOf(driver) + passengers
+    }
+
+    fun startSession() {
+        if (_session.value != null) return
+        val content = c.content.content.value
+        val dictionary = c.content.dictionary.value
+        if (content == null || dictionary == null) {
+            _message.value = "콘텐츠를 불러오는 중이에요. 잠시 후 다시 눌러 주세요."
+            return
+        }
+        val h = _home.value
+        val preview = planPreview.value ?: run {
+            _message.value = "목적지를 먼저 골라 주세요."
+            return
+        }
+        val preset = DestinationPreset.byId(h.presetId)
+        val demo = _settings.value.demoMode
+        val players = buildPlayers(h)
+        activeDriverId = h.driverId
+        updateSettings { it.copy(lastPresetId = h.presetId ?: it.lastPresetId, lastDriverId = h.driverId, lastPassengerCount = h.passengerCount, lastChoice = h.choice) }
+        scope.launch {
+            val baseline = c.preferences.loadBaseline(h.driverId)
+                ?: if (demo) DEMO_BASELINE.also { AppLog.i(TAG, "demo: seeded driver baseline ${it.latencyEmaMs.toLong()}ms") } else null
+            arrived.value = false
+            if (h.useNaviRoute) c.tripRepository.adoptNaviRoute() else preset?.let { c.tripRepository.beginTrip(it) }
+            val session = GameSession(
+                speech = speechPort,
+                clock = c.clock,
+                content = content,
+                dictionary = dictionary,
+                players = players,
+                initialPlan = preview.plan,
+                choice = h.choice,
+                demo = demo,
+                drowsy = DrowsinessMonitor(baseline),
+                inputs = inputs,
+                callbacks = callbacks,
+                destinationName = preview.destinationName,
+                presetId = if (h.useNaviRoute) null else preset?.id,
+            )
+            AppLog.i(TAG, "session start → ${preview.text}")
+            launchSession(session)
+        }
+    }
+
+    fun resumeSaved() {
+        val snap = _restorable.value ?: return
+        val content = c.content.content.value ?: return
+        val dictionary = c.content.dictionary.value ?: return
+        _restorable.value = null
+        scope.launch {
+            activeDriverId = drivers.firstOrNull { d -> snap.players.firstOrNull { it.isDriver }?.name == d.name }?.id ?: 1
+            val baseline = c.preferences.loadBaseline(activeDriverId) ?: if (snap.demo) DEMO_BASELINE else null
+            val monitor = DrowsinessMonitor(baseline).also {
+                it.restore(snap.drowsyWindow, snap.difficultyCap, snap.lastTriggerAtMs, snap.stage1Count)
+            }
+            arrived.value = false
+            DestinationPreset.byId(snap.presetId)?.let { c.tripRepository.beginTrip(it) } ?: c.tripRepository.adoptNaviRoute()
+            val session = GameSession(
+                speech = speechPort,
+                clock = c.clock,
+                content = content,
+                dictionary = dictionary,
+                players = snap.players,
+                initialPlan = snap.plan,
+                choice = snap.choice,
+                demo = snap.demo,
+                drowsy = monitor,
+                inputs = inputs,
+                callbacks = callbacks,
+                destinationName = snap.destinationName,
+                presetId = snap.presetId,
+                restore = snap,
+            )
+            // 복원된 세션은 자동 재생하지 않는다 — 사용자가 "계속"을 눌러야 한다 (DEV_GUIDE §7.3)
+            mode.addPause(PauseReason.USER)
+            AppLog.i(TAG, "session restored at round ${snap.roundIndex + 1}")
+            launchSession(session, keepPauses = true)
+        }
+    }
+
+    fun discardSaved() {
+        _restorable.value = null
+        scope.launch { c.preferences.saveSession(null) }
+    }
+
+    private fun launchSession(session: GameSession, keepPauses: Boolean = false) {
+        _summary.value = null
+        _stage1Card.value = null
+        _chosung = null
+        if (!keepPauses) mode.clearPauses()
+        _session.value = session
+        mode.sessionActive.value = true
+        sessionJob = scope.launch {
+            try {
+                session.run()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (t: Throwable) {
+                // 어떤 경로에서도 크래시 금지: 세션을 정리하고 요약으로 보낸다
+                AppLog.e(TAG, "session crashed — ending gracefully", t)
+                finishSession(session.buildSummary())
+            }
+        }
+    }
+
+    private val callbacks = object : SessionCallbacks {
+        override fun onVoiceRoundActive(active: Boolean) {
+            mode.voiceRoundActive.value = active
+            if (!active) c.audioFocus.abandon()
+        }
+
+        override fun onStage1(driver: Player, newDifficultyCap: Int) {
+            _stage1Card.value = Stage1Card(driver.name, c.clock.wallMs())
+            stage1HideJob?.cancel()
+            stage1HideJob = scope.launch {
+                delay(STAGE1_CARD_MS)
+                _stage1Card.value = null
+            }
+        }
+
+        override fun onSnapshot(snapshot: SessionSnapshot) {
+            scope.launch { c.preferences.saveSession(snapshot) }
+        }
+
+        override fun onFinished(summary: SessionSummary) {
+            finishSession(summary)
+        }
+
+        override fun log(message: String) = AppLog.i("GameSession", message)
+
+        override fun logSensitive(label: String, value: String) = AppLog.sensitive("GameSession", label, value)
+    }
+
+    private fun finishSession(summary: SessionSummary) {
+        val s = _session.value
+        _summary.value = summary
+        s?.drowsy?.currentBaseline?.let { b -> scope.launch { c.preferences.saveBaseline(activeDriverId, b) } }
+        scope.launch { c.preferences.saveSession(null) }
+        _session.value = null
+        sessionJob = null
+        mode.voiceRoundActive.value = false
+        mode.sessionActive.value = false
+        mode.clearPauses()
+        c.tripRepository.endTrip()
+        c.audioFocus.abandon()
+        _stage1Card.value = null
+        AppLog.i(TAG, "session ended → summary")
+    }
+
+    /** 사용자가 여정을 끝냄 (TTS 없이 요약으로) */
+    fun endSession() {
+        val s = _session.value ?: return
+        sessionJob?.cancel()
+        c.speechRouter.stopAll()
+        finishSession(s.buildSummary())
+    }
+
+    fun dismissSummary() {
+        _summary.value = null
+    }
+
+    // ── 일시정지 / 계속 / 다음 판 ──────────────────────────────
+
+    fun pause() = mode.addPause(PauseReason.USER)
+
+    fun resume() {
+        listOf(PauseReason.USER, PauseReason.BACKGROUND, PauseReason.AUDIO_UNAVAILABLE).forEach(mode::removePause)
+        c.speechRouter.markNewStream()
+    }
+
+    fun startNextRoundNow() = _session.value?.requestNextRoundNow()
+
+    // ── 오디오 포커스 (DEV_GUIDE §7.2) ─────────────────────────
+
+    private fun ensureFocus(): Boolean {
+        if (c.audioFocus.hasFocus.value) return true
+        val granted = c.audioFocus.request()
+        if (!granted) {
+            AppLog.w(TAG, "audio focus denied → PAUSED(AUDIO_UNAVAILABLE)")
+            mode.addPause(PauseReason.AUDIO_UNAVAILABLE)
+        }
+        return granted
+    }
+
+    private fun observeFocus() {
+        c.audioFocus.changes.onEach { change ->
+            if (_session.value == null) return@onEach
+            val ownTts = c.speechRouter.ttsKind.value == SpeechEngineKind.PLEOS && c.speechRouter.pleosSpeaking.value
+            when (change) {
+                FocusChange.LOSS_TRANSIENT -> {
+                    if (ownTts) {
+                        // Pleos TTS 는 Speech Service 경유로 자체 포커스를 잡는다 → 우리 발화로 인한 손실은 무시
+                        AppLog.i(TAG, "LOSS_TRANSIENT during own Pleos TTS → self-induced, ignore")
+                        c.audioFocus.markLost()
+                    } else {
+                        AppLog.i(TAG, "LOSS_TRANSIENT (통화·Gleo) → 즉시 중단 + PAUSED")
+                        mode.addPause(PauseReason.AUDIO_FOCUS)
+                    }
+                }
+                FocusChange.LOSS -> {
+                    if (ownTts) {
+                        AppLog.i(TAG, "LOSS during own Pleos TTS → self-induced, ignore")
+                        c.audioFocus.markLost()
+                    } else {
+                        AppLog.w(TAG, "AUDIOFOCUS_LOSS → 세션 종료(상태 저장)")
+                        _session.value?.let { s -> scope.launch { c.preferences.saveSession(s.snapshot()) } }
+                        endSession()
+                    }
+                }
+                FocusChange.GAIN -> {
+                    if (PauseReason.AUDIO_FOCUS in mode.pauseReasons.value) {
+                        AppLog.i(TAG, "GAIN → 1초 뒤 같은 문제 다시")
+                        c.speechRouter.markNewStream()
+                        mode.removePause(PauseReason.AUDIO_FOCUS)
+                    }
+                }
+                FocusChange.LOSS_TRANSIENT_CAN_DUCK -> AppLog.i(TAG, "CAN_DUCK → 계속 (게임은 발화자라 duck 대상 아님)")
+            }
+        }.launchIn(scope)
+    }
+
+    /** PAUSED 진입 시 포커스 반납 (통화 대기 중에는 GAIN 을 받기 위해 유지) */
+    private fun observePauseFocusPolicy() {
+        combine(gameMode, mode.pauseReasons) { m, reasons -> m to reasons }
+            .distinctUntilChanged()
+            .onEach { (m, reasons) ->
+                if (m == GameMode.PAUSED && PauseReason.AUDIO_FOCUS !in reasons) c.audioFocus.abandon()
+                if (m == GameMode.PAUSED) c.speechRouter.markNewStream()
+            }.launchIn(scope)
+    }
+
+    // ── 여정 ────────────────────────────────────────────────────
+
+    private fun observeTrip() {
+        c.tripRepository.snapshot.onEach { snap ->
+            val s = _session.value ?: return@onEach
+            val remain = snap?.remainTimeSec ?: return@onEach
+            if (remain > 0) s.onTripUpdate(remain, snap.timeScale)
+        }.launchIn(scope)
+        c.tripRepository.events.onEach { e ->
+            when (e) {
+                is TripEvent.Arrived -> if (_session.value != null) {
+                    AppLog.i(TAG, "destination arrived → 결과 정리")
+                    arrived.value = true
+                }
+                is TripEvent.Error -> AppLog.w(TAG, "trip error ${e.reason}")
+                TripEvent.Cancelled -> AppLog.i(TAG, "route cancelled in navi — 게임은 계속")
+                is TripEvent.RouteStarted -> Unit
+            }
+        }.launchIn(scope)
+    }
+
+    /**
+     * P1: 분기/진출입/회전 안내가 500 m 이내면 PAUSED, 지나면(3초 유지) 재개.
+     * 같은 안내가 [TBT_STALE_MS] 넘게 그대로면(정체·정차, 또는 움직이지 않는 에뮬레이터) 그 안내로는 더 멈추지 않는다.
+     */
+    private fun observeTbt() {
+        c.tripRepository.snapshot.map { it?.nextTurn }.distinctUntilChanged().onEach { turn ->
+            if (_session.value == null) return@onEach
+            val key = turn?.let { "${it.typeName}|${it.description}" }
+            val attention = turn != null && turn.needsAttention && turn.distanceM <= TBT_PAUSE_DISTANCE_M && key != tbtSuppressedKey
+            val paused = PauseReason.NAV_GUIDANCE in mode.pauseReasons.value
+            if (key != tbtSuppressedKey) tbtSuppressedKey = null
+            if (attention) {
+                tbtClearJob?.cancel()
+                if (!paused || key != tbtActiveKey) {
+                    AppLog.i(TAG, "TBT ${turn?.typeName} ${turn?.distanceM}m → 자동 일시정지")
+                    mode.addPause(PauseReason.NAV_GUIDANCE)
+                    tbtActiveKey = key
+                    tbtStaleJob?.cancel()
+                    tbtStaleJob = scope.launch {
+                        delay(TBT_STALE_MS)
+                        if (PauseReason.NAV_GUIDANCE in mode.pauseReasons.value && tbtActiveKey == key) {
+                            AppLog.i(TAG, "TBT 안내가 ${TBT_STALE_MS / 1000}초 넘게 그대로 → 정체/정차로 보고 재개")
+                            tbtSuppressedKey = key
+                            mode.removePause(PauseReason.NAV_GUIDANCE)
+                        }
+                    }
+                }
+            } else if (paused && tbtClearJob?.isActive != true) {
+                tbtStaleJob?.cancel()
+                tbtClearJob = scope.launch {
+                    delay(TBT_RESUME_HOLD_MS)
+                    AppLog.i(TAG, "TBT 구간 통과 → 재개")
+                    tbtActiveKey = null
+                    mode.removePause(PauseReason.NAV_GUIDANCE)
+                }
+            }
+        }.launchIn(scope)
+    }
+
+    private var tbtStaleJob: Job? = null
+    private var tbtActiveKey: String? = null
+    private var tbtSuppressedKey: String? = null
+
+    // ── 생명주기 ────────────────────────────────────────────────
+
+    fun onBackground() {
+        val s = _session.value ?: return
+        val phase = sessionState.value?.phase
+        backgroundInterrupted = mode.voiceRoundActive.value ||
+            phase in setOf(SessionPhase.INTRO, SessionPhase.ASKING, SessionPhase.LISTENING, SessionPhase.FEEDBACK, SessionPhase.ROUND_END)
+        AppLog.i(TAG, "background → 중단·포커스 반납·상태 저장 (interrupted=$backgroundInterrupted)")
+        mode.addPause(PauseReason.BACKGROUND)
+        c.speechRouter.stopAll()
+        c.audioFocus.abandon()
+        scope.launch { c.preferences.saveSession(s.snapshot()) }
+    }
+
+    fun onForeground() {
+        if (PauseReason.BACKGROUND in mode.pauseReasons.value && !backgroundInterrupted) {
+            // 진행 중이던 발화가 없었다면(쉬는 시간 등) 그대로 이어 간다. 끊긴 발화는 사용자가 "계속"을 눌러야 재개.
+            mode.removePause(PauseReason.BACKGROUND)
+        }
+    }
+
+    fun shutdown() {
+        sessionJob?.cancel()
+    }
+
+    // ── 디버그 패널 ─────────────────────────────────────────────
+
+    fun setDemoMode(on: Boolean) = updateSettings { it.copy(demoMode = on) }
+    fun setCarMode(m: SourceMode) = updateSettings { it.copy(carMode = m) }
+    fun setTripMode(m: SourceMode) = updateSettings { it.copy(tripMode = m) }
+    fun setLocationMode(m: SourceMode) = updateSettings { it.copy(locationMode = m) }
+    fun setSpeechMode(m: SpeechMode) = updateSettings { it.copy(speechMode = m) }
+    fun setAnswerInput(input: AnswerInput) = updateSettings { it.copy(answerInput = input) }
+    fun setSimTimeScale(scale: Float) = updateSettings { it.copy(simTimeScale = scale) }
+
+    private fun setAnswerInputInternal(input: AnswerInput) {
+        c.speechRouter.answerInput.value = input
+        c.scriptedSpeech.setScript(if (input == AnswerInput.MANUAL || input == AnswerInput.MIC) null else c.content.loadScript(input))
+    }
+
+    fun simGear(gear: GearPosition) = c.simCar.setGear(gear)
+    fun simSpeed(mps: Float) = c.simCar.setSpeed(mps)
+    fun simDo(required: Boolean?) = c.simCar.setDistractionOptimization(required)
+    fun simRegion(code: String?) {
+        c.locationRepository.manualRegion.value = code
+    }
+    fun simJumpRemain(sec: Int) = c.simTrip.jumpToRemain(sec)
+    fun simTriggerTbt() = c.simTrip.triggerTbt()
+    fun manualAnswer(answer: ScriptedSpeechEngine.ManualAnswer) = c.scriptedSpeech.submitManual(answer)
+
+    fun resetBaseline() {
+        scope.launch { c.preferences.saveBaseline(_home.value.driverId, null) }
+        AppLog.i(TAG, "driver baseline reset (${_home.value.driverId})")
+    }
+
+    companion object {
+        private const val TAG = "Coordinator"
+        private const val STAGE1_CARD_MS = 15_000L
+        private const val TBT_PAUSE_DISTANCE_M = 500
+        private const val TBT_RESUME_HOLD_MS = 3_000L
+        private const val TBT_STALE_MS = 20_000L
+        private const val RESTORE_MAX_AGE_MS = 12 * 60 * 60 * 1000L
+
+        /** 데모 모드에서 기준값이 없을 때 넣는 평소 응답 시간 */
+        val DEMO_BASELINE = DriverBaseline(latencyEmaMs = 1_500.0, accuracyEma = 0.9, sampleCount = 0)
+    }
+}

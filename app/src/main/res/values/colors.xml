@@ -2,6 +2,4 @@
 <resources>
     <color name="gd_background">#FF0F1419</color>
     <color name="gd_primary">#FF5CC8FF</color>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
 </resources>
