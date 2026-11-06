@@ -63,6 +63,20 @@ class MainActivity : ComponentActivity() {
                         onClick = { container.modeController.sessionActive.value = !session },
                         modifier = Modifier.heightIn(min = 76.dp),
                     ) { Text(if (session) "세션 종료" else "세션 시작") }
+                    val trip by container.tripRepository.snapshot.collectAsStateWithLifecycle()
+                    val tripKind by container.tripRepository.activeKind.collectAsStateWithLifecycle()
+                    val naviStatus by container.naviTrip.status.collectAsStateWithLifecycle()
+                    val fallback by container.tripRepository.fallbackReason.collectAsStateWithLifecycle()
+                    Text("내비: ${naviStatus.label} · 소스: ${tripKind.label} ${fallback ?: ""}", color = GdColors.Muted)
+                    Text("여정: $trip", color = GdColors.Muted, style = MaterialTheme.typography.bodySmall)
+                    androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        com.gildongmu.app.core.navi.DestinationPreset.ALL.forEach { preset ->
+                            Button(
+                                onClick = { container.tripRepository.beginTrip(preset) },
+                                modifier = Modifier.heightIn(min = 76.dp),
+                            ) { Text(preset.title) }
+                        }
+                    }
                 }
             }
         }

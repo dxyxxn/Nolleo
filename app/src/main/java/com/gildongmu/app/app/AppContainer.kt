@@ -8,6 +8,9 @@ import com.gildongmu.app.core.car.CarStateRepository
 import com.gildongmu.app.core.car.SimulatedCarStateSource
 import com.gildongmu.app.core.car.VehicleSdkClient
 import com.gildongmu.app.core.log.AppLog
+import com.gildongmu.app.core.navi.NaviHelperTripSource
+import com.gildongmu.app.core.navi.SimulatedTripSource
+import com.gildongmu.app.core.navi.TripRepository
 import com.gildongmu.app.domain.engine.ModeController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,6 +38,11 @@ class AppContainer(val application: Application) {
         log = { AppLog.i("ModeArbiter", it) },
     )
 
+    // ── 여정 ────────────────────────────────────────────────────
+    val naviTrip = NaviHelperTripSource(application)
+    val simTrip = SimulatedTripSource(appScope)
+    val tripRepository = TripRepository(naviTrip, simTrip, appScope)
+
     private var started = false
 
     fun start() {
@@ -42,6 +50,7 @@ class AppContainer(val application: Application) {
         started = true
         AppLog.i("App", "AppContainer start")
         carRepository.start()
+        tripRepository.start()
     }
 
     fun onPermissionsChanged() {
@@ -58,5 +67,6 @@ class AppContainer(val application: Application) {
         started = false
         AppLog.i("App", "AppContainer release")
         carRepository.stop()
+        tripRepository.stop()
     }
 }
