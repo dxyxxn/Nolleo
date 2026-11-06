@@ -97,6 +97,7 @@ class AppContainer(val application: Application) {
 
     fun setForeground(foreground: Boolean) {
         aaosCar.setForeground(foreground)
+        tripRepository.setForeground(foreground)
         if (foreground) locationRepository.start() else locationRepository.pause()
     }
 

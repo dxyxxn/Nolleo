@@ -61,7 +61,14 @@ data class HomeState(
     val driverId: Int = 1,
     val passengerCount: Int = 1,
     val choice: GameChoice = GameChoice.ALTERNATE,
-)
+) {
+    /** 내비 길 안내가 새로 잡히면 그 목적지를 기본으로 고르고, 길 안내가 끝나면 프리셋으로 돌아간다 */
+    fun withNaviRoute(available: Boolean): HomeState = when {
+        available && !useNaviRoute -> copy(useNaviRoute = true)
+        !available && useNaviRoute -> copy(useNaviRoute = false)
+        else -> this
+    }
+}
 
 data class PlanPreview(val text: String, val plan: SessionPlan, val remainSec: Int, val destinationName: String)
 
@@ -178,7 +185,7 @@ class GameCoordinator(private val c: AppContainer) {
                 driverId = s.lastDriverId,
                 passengerCount = s.lastPassengerCount.coerceIn(0, 3),
                 choice = s.lastChoice,
-            )
+            ).withNaviRoute(c.naviTrip.activeNaviDestination.value != null)
             c.content.load()
             val saved = c.preferences.loadSession()
             if (saved != null && c.clock.wallMs() - saved.savedAtWallMs < RESTORE_MAX_AGE_MS) {
@@ -190,6 +197,7 @@ class GameCoordinator(private val c: AppContainer) {
         }
         observeFocus()
         observeTrip()
+        observeNaviRoute()
         observeTbt()
         observePauseFocusPolicy()
         driveState.onEach { c.simTrip.moving.value = it != DriveState.PARKED }.launchIn(scope)
@@ -242,6 +250,8 @@ class GameCoordinator(private val c: AppContainer) {
             _message.value = "목적지를 먼저 골라 주세요."
             return
         }
+        // 내비 목적지를 골랐어도 그 사이 길 안내가 끝났으면 프리셋으로 간다 (planPreview 와 같은 기준)
+        val useNavi = h.useNaviRoute && c.naviTrip.activeNaviDestination.value?.remainTimeSec != null
         val preset = DestinationPreset.byId(h.presetId)
         val demo = _settings.value.demoMode
         val players = buildPlayers(h)
@@ -251,7 +261,7 @@ class GameCoordinator(private val c: AppContainer) {
             val baseline = c.preferences.loadBaseline(h.driverId)
                 ?: if (demo) DEMO_BASELINE.also { AppLog.i(TAG, "demo: seeded driver baseline ${it.latencyEmaMs.toLong()}ms") } else null
             arrived.value = false
-            if (h.useNaviRoute) c.tripRepository.adoptNaviRoute() else preset?.let { c.tripRepository.beginTrip(it) }
+            if (useNavi) c.tripRepository.adoptNaviRoute() else preset?.let { c.tripRepository.beginTrip(it) }
             val session = GameSession(
                 speech = speechPort,
                 clock = c.clock,
@@ -265,7 +275,7 @@ class GameCoordinator(private val c: AppContainer) {
                 inputs = inputs,
                 callbacks = callbacks,
                 destinationName = preview.destinationName,
-                presetId = if (h.useNaviRoute) null else preset?.id,
+                presetId = if (useNavi) null else preset?.id,
             )
             AppLog.i(TAG, "session start → ${preview.text}")
             launchSession(session)
@@ -484,6 +494,18 @@ class GameCoordinator(private val c: AppContainer) {
                 is TripEvent.Error -> AppLog.w(TAG, "trip error ${e.reason}")
                 TripEvent.Cancelled -> AppLog.i(TAG, "route cancelled in navi — 게임은 계속")
                 is TripEvent.RouteStarted -> Unit
+            }
+        }.launchIn(scope)
+    }
+
+    /** 내비 앱에서 길 안내를 시작·종료하면 홈의 목적지 선택에 바로 반영한다 (게임 중에는 건드리지 않음) */
+    private fun observeNaviRoute() {
+        c.naviTrip.activeNaviDestination.map { it != null }.distinctUntilChanged().onEach { available ->
+            if (_session.value != null) return@onEach
+            val before = _home.value.useNaviRoute
+            _home.update { it.withNaviRoute(available) }
+            if (before != _home.value.useNaviRoute) {
+                AppLog.i(TAG, if (available) "navi route detected → 홈에서 내비 목적지 선택" else "navi route ended → 프리셋으로")
             }
         }.launchIn(scope)
     }

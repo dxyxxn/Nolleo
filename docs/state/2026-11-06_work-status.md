@@ -19,7 +19,8 @@
 | M3 음성 | `07fda00` | Pleos/Android/대본 엔진, SpeechRouter, AudioFocusHelper, AnswerCollector(지연 측정) | Pleos TTS/STT ON_DEVICE 초기화·발화 완료·STT 타임아웃 측정, 포커스 충돌 없음 |
 | M4~M6 게임·졸음·P1·UI | `ea6942f` | 콘텐츠(170+48+40, 사전 3,582), 지역 퀴즈·끝말잇기·초성 퀴즈, GameSession, FusedLocation·지역 판정, DrowsinessMonitor(1단계), TBT 일시정지, 요약 화면, Compose 화면 전부, 디버그 패널, 상태 저장/복원 | 기기에서 전체 흐름 확인(아래 1.2), 테스트 총 101개 |
 | M7 마감 | `9f0b89c` | README, DEMO_SCENARIO, PHASE2_NOTES, CONTENT_SOURCES, release 서명 APK, CLAUDE.md 현행화, 이 문서 | `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 0 errors) |
-| 피드백 반영 | (이 커밋) | 게임 끝내기 버튼, 중간 종료 요약 제목, 쉬는 시간 안내를 "약 N분 뒤"로 (아래 1.6) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 102개 |
+| 피드백 반영 ① | `f5e6be0` | 게임 끝내기 버튼, 중간 종료 요약 제목, 쉬는 시간 안내를 "약 N분 뒤"로 (아래 1.6) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 102개 |
+| 피드백 반영 ② | (이 커밋) | 내비에서 시작한 길 안내를 홈에 실시간 반영, 3분할에서 길동무를 맨 오른쪽 창으로 (아래 1.7) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 115개 |
 
 M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로 묶었다.
 
@@ -87,6 +88,17 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 
 확인(release APK, 에뮬레이터): 일시정지 → "게임 끝내기 / 계속", 쉬는 시간 → "다음 판은 약 23분 뒤에 시작해요" + "게임 끝내기 / 지금 시작", 1문제 맞힌 뒤 끝내기 → "여기까지 했어요" 요약 → 처음으로 → 홈, 아무것도 하지 않고 끝내기 → 바로 홈. 테스트 102개(`secondsUntilNextRound` 추가).
 
+### 1.7 사용자 피드백 반영 ② (11/6) — 내비 목적지 실시간 반영 · 3분할 배치
+피드백: ① 길동무를 켠 뒤 내비에서 길 찾기를 시작하면 홈에 "내비 목적지" 버튼이 생기지 않는다 ② 길 안내 중이면 내비도 보여야 하지 않나(3분할) ③ 3분할일 때 게임을 맨 오른쪽에 배치.
+
+| 항목 | 원인·확인 | 변경 |
+|---|---|---|
+| ① 내비 목적지 카드 | 내비 앱에서 직접 시작한 길 안내는 `onRouteStarted`·`onNavigationStatus(ROUTE_DRIVE)` 만 오고 `onRoutingCompleted`·`onDestinationInfo` 는 오지 않음(로그 확인). 카드는 `onDestinationInfo`(조회해야만 옴)에서만 만들어지고 있었다 | `onRouteStarted` 에서 바로 카드 생성 + `getDestinationInfo` 재조회, `ROUTE_DRIVE` 수신 시 재조회, `onRouteCancelled`·`onDestinationArrived`·FREE_DRIVE 에서 카드 제거. 앱이 다시 보일 때 즉시 재조회, 길 안내 중(앱이 보이거나 실제 내비 여정으로 게임 중)에는 30초마다 재조회(`TripRepository.shouldPollNavi`) — 실제 내비 여정의 남은 시간이 멈춰 있던 문제도 함께 해결. 홈은 새 길 안내를 자동 선택, 안내가 끝나면 프리셋으로(`HomeState.withNaviRoute`) |
+| ② 내비 함께 보기 | Pleos 화면 = Driving view(고정) + 앱 창 최대 2개. 창 위치·크기는 사용자가 정한다(§5.4·§6.3). `FLAG_ACTIVITY_LAUNCH_ADJACENT` 는 무시되고 내비가 앱 영역 전체를 덮음(확인) → 앱이 3분할을 만들 수는 없다 | 3분할은 사용자가 창 막대로 만들고, 길동무는 세로 1창 레이아웃으로 그대로 동작(1차 때 확인한 그 테스트). 내비가 가려져 있을 때도 Driving view 에 TBT(회전 방향·거리)가 표시됨 |
+| ③ 게임 맨 오른쪽 | 새로 앞에 나온 앱은 primary(운전석 쪽, 왼쪽) 창으로 가고 다른 앱은 오른쪽으로 밀린다(확인). NaviHelper `requestNavigationScreen(Foreground)` 는 내비가 이미 보이면 다시 실행되지 않아 효과 없음(확인) | 길동무가 운전석 쪽 창에 "새로" 들어오면(창이 줄어듦·처음 보임·다시 앞으로 나옴) 기본 지도 앱(`ACTION_MAIN` + `CATEGORY_APP_MAPS`, 패키지 하드코딩 없음)을 실행 → Driving view \| 내비 \| 길동무. 같은 크기로 자리만 바뀐 경우(사용자가 창 막대 탭)는 존중. 판단은 `WindowPlacement`(순수 함수), 실행은 `MainActivity` |
+
+확인(release APK, 에뮬레이터): 길동무를 켠 채 내비에서 안내 시작 → 7 ms 안에 `navi route detected` + 카드 선택("내비 목적지: 부산역 · 남은 시간 4시간 2분", 플랜 "4시간 2분 → 5판"), 안내 종료 → 카드 제거·프리셋 복귀, 30초 주기 재조회 로그 확인. 창 막대를 끌어 3분할 → 길동무가 [853–1694] → [1718–2559]로 이동하는 동안 길동무 생명주기 이벤트 없음(게임 멈춤 없음), 가운데 막대 탭으로 사용자가 바꾼 위치는 유지. 퍼미션 추가 없음(`NAVI_CUSTOM_MAP` 은 시험 후 제거). 테스트 115개(+13).
+
 ---
 
 ## 2. 추후 작업할 내용 (우선순위 순)
@@ -100,6 +112,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 6. (선택) 실제 마이크 시연 — 에뮬레이터 Microphone 을 호스트 입력으로 켜고 응답 입력 "마이크"로 Pleos STT 인식 품질 확인.
 7. (선택) Pleos Playground Client ID/Secret 을 받으면 `local.properties` 에 넣어 HYBRID 모드 품질 비교.
 8. (결정 필요) 판 간격 — 지금은 약 45분마다 한 판(4시간 10분 여정이면 판 사이 약 39분 휴식). 아이와 함께 갈 때 길게 느껴지면 `SessionPlanner.SLOT_SEC` 를 줄이거나 "쉬지 않고 이어 하기" 옵션을 추가.
+9. (결정 필요) 내비를 앱 영역 전체로 볼 때도 게임을 음성으로 이어 갈지 — 지금은 길동무가 화면에서 사라지면 일시정지한다(§5.4 백그라운드 정책에 맞춘 선택). 이어 가려면 포그라운드 서비스·알림·백그라운드 마이크 정책 검토가 필요.
 
 ### 2.2 12/3 2차 PT 전 (기능, `docs/PHASE2_NOTES.md` 상세)
 1. 졸음 케어 2단계(15분 내 Stage1 2회 또는 느림+정답률<50%) → 휴식 권유 → 졸음쉼터 탐색(오프라인 테이블 + FusedLocation) → `NaviHelper.addWaypoint` 길 안내 → `FusedLocation.addProximityAlert` 도착 감지
@@ -110,6 +123,8 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 
 ### 2.3 기술 부채·검증 못 한 것
 - 통화·Gleo 호출로 인한 `AUDIOFOCUS_LOSS_TRANSIENT` → PAUSED → GAIN 1초 뒤 재출제 흐름을 실차/전화 시뮬레이션으로 검증
+- 실차에서 내비가 주행 중 `onTBTInfo`·`onDrivingInfo` 를 스스로 보내는지 확인 (에뮬레이터는 차가 움직이지 않아 확인 불가). 남은 시간은 30초 재조회로 보완했지만 TBT 자동 일시정지는 push 에 의존
+- 3분할 자동 배치는 좌핸들·Connect-S 배치(Driving view 왼쪽, 앱 창 1:1)에서만 확인. 우핸들·Connect-W(2:1, 조수석 App library) 에서 동작 확인 필요
 - 실제 Suspend(IGN OFF) 진입 시 동작 확인(현재는 onStop 경로로 처리)
 - `distractionOptimized` 선언이 Pleos App Market 심사에서 허용되는지 확인(앱 카테고리·DO 승인 절차)
 - AAOS `CAR_SPEED` 를 거부했을 때(기어만으로 동작) UI 문구 점검

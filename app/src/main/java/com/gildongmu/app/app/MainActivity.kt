@@ -1,7 +1,11 @@
 package com.gildongmu.app.app
 
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -76,6 +80,45 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         container.setForeground(true)
         container.coordinator.onForeground()
+        // 창이 자리를 잡은 뒤에 판단한다
+        window.decorView.post { checkWindowPlacement(cameToFront = true) }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        checkWindowPlacement(cameToFront = false)
+    }
+
+    private var lastWindow: WindowPlacement.Box? = null
+
+    /** 3분할 화면에서 길동무가 운전석 쪽 창에 있으면 맨 오른쪽(조수석 쪽)으로 옮긴다 — [WindowPlacement] */
+    private fun checkWindowPlacement(cameToFront: Boolean) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        val bounds = windowManager.currentWindowMetrics.bounds
+        val now = WindowPlacement.Box(bounds.left, bounds.right)
+        val screenRight = windowManager.maximumWindowMetrics.bounds.right
+        val previous = lastWindow
+        lastWindow = now
+        if (WindowPlacement.shouldMoveToPassengerSide(previous, now, screenRight, cameToFront)) {
+            moveGameToPassengerSide("${now.left}..${now.right}/$screenRight, ${if (cameToFront) "앞으로 나옴" else "창 크기 변경"}")
+        }
+    }
+
+    /**
+     * 새로 실행된 앱은 primary(운전석 쪽) 창으로 간다(DEV_GUIDE §6.3) → 기본 지도(내비) 앱을 실행하면
+     * 길동무는 조수석 쪽 창으로 밀려나 Driving view | 내비 | 길동무 가 된다. 앱 이름을 하드코딩하지 않고 표준 카테고리로 찾는다.
+     * (NaviHelper requestNavigationScreen(Foreground) 는 내비가 이미 보이면 다시 실행하지 않아 자리가 바뀌지 않음 — 에뮬레이터 확인)
+     */
+    private fun moveGameToPassengerSide(reason: String) {
+        val maps = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_MAPS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val launched = try {
+            startActivity(maps)
+            true
+        } catch (e: ActivityNotFoundException) {
+            false
+        }
+        AppLog.i("Window", "3분할: 길동무가 운전석 쪽 창($reason) → 기본 지도 앱을 앞으로, 게임은 맨 오른쪽 (launched=$launched)")
     }
 
     override fun onStop() {

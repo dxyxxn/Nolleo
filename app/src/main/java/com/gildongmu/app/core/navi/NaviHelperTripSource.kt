@@ -61,7 +61,11 @@ class NaviHelperTripSource(context: Context) : TripSource {
     val lastEventLabel: StateFlow<String?> = _lastEventLabel.asStateFlow()
 
     private var helper: NaviHelper? = null
-    private var navStatus: NaviStatus? = null
+
+    /** 내비 상태 (ROUTE_DRIVE = 길 안내 중). 홈 카드 표시·남은 시간 주기 조회 판단에 쓴다 */
+    private val _naviStatus = MutableStateFlow<NaviStatus?>(null)
+    val naviStatus: StateFlow<NaviStatus?> = _naviStatus.asStateFlow()
+    private val navStatus: NaviStatus? get() = _naviStatus.value
 
     private val listener = object : NaviHelperEventListener {
         override fun onRouteStarted(routeStartInfo: RouteStartInfo) {
@@ -70,7 +74,11 @@ class NaviHelperTripSource(context: Context) : TripSource {
             AppLog.i(TAG, "onRouteStarted raw duration=${routeStartInfo.duration} distance=${routeStartInfo.distance} → ${sec}s")
             mark("onRouteStarted")
             update(name = routeStartInfo.name, remainSec = sec, distanceM = distance)
+            // 사용자가 내비 앱에서 직접 길 안내를 시작해도 이 이벤트는 온다 (onRoutingCompleted·onDestinationInfo 는 오지 않음 — 에뮬레이터 관측)
+            // → 홈의 "내비 목적지" 카드를 바로 띄우고, 정확한 남은 시간은 조회해서 다시 받는다
+            if (sec > 0) _activeNaviDestination.value = _snapshot.value
             _events.tryEmit(TripEvent.RouteStarted(sec))
+            runCall("getDestinationInfo") { helper?.getDestinationInfo() }
         }
 
         override fun onRoutingCompleted() {
@@ -90,7 +98,8 @@ class NaviHelperTripSource(context: Context) : TripSource {
                 return
             }
             update(name = destinationInfo.name, remainSec = sec, distanceM = distance)
-            if (navStatus == NaviStatus.ROUTE_DRIVE || _activeNaviDestination.value == null) {
+            // 길 안내가 없다고 확인된 상태(FREE_DRIVE·INACTIVE)만 빼고 홈 카드를 최신 남은 시간으로 갱신
+            if (navStatus != NaviStatus.FREE_DRIVE && navStatus != NaviStatus.INACTIVE) {
                 _activeNaviDestination.value = _snapshot.value
             }
         }
@@ -106,10 +115,16 @@ class NaviHelperTripSource(context: Context) : TripSource {
 
         override fun onNavigationStatus(status: NavigationStatus) {
             AppLog.i(TAG, "onNavigationStatus $status")
-            navStatus = status.toDomain()
+            val next = status.toDomain()
+            _naviStatus.value = next
             mark("onNavigationStatus")
-            _snapshot.update { it?.copy(navStatus = navStatus) }
-            if (navStatus != NaviStatus.ROUTE_DRIVE) _activeNaviDestination.value = null
+            _snapshot.update { it?.copy(navStatus = next) }
+            if (next == NaviStatus.ROUTE_DRIVE) {
+                // 길 안내 시작·재개 → 목적지·남은 시간 조회 (결과는 onDestinationInfo)
+                runCall("getDestinationInfo") { helper?.getDestinationInfo() }
+            } else {
+                _activeNaviDestination.value = null
+            }
         }
 
         override fun onTBTInfo(tbtInfoList: List<TBTInfo>) {
@@ -134,12 +149,14 @@ class NaviHelperTripSource(context: Context) : TripSource {
         override fun onDestinationArrived(destinationArrivedInfo: DestinationArrivedInfo) {
             AppLog.i(TAG, "onDestinationArrived")
             mark("onDestinationArrived")
+            _activeNaviDestination.value = null
             _events.tryEmit(TripEvent.Arrived(destinationArrivedInfo.name))
         }
 
         override fun onRouteCancelled() {
             AppLog.i(TAG, "onRouteCancelled")
             mark("onRouteCancelled")
+            _activeNaviDestination.value = null
             _events.tryEmit(TripEvent.Cancelled)
         }
 
@@ -230,7 +247,9 @@ class NaviHelperTripSource(context: Context) : TripSource {
         runCall("getTBTInfo") { helper?.getTBTInfo() }
     }
 
+    /** 목적지·남은 시간 다시 조회 (결과는 onDestinationInfo). 연결 전에는 아무것도 하지 않는다 */
     fun refresh() {
+        if (_status.value != SdkStatus.Available) return
         runCall("getDestinationInfo") { helper?.getDestinationInfo() }
     }
 

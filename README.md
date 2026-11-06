@@ -49,6 +49,8 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 ### 2.5 앱 사용 순서
 1. 첫 실행 시 권한 2개 허용: **차량 속도**(`android.car.permission.CAR_SPEED`), **차량 위치**(`pleos.car.permission.FUSED_LOCATION`)
 2. 홈에서 목적지(프리셋 또는 "내비 목적지") · 운전자 · 동승자 수 · 게임을 고르고 **출발**
+   - 길동무를 켜 둔 채 **내비 앱에서 길 안내를 시작**해도 홈에 "내비 목적지: ○○ · 남은 시간 …" 카드가 바로 생기고 자동으로 선택됩니다. 안내를 끝내면 카드가 사라지고 프리셋으로 돌아갑니다.
+   - **3분할**(왼쪽 Driving view + 앱 2개): 화면 오른쪽 끝 창 막대(⋮)를 왼쪽으로 끌면 내비와 나란히 놓입니다. 길동무가 운전석 쪽 창에 들어가면 스스로 **맨 오른쪽(조수석 쪽)** 으로 옮겨 Driving view | 내비 | 길동무 가 됩니다. 사용자가 창 막대를 탭해 직접 바꾼 위치는 그대로 둡니다.
 3. Virtual Console 에서 기어 **D** → 음성 게임 시작 / 기어 **P** → 판을 마무리하고 화면 게임(초성 퀴즈)
 4. 판은 여정 전체에 나눠 둡니다(4시간 10분 → 약 49분마다 10분짜리 한 판, 모두 5판). 판 사이 **쉬는 시간**에는 말을 걸지 않고 "다음 판은 약 N분 뒤에 시작해요"를 보여 줍니다. 바로 하려면 **지금 시작**.
 5. **게임 끝내기**: 음성 화면에서는 일시정지·쉬는 시간에, 정차 중 화면 게임에서는 상단에 있습니다(문제를 내고 듣는 중에는 운전 중 조작을 줄이려고 **일시정지** 하나만 보임). 맞힌 문제나 마친 판이 있으면 "오늘의 길동무 · 여기까지 했어요" 요약 → **처음으로**, 없으면 바로 홈으로 갑니다. 내비 길 안내는 취소하지 않습니다.
@@ -76,7 +78,7 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 | 기어·속도·주차브레이크 (AAOS `CarPropertyManager`) | ✅ **실제** | Virtual Console 기어 P/D·브레이크·속도 변화가 콜백으로 수신됨 |
 | 주행 규제 (`CarUxRestrictionsManager`) | ✅ **실제** | 기어 D 에서 `requiresDO=true, active=80(NO_VIDEO+NO_SETUP)` 수신 |
 | 브레이크 페달 · 좌석 착좌 (Pleos Vehicle SDK) | ✅ **실제** | `checkXxxCapabilities` → `register`/`getCurrent` |
-| 경로 요청·남은 시간·TBT (NaviHelper) | ✅ **실제** (요청·이벤트) / ⚠️ 진행은 시뮬 | `requestRoute` → `onRouteStarted(14820s, 378km)`·`onDestinationInfo`·`onTBTInfo` 수신. 에뮬레이터 차량이 움직이지 않아 남은 시간이 줄지 않으므로 **시연은 시뮬레이션 여정(시간 압축 ×30)** 사용 |
+| 경로 요청·남은 시간·TBT (NaviHelper) | ✅ **실제** (요청·이벤트) / ⚠️ 진행은 시뮬 | `requestRoute` → `onRouteStarted(14820s, 378km)`·`onDestinationInfo`·`onTBTInfo` 수신. 내비 앱에서 직접 시작·종료한 길 안내도 `onRouteStarted`·`onNavigationStatus`·`onRouteCancelled` 로 즉시 반영(→ `getDestinationInfo`, 길 안내 중 30초마다 재조회). 에뮬레이터 차량이 움직이지 않아 남은 시간이 줄지 않으므로 **시연은 시뮬레이션 여정(시간 압축 ×30)** 사용 |
 | 현재 위치 (FusedLocation) | ✅ **실제** (값은 에뮬레이터 기본 GPS) | 기본 좌표가 미국이라 국내 지역 판정 불가 → NaviHelper 주소("수정구 시흥동" → 경기) → 시뮬 경로 순으로 폴백 |
 | 음성 출력 (Pleos TTS) | ✅ **실제** (`ON_DEVICE`) | 발화 완료(onDone) 확인, 오디오 포커스 충돌 없음 |
 | 음성 인식 (Pleos STT) | ✅ 초기화·청취 실제 / ⚠️ 응답은 마이크 필요 | 호스트 마이크를 켜지 않으면 8초 무응답 처리 → 시연은 **대본 응답**(ScriptedSpeechEngine) 사용 |
@@ -85,6 +87,7 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 ### 3.2 알려진 제약
 - 내비 경로가 있어도 에뮬레이터 차량이 움직이지 않으면 남은 시간·TBT 가 그대로입니다. 같은 TBT 안내가 20초 넘게 그대로면 정체/정차로 보고 일시정지를 풉니다.
 - 경로 요청(`requestRoute`) 시 순정 내비 앱이 같은 창의 앞으로 나옵니다. 길동무로 돌아오면 이어서 진행됩니다(발화가 끊겼다면 "계속").
+- 앱은 창을 직접 나누거나 옆 창을 지정할 수 없습니다(Pleos 창 정책 §6.3, `FLAG_ACTIVITY_LAUNCH_ADJACENT` 무시 확인). 3분할은 사용자가 창 막대로 만들고, 길동무는 그 상태에서 **기본 지도 앱(`CATEGORY_APP_MAPS`)을 앞으로 불러** 자리를 바꿉니다(새로 앞에 나온 앱이 운전석 쪽 primary 창으로 가는 규칙). NaviHelper `requestNavigationScreen(Foreground)` 는 내비가 이미 보이면 다시 실행되지 않아 자리가 바뀌지 않으므로 쓰지 않습니다. 좌핸들 배치(Driving view 왼쪽)에서만 동작합니다.
 - Vehicle SDK 2.3.2 AAR 은 `VehicleException` 클래스가 난독화되어 있어 문서의 `errorCode` 분기 대신 메시지 기반 재시도를 씁니다.
 
 ---
@@ -94,7 +97,7 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 | SDK | 활용 | 호출 위치 |
 |---|---|---|
 | **Vehicle** (+ AAOS Car API) | 주행·정차 상태로 음성/화면 모드 전환, 운전 집중이 필요한 순간 게임 일시정지 | `core/car/AaosCarStateSource.kt` (GEAR_SELECTION·PERF_VEHICLE_SPEED·PARKING_BRAKE_ON, CarUxRestrictions) · `core/car/VehicleSdkClient.kt` (Brake·Seat) · `domain/engine/ModeArbiter.kt` |
-| **NaviHelper** | 남은 시간·경로로 게임 길이 조절, 안내 시점(TBT)에 맞춰 일시정지 · (2차) 졸음쉼터 길 안내 | `core/navi/NaviHelperTripSource.kt` · `domain/engine/SessionPlanner.kt` · `app/GameCoordinator.kt#observeTbt` |
+| **NaviHelper** | 남은 시간·경로로 게임 길이 조절, 내비에서 시작한 길 안내를 홈에 실시간 반영, 안내 시점(TBT)에 맞춰 일시정지 · (2차) 졸음쉼터 길 안내 | `core/navi/NaviHelperTripSource.kt` · `core/navi/TripRepository.kt` · `domain/engine/SessionPlanner.kt` · `app/GameCoordinator.kt#observeTbt` |
 | **FusedLocation** | 현재 위치로 지역 퀴즈 선택, 지나온 지역 기록 · (2차) 졸음쉼터 탐색 | `core/location/FusedLocationSource.kt` · `core/location/RegionResolver.kt` |
 | **SpeechToText** | 운전자·동승자의 답변 인식, 응답에 걸린 시간 측정 | `core/speech/PleosSpeechEngine.kt#listen` · `domain/engine/AnswerCollector.kt` |
 | **TextToSpeech** | 문제 출제, 결과 안내, 반응 저하 시 말 걸기 | `core/speech/PleosSpeechEngine.kt#speak` · `domain/engine/GameSession.kt` |
@@ -140,7 +143,7 @@ GameMode    IDLE(세션 없음) · VOICE(주행/정차/DO) · SCREEN(주차 && !
 ```bash
 ./gradlew lintDebug testDebugUnitTest assembleRelease
 ```
-- 단위 테스트 102개 (ModeArbiter·DriveStateDeriver·SessionPlanner·AnswerMatcher·두음법칙·끝말잇기·지역 판정·콘텐츠 자산 검증·졸음 모니터·저장본 코덱·GameSession 통합)
+- 단위 테스트 115개 (ModeArbiter·DriveStateDeriver·SessionPlanner·AnswerMatcher·두음법칙·끝말잇기·지역 판정·콘텐츠 자산 검증·졸음 모니터·저장본 코덱·GameSession 통합·내비 재조회 조건·홈 내비 목적지 선택·3분할 창 위치)
 - 주행 중 CPU 0~0.5%, 메모리 PSS 약 50 MB (에뮬레이터 `top`/`dumpsys meminfo` 측정)
 
 ## 7. 문서

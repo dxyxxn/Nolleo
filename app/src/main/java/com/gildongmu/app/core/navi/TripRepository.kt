@@ -3,6 +3,7 @@ package com.gildongmu.app.core.navi
 import com.gildongmu.app.core.SdkStatus
 import com.gildongmu.app.core.SourceMode
 import com.gildongmu.app.core.log.AppLog
+import com.gildongmu.app.domain.model.NaviStatus
 import com.gildongmu.app.domain.model.TripSourceKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -14,7 +15,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -47,16 +50,42 @@ class TripRepository(
 
     private var currentPreset: DestinationPreset? = null
     private var watchdog: Job? = null
-    private var tripActive = false
+    private val _tripActive = MutableStateFlow(false)
+    private var tripActive: Boolean
+        get() = _tripActive.value
+        set(value) {
+            _tripActive.value = value
+        }
+    private val foreground = MutableStateFlow(false)
 
     init {
         navi.events.onEach { event -> onNaviEvent(event) }.launchIn(scope)
         sim.events.onEach { event -> if (_activeKind.value == TripSourceKind.SIMULATED && tripActive) _events.emit(event) }
             .launchIn(scope)
+        // 길 안내 중이면 남은 시간을 주기적으로 다시 조회한다 (onDestinationInfo 는 조회해야만 온다).
+        // 앱이 화면에 보일 때(홈의 "내비 목적지" 카드) 또는 실제 내비 여정으로 게임 중일 때만 — 그 밖에는 폴링하지 않는다.
+        scope.launch {
+            combine(navi.naviStatus, foreground, _tripActive, _activeKind) { status, visible, active, kind ->
+                shouldPollNavi(status, visible, active, kind)
+            }.distinctUntilChanged().collectLatest { poll ->
+                if (poll) {
+                    while (true) {
+                        delay(NAVI_REFRESH_MS)
+                        navi.refresh()
+                    }
+                }
+            }
+        }
     }
 
     fun start() {
         navi.start()
+    }
+
+    /** 앱이 다시 보이면 내비 목적지·남은 시간을 바로 다시 조회한다 (내비 앱에서 잡은 경로를 홈에 실시간 반영) */
+    fun setForeground(visible: Boolean) {
+        foreground.value = visible
+        if (visible) navi.refresh()
     }
 
     /** 프리셋 목적지로 여정을 시작한다. */
@@ -121,9 +150,9 @@ class TripRepository(
                 }
             }
             is TripEvent.RouteStarted -> {
+                // 남은 시간 재조회는 NaviHelperTripSource.onRouteStarted 가 이미 한다
                 awaitingRouteStart = false
                 watchdog?.cancel()
-                navi.refresh()
                 _events.emit(event)
             }
             // 새 경로를 요청하면 내비가 이전 경로를 먼저 취소한다(에뮬레이터 관측) → 그 취소는 무시
@@ -150,5 +179,10 @@ class TripRepository(
     companion object {
         private const val TAG = "TripRepo"
         const val NAVI_EVENT_TIMEOUT_MS = 60_000L
+        const val NAVI_REFRESH_MS = 30_000L
+
+        /** 길 안내 중이고, 앱이 보이거나 실제 내비 여정으로 게임 중일 때만 남은 시간을 주기적으로 조회한다 */
+        fun shouldPollNavi(status: NaviStatus?, visible: Boolean, tripActive: Boolean, kind: TripSourceKind): Boolean =
+            status == NaviStatus.ROUTE_DRIVE && (visible || (tripActive && kind == TripSourceKind.REAL_NAVI))
     }
 }
