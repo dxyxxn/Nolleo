@@ -34,6 +34,7 @@ import com.gildongmu.app.domain.model.PauseReason
 import com.gildongmu.app.domain.model.Player
 import com.gildongmu.app.domain.model.RoundPacing
 import com.gildongmu.app.domain.model.SessionPlan
+import com.gildongmu.app.domain.rest.RestStopSuggestion
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -138,6 +139,9 @@ class GameCoordinator(private val c: AppContainer) {
         if (done) 0 else snap?.remainTimeSec
     }.stateIn(scope, SharingStarted.Eagerly, null)
 
+    /** 졸음 케어 2단계의 쉬어 가기 (경로 위 휴게소·졸음쉼터 고르기·도착 감지) */
+    val restCare = RestCareController(c, scope, driveState)
+
     private val inputs = SessionInputs(
         mode = gameMode,
         screenAvailable = screenAvailable,
@@ -202,12 +206,20 @@ class GameCoordinator(private val c: AppContainer) {
                 c.preferences.saveSession(null)
             }
         }
+        restCare.onArrived = { s ->
+            _session.value?.announce("${s.name}에 도착했어요. 차를 세우고 충분히 쉬었다 가요.", holdAfter = true)
+        }
+        restCare.onRested = { _session.value?.onRestFinished() }
         observeFocus()
         observeTrip()
         observeNaviRoute()
         observeTbt()
         observePauseFocusPolicy()
-        driveState.onEach { c.simTrip.moving.value = it != DriveState.PARKED }.launchIn(scope)
+        // 시뮬 여정은 주차 중에, 그리고 쉬어 가기를 묻는 동안 멈춘다 — 30배속이라 질문하는 15초에 11 km 를 지나
+        // 권한 쉼 장소를 수락 전에 지나쳐 버리기 때문 (실제 내비는 해당 없음)
+        combine(driveState, restCare.state) { d, rest -> d != DriveState.PARKED && rest !is RestCareController.State.Offered }
+            .onEach { c.simTrip.moving.value = it }
+            .launchIn(scope)
     }
 
     private fun applySettings(s: AppSettings) {
@@ -279,7 +291,7 @@ class GameCoordinator(private val c: AppContainer) {
                 initialPlan = preview.plan,
                 choice = h.choice,
                 demo = demo,
-                drowsy = DrowsinessMonitor(baseline),
+                drowsy = DrowsinessMonitor(baseline, drowsyConfig(demo)),
                 inputs = inputs,
                 callbacks = callbacks,
                 destinationName = preview.destinationName,
@@ -298,7 +310,7 @@ class GameCoordinator(private val c: AppContainer) {
         scope.launch {
             activeDriverId = drivers.firstOrNull { d -> snap.players.firstOrNull { it.isDriver }?.name == d.name }?.id ?: 1
             val baseline = c.preferences.loadBaseline(activeDriverId) ?: if (snap.demo) DEMO_BASELINE else null
-            val monitor = DrowsinessMonitor(baseline).also {
+            val monitor = DrowsinessMonitor(baseline, drowsyConfig(snap.demo)).also {
                 it.restore(snap.drowsyWindow, snap.difficultyCap, snap.lastTriggerAtMs, snap.stage1Count)
             }
             arrived.value = false
@@ -334,6 +346,7 @@ class GameCoordinator(private val c: AppContainer) {
     private fun launchSession(session: GameSession, keepPauses: Boolean = false) {
         _summary.value = null
         _stage1Card.value = null
+        restCare.clear()
         _chosung = null
         if (!keepPauses) mode.clearPauses()
         _session.value = session
@@ -366,6 +379,18 @@ class GameCoordinator(private val c: AppContainer) {
             }
         }
 
+        override fun suggestRestStop(): RestStopSuggestion? = restCare.suggest()
+
+        override fun onStage2(driver: Player, suggestion: RestStopSuggestion?) {
+            stage1HideJob?.cancel()
+            _stage1Card.value = null
+            restCare.offer(driver.name, suggestion)
+        }
+
+        override fun onRestDecision(suggestion: RestStopSuggestion?, accepted: Boolean) = restCare.decide(suggestion, accepted)
+
+        override fun onRestHold() = restCare.holdAtRestArea()
+
         override fun onSnapshot(snapshot: SessionSnapshot) {
             scope.launch { c.preferences.saveSession(snapshot) }
         }
@@ -392,6 +417,7 @@ class GameCoordinator(private val c: AppContainer) {
         c.tripRepository.endTrip()
         c.audioFocus.abandon()
         _stage1Card.value = null
+        restCare.clear()
         AppLog.i(TAG, if (showSummary) "session ended → summary" else "session ended → home")
     }
 
@@ -420,11 +446,29 @@ class GameCoordinator(private val c: AppContainer) {
     fun pause() = mode.addPause(PauseReason.USER)
 
     fun resume() {
-        listOf(PauseReason.USER, PauseReason.BACKGROUND, PauseReason.AUDIO_UNAVAILABLE).forEach(mode::removePause)
+        listOf(PauseReason.USER, PauseReason.BACKGROUND, PauseReason.AUDIO_UNAVAILABLE, PauseReason.REST_STOP, PauseReason.REST_AREA)
+            .forEach(mode::removePause)
+        _session.value?.releaseRestHold()
         c.speechRouter.markNewStream()
     }
 
     fun startNextRoundNow() = _session.value?.requestNextRoundNow()
+
+    // ── 졸음 케어 2단계 (쉬어 가기) ────────────────────────────
+
+    /** 화면 "쉬어 가기": 음성 질문을 기다리는 중이면 그 답으로, 아니면 바로 쉬어 가기 시작 */
+    fun acceptRest() {
+        if (_session.value?.answerRestSuggestion(true) != true) restCare.acceptOffered()
+    }
+
+    fun declineRest() {
+        if (_session.value?.answerRestSuggestion(false) != true) restCare.dismiss()
+    }
+
+    fun cancelRest() = restCare.cancel()
+
+    /** 데모 모드는 쿨다운만 짧게 (3분 시연 안에 1단계 → 2단계) — 판단 규칙은 같다 */
+    private fun drowsyConfig(demo: Boolean) = if (demo) DrowsinessMonitor.Config.DEMO else DrowsinessMonitor.Config()
 
     // ── 오디오 포커스 (DEV_GUIDE §7.2) ─────────────────────────
 
@@ -610,6 +654,8 @@ class GameCoordinator(private val c: AppContainer) {
     }
     fun simJumpRemain(sec: Int) = c.simTrip.jumpToRemain(sec)
     fun simTriggerTbt() = c.simTrip.triggerTbt()
+    fun simStage2() = _session.value?.requestStage2()
+    fun simRestArrival() = restCare.arrive("디버그 패널")
     fun manualAnswer(answer: ScriptedSpeechEngine.ManualAnswer) = c.scriptedSpeech.submitManual(answer)
 
     fun resetBaseline() {

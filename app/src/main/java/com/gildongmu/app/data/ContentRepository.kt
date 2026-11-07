@@ -8,6 +8,8 @@ import com.gildongmu.app.core.speech.AnswerScript
 import com.gildongmu.app.core.speech.ScriptEntry
 import com.gildongmu.app.domain.games.WordDictionary
 import com.gildongmu.app.domain.model.GameContent
+import com.gildongmu.app.domain.rest.RestArea
+import com.gildongmu.app.domain.rest.ServiceAreaInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +32,13 @@ class ContentRepository(context: Context) {
     val resolverFlow: StateFlow<RegionResolver?> = _resolver.asStateFlow()
     val resolver: RegionResolver? get() = _resolver.value
 
+    /** 고속도로 졸음쉼터 (졸음 케어 2단계) */
+    private val _restAreas = MutableStateFlow<List<RestArea>>(emptyList())
+    val restAreas: StateFlow<List<RestArea>> = _restAreas.asStateFlow()
+
+    private val _serviceAreas = MutableStateFlow<List<ServiceAreaInfo>>(emptyList())
+    val serviceAreas: StateFlow<List<ServiceAreaInfo>> = _serviceAreas.asStateFlow()
+
     suspend fun load() = withContext(Dispatchers.IO) {
         if (_content.value != null) return@withContext
         val started = System.currentTimeMillis()
@@ -44,6 +53,12 @@ class ContentRepository(context: Context) {
             ?.let { runCatching { ContentParser.parseChosung(it) }.getOrNull() }
             .orEmpty()
         val words = readOrNull("content/words_ko.txt")?.let { ContentParser.parseWords(it) }.orEmpty()
+        _restAreas.value = readOrNull("content/rest_areas.json")
+            ?.let { runCatching { ContentParser.parseRestAreas(it) }.onFailure { e -> AppLog.e(TAG, "rest_areas parse", e) }.getOrNull() }
+            .orEmpty()
+        _serviceAreas.value = readOrNull("content/service_areas.json")
+            ?.let { runCatching { ContentParser.parseServiceAreas(it) }.onFailure { e -> AppLog.e(TAG, "service_areas parse", e) }.getOrNull() }
+            .orEmpty()
 
         _resolver.value = RegionResolver(regions)
         _dictionary.value = WordDictionary(words)
@@ -51,7 +66,7 @@ class ContentRepository(context: Context) {
         AppLog.i(
             TAG,
             "content loaded in ${System.currentTimeMillis() - started}ms: regions=${regions.size}, " +
-                "regionQuiz=${regionQuiz.values.sumOf { it.size }}, general=${general.size}, chosung=${chosung.size}, words=${_dictionary.value?.size}",
+                "regionQuiz=${regionQuiz.values.sumOf { it.size }}, general=${general.size}, chosung=${chosung.size}, words=${_dictionary.value?.size}, restAreas=${_restAreas.value.size}, serviceAreas=${_serviceAreas.value.size}",
         )
     }
 

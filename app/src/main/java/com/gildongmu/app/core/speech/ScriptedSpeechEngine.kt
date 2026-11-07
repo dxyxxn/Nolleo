@@ -90,10 +90,12 @@ class ScriptedSpeechEngine(private val clock: Clock) : SpeechEngine {
             val start = clock.elapsedMs()
             send(SttEvent.Listening(start))
             val script = _script.value
-            val entry = if (script != null && script.driverOnly && !hint.forDriver) {
-                ScriptEntry(PASSENGER_DELAYS[passengerCursor++ % PASSENGER_DELAYS.size], AnswerScript.CORRECT)
-            } else {
-                nextEntry()
+            val entry = when {
+                // 네/아니요 질문은 대본 순서를 쓰지 않는다 (수동 버튼: 정답=네, 오답=아니요, 무응답)
+                hint.yesNo && script != null -> ScriptEntry(YES_NO_DELAY_MS, AnswerScript.CORRECT)
+                script != null && script.driverOnly && !hint.forDriver ->
+                    ScriptEntry(PASSENGER_DELAYS[passengerCursor++ % PASSENGER_DELAYS.size], AnswerScript.CORRECT)
+                else -> nextEntry()
             }
             val scriptedDelay = entry?.delayMs
             // 대본 지연과 수동 입력 중 먼저 오는 것. 대본이 없으면 수동 입력만 (타임아웃은 AnswerCollector 가 처리)
@@ -146,6 +148,7 @@ class ScriptedSpeechEngine(private val clock: Clock) : SpeechEngine {
     companion object {
         private const val TAG = "ScriptedSpeech"
         private const val FINALIZE_MS = 250L
+        private const val YES_NO_DELAY_MS = 1_500L
         private val PASSENGER_DELAYS = listOf(1_200L, 1_600L, 1_400L, 1_800L)
     }
 }

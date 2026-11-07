@@ -3,6 +3,8 @@ package com.gildongmu.app.data
 import com.gildongmu.app.domain.model.ChosungItem
 import com.gildongmu.app.domain.model.Question
 import com.gildongmu.app.domain.model.RegionInfo
+import com.gildongmu.app.domain.rest.RestArea
+import com.gildongmu.app.domain.rest.ServiceAreaInfo
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -60,6 +62,42 @@ object ContentParser {
                 hint = o.optString("hint"),
                 category = o.optString("category"),
                 difficulty = o.optInt("difficulty", 1),
+            )
+        }
+    }
+
+    /** assets/content/rest_areas.json (전국졸음쉼터표준데이터에서 변환) */
+    fun parseRestAreas(json: String): List<RestArea> {
+        val arr = JSONObject(json.removePrefix(BOM)).getJSONArray("restAreas")
+        return (0 until arr.length()).map { i ->
+            val o = arr.getJSONObject(i)
+            RestArea(
+                name = o.getString("name"),
+                route = o.getString("route"),
+                from = o.getString("from"),
+                to = o.getString("to"),
+                latitude = o.getDouble("lat"),
+                longitude = o.getDouble("lng"),
+                heading = o.getInt("heading"),
+                parking = o.optInt("parking"),
+                toilet = o.optBoolean("toilet"),
+            )
+        }
+    }
+
+    /** assets/content/service_areas.json (도로공사 휴게소 편의시설 + 가족사랑 화장실에서 변환, 좌표 없음) */
+    fun parseServiceAreas(json: String): List<ServiceAreaInfo> {
+        val arr = JSONObject(json.removePrefix(BOM)).getJSONArray("serviceAreas")
+        return (0 until arr.length()).map { i ->
+            val o = arr.getJSONObject(i)
+            ServiceAreaInfo(
+                name = o.getString("name"),
+                direction = o.getString("direction"),
+                amenities = o.optJSONArray("amenities").toStringList(),
+                foods = o.optString("foods").takeIf { !o.isNull("foods") && it.isNotBlank() },
+                familyRestroom = if (o.isNull("familyRestroom")) null else o.optBoolean("familyRestroom"),
+                dirLat = if (o.isNull("dirLat")) null else o.getDouble("dirLat"),
+                dirLng = if (o.isNull("dirLng")) null else o.getDouble("dirLng"),
             )
         }
     }

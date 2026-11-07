@@ -78,9 +78,13 @@ fun SummaryScreen(container: AppContainer, summary: SessionSummary, modifier: Mo
             }
         }
 
-        if (summary.stage1Count > 0) {
+        if (summary.stage1Count > 0 || summary.stage2Count > 0) {
             Text(
-                "가는 길에 쉬운 문제로 ${summary.stage1Count}번 바꿔 드렸어요. 장거리 운전, 수고 많으셨어요!",
+                buildString {
+                    if (summary.stage1Count > 0) append("가는 길에 쉬운 문제로 ${summary.stage1Count}번 바꿔 드렸어요. ")
+                    if (summary.stage2Count > 0) append("휴게소·졸음쉼터에서 쉬어 가기를 ${summary.stage2Count}번 권했어요. ")
+                    append("장거리 운전, 수고 많으셨어요!")
+                },
                 style = MaterialTheme.typography.bodyLarge,
                 color = GdColors.Muted,
             )

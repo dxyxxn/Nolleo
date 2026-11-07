@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gildongmu.app.app.AppContainer
+import com.gildongmu.app.app.RestCareController
 import com.gildongmu.app.core.navi.TripUnits
 import com.gildongmu.app.domain.engine.SessionPlanner
 import com.gildongmu.app.domain.games.ChosungQuizGame
@@ -59,6 +60,15 @@ fun ScreenGameScreen(
             }
             // 정차 중에는 언제든 게임을 끝내고 홈으로 갈 수 있다 (점수가 있으면 요약 화면을 거친다)
             ChoiceButton("게임 끝내기", selected = false, onClick = container.coordinator::endSession)
+        }
+        // 졸음 케어 2단계: 쉼터에 세워 둔 동안 한 줄 안내 (다시 출발하면 "잘 쉬셨나요?")
+        val rest by container.coordinator.restCare.state.collectAsStateWithLifecycle()
+        when (val r = rest) {
+            is RestCareController.State.Arrived ->
+                Text("${r.suggestion.name}에서 쉬는 중 · 충분히 쉬었다 가요", style = MaterialTheme.typography.titleMedium, color = GdColors.Good)
+            is RestCareController.State.Heading ->
+                Text("${r.suggestion.name}로 가는 중", style = MaterialTheme.typography.titleMedium, color = GdColors.Accent)
+            else -> Unit
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (chosungOpen) {

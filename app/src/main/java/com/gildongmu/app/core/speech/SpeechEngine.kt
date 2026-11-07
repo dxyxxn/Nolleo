@@ -38,6 +38,8 @@ data class ListenHint(
     val wrongAnswer: String? = null,
     /** 운전자 차례인지 — 대본이 driverOnly 이면 운전자 차례에만 대본 지연을 적용한다 */
     val forDriver: Boolean = false,
+    /** 네/아니요 질문 (쉬어 가기 수락). 대본 엔진은 대본과 따로 1.5초 뒤 "네"로 답한다 */
+    val yesNo: Boolean = false,
 )
 
 /** 지시서 §5.4 의 SpeechEngine 인터페이스 (+ 대본용 hint, 상태). */

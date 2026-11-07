@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gildongmu.app.R
 import com.gildongmu.app.app.AppContainer
+import com.gildongmu.app.app.RestCareController
 import com.gildongmu.app.app.Stage1Card
 import com.gildongmu.app.core.navi.TripUnits
 import com.gildongmu.app.domain.engine.MicState
@@ -40,6 +41,7 @@ import com.gildongmu.app.domain.model.GameMode
 import com.gildongmu.app.domain.model.PauseReason
 import com.gildongmu.app.domain.model.TripSourceKind
 import com.gildongmu.app.domain.model.UxState
+import com.gildongmu.app.domain.rest.RestStopSuggestion
 import com.gildongmu.app.ui.common.Badge
 import com.gildongmu.app.ui.common.ChoiceButton
 import com.gildongmu.app.ui.common.PrimaryButton
@@ -59,6 +61,8 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val ux by container.carRepository.ux.collectAsStateWithLifecycle()
     val reasons by container.modeController.pauseReasons.collectAsStateWithLifecycle()
     val stage1 by coordinator.stage1Card.collectAsStateWithLifecycle()
+    val restState by coordinator.restCare.state.collectAsStateWithLifecycle()
+    val restDistance by coordinator.restCare.distanceM.collectAsStateWithLifecycle()
     val region by container.locationRepository.regionCode.collectAsStateWithLifecycle()
     val content by container.content.content.collectAsStateWithLifecycle()
     val s = state ?: return
@@ -96,7 +100,18 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     }
                 }
 
-                stage1?.let { Stage1Overlay(it) }
+                val rest = restState
+                if (rest != null) {
+                    RestOverlay(
+                        state = rest,
+                        distanceM = restDistance,
+                        onAccept = coordinator::acceptRest,
+                        onDecline = coordinator::declineRest,
+                        onCancel = coordinator::cancelRest,
+                    )
+                } else {
+                    stage1?.let { Stage1Overlay(it) }
+                }
                 Spacer(Modifier.height(16.dp))
                 BottomBar(
                     mode = mode,
@@ -227,8 +242,70 @@ private fun Stage1Overlay(card: Stage1Card) {
     ) {
         Text("잠깐 쉬어 갈까요?", style = MaterialTheme.typography.headlineSmall, color = GdColors.Accent)
         Text("반응이 조금 느려졌어요 · 다음 문제는 쉬운 걸로 갈게요", style = MaterialTheme.typography.titleMedium, color = GdColors.Text, maxLines = 2)
-        // 2차(졸음쉼터 길 안내) 자리 — 이번 제출에서는 비활성
-        PrimaryButton("음성으로 안내 시작 (준비 중)", onClick = {}, enabled = false)
+    }
+}
+
+/** 졸음 케어 2단계: 쉬어 가기 권유 → 쉼터로 가는 중 → 도착. 글은 3줄 이하, 버튼은 크게 (주행 중에도 한 번 누르면 끝) */
+@Composable
+private fun RestOverlay(
+    state: RestCareController.State,
+    distanceM: Int?,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val s = state.suggestion
+    val target = s?.let { listOfNotNull(it.name, it.directionLabel).joinToString(" · ") }
+    val distance = (distanceM ?: s?.distanceM)?.let { d -> if (d >= 1_000) "${(d / 100) / 10.0}km" else "${d}m" }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(GdColors.SurfaceHigh, RoundedCornerShape(24.dp))
+            .border(2.dp, GdColors.Accent, RoundedCornerShape(24.dp))
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        when (state) {
+            is RestCareController.State.Offered -> {
+                Text("잠깐 쉬어 가요", style = MaterialTheme.typography.headlineSmall, color = GdColors.Accent)
+                Text(
+                    if (s != null) "반응이 계속 느려졌어요 · $target ${distance ?: ""} 앞" else "반응이 계속 느려졌어요 · 가까운 졸음쉼터나 휴게소에서 쉬어 가요",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = GdColors.Text,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                s?.facilityLine?.let {
+                    Text(it, style = MaterialTheme.typography.titleMedium, color = GdColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    if (s != null) PrimaryButton("쉬어 가기", onClick = onAccept, color = GdColors.Accent, contentColor = GdColors.OnAccent)
+                    ChoiceButton(if (s != null) "괜찮아요" else "닫기", selected = false, onClick = onDecline)
+                }
+            }
+            is RestCareController.State.Heading -> {
+                Text("${s?.name ?: "쉼터"}로 가는 중", style = MaterialTheme.typography.headlineSmall, color = GdColors.Accent, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    listOfNotNull(
+                        distance?.let { "남은 거리 $it" },
+                        when (s?.source) {
+                            RestStopSuggestion.Source.ON_ROUTE -> "가는 길에 있어요"
+                            else -> "화면으로만 안내"
+                        },
+                        "도착하면 알려 드릴게요",
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = GdColors.Text,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                ChoiceButton("안내 그만두기", selected = false, onClick = onCancel)
+            }
+            is RestCareController.State.Arrived -> {
+                Text("${s?.name ?: "쉼터"}에 도착했어요", style = MaterialTheme.typography.headlineSmall, color = GdColors.Good, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("차를 세우고 충분히 쉬었다 가요 · 다시 출발하면 이어서 해요", style = MaterialTheme.typography.titleMedium, color = GdColors.Text, maxLines = 2)
+            }
+        }
     }
 }
 
@@ -253,7 +330,10 @@ private fun BottomBar(
             modifier = Modifier.weight(1f),
         )
         // 문제를 내고 듣는 동안에는 "일시정지" 하나만. 멈춰 있거나 쉬는 동안에만 "게임 끝내기"를 함께 보여 준다.
-        val userResumable = reasons.any { it == PauseReason.USER || it == PauseReason.BACKGROUND || it == PauseReason.AUDIO_UNAVAILABLE }
+        val userResumable = reasons.any {
+            it == PauseReason.USER || it == PauseReason.BACKGROUND || it == PauseReason.AUDIO_UNAVAILABLE ||
+                it == PauseReason.REST_STOP || it == PauseReason.REST_AREA
+        }
         val idle = s.phase == SessionPhase.RESTING || s.phase == SessionPhase.WAITING || s.phase == SessionPhase.ALL_DONE
         if (mode == GameMode.PAUSED || idle) {
             ChoiceButton("게임 끝내기", selected = false, onClick = onEnd)

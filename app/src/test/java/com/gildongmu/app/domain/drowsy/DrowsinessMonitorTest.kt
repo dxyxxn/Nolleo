@@ -53,15 +53,68 @@ class DrowsinessMonitorTest {
     }
 
     @Test
-    fun stage1_canRetriggerAfterCooldown_andCapStopsAtOne() {
+    fun secondStage1Within15Min_becomesStage2_thenStage1WhileStage2CoolsDown() {
         val m = DrowsinessMonitor(DriverBaseline(1500.0, 0.9, 10))
         repeat(3) { m.record(sample(8000), 0) }
         assertEquals(2, m.difficultyCap)
-        m.record(sample(8000), 5 * 60_000 + 1)
-        assertEquals(1, m.difficultyCap)
-        m.record(sample(8000), 11 * 60_000)
+        // 5분 쿨다운 뒤 다시 느림 3개 → 15분 안의 두 번째 → Stage2
+        assertEquals(
+            DrowsinessMonitor.Action.Stage2(1, DrowsinessMonitor.Stage2Reason.REPEATED_STAGE1),
+            m.record(sample(8000), 5 * 60_000 + 1),
+        )
+        // Stage2 쿨다운(20분) 중에는 Stage1 로만 (난이도 최소 1)
+        assertEquals(DrowsinessMonitor.Action.Stage1(1), m.record(sample(8000), 11 * 60_000))
         assertEquals("최소 1", 1, m.difficultyCap)
-        assertEquals(3, m.snapshot().stage1Count)
+        assertEquals(2, m.snapshot().stage1Count)
+        assertEquals(1, m.snapshot().stage2Count)
+    }
+
+    @Test
+    fun stage2_slowAndInaccurate_whenWindowFull() {
+        val m = DrowsinessMonitor(DriverBaseline(1500.0, 0.9, 10))
+        var t = 0L
+        fun rec(l: Long, correct: Boolean?) = m.record(sample(l, correct), t).also { t += 10_000 }
+        assertEquals(DrowsinessMonitor.Action.None, rec(8000, false))
+        assertEquals(DrowsinessMonitor.Action.None, rec(8000, false))
+        assertEquals("창이 덜 찼으면 1단계", DrowsinessMonitor.Action.Stage1(2), rec(8000, false))
+        assertEquals(DrowsinessMonitor.Action.None, rec(8000, true))
+        // 5개 중 정답 1개(20%) + 이번 응답도 느림 → 2단계
+        assertEquals(
+            DrowsinessMonitor.Action.Stage2(1, DrowsinessMonitor.Stage2Reason.SLOW_AND_INACCURATE),
+            rec(8000, false),
+        )
+        // 2단계 쿨다운 동안은 다시 걸리지 않는다
+        repeat(3) { assertEquals(DrowsinessMonitor.Action.None, rec(8000, false)) }
+    }
+
+    @Test
+    fun slowButAccurate_isNotStage2() {
+        val m = DrowsinessMonitor(DriverBaseline(1500.0, 0.9, 10))
+        var t = 0L
+        val actions = (1..6).map { m.record(sample(8000, true), t).also { t += 10_000 } }
+        assertTrue(actions.none { it is DrowsinessMonitor.Action.Stage2 })
+        assertEquals(1, m.snapshot().stage1Count)
+    }
+
+    @Test
+    fun forceStage2_andResetAfterRest() {
+        val m = DrowsinessMonitor(DriverBaseline(1500.0, 0.9, 10))
+        repeat(3) { m.record(sample(8000), 0) }
+        val forced = m.forceStage2(1_000)
+        assertEquals(DrowsinessMonitor.Stage2Reason.MANUAL, forced.reason)
+        assertEquals(1, m.difficultyCap)
+        m.resetAfterRest()
+        assertEquals("쉬고 나면 난이도 처음으로", 3, m.difficultyCap)
+        assertTrue("응답 창 비움", m.snapshot().recentLatencies.isEmpty())
+        assertEquals(1, m.snapshot().stage2Count)
+    }
+
+    @Test
+    fun demoConfig_onlyShortensCooldowns() {
+        val demo = DrowsinessMonitor.Config.DEMO
+        val normal = DrowsinessMonitor.Config()
+        assertTrue(demo.cooldownMs < normal.cooldownMs && demo.stage2CooldownMs < normal.stage2CooldownMs)
+        assertEquals(normal.copy(cooldownMs = demo.cooldownMs, stage2CooldownMs = demo.stage2CooldownMs), demo)
     }
 
     @Test

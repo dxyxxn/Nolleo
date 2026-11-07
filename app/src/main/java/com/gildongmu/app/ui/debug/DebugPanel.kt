@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.gildongmu.app.BuildConfig
 import com.gildongmu.app.app.AppContainer
+import com.gildongmu.app.app.RestCareController
 import com.gildongmu.app.core.SourceMode
 import com.gildongmu.app.core.log.AppLog
 import com.gildongmu.app.core.navi.TripUnits
@@ -40,6 +41,7 @@ import com.gildongmu.app.core.speech.AnswerInput
 import com.gildongmu.app.core.speech.ScriptedSpeechEngine
 import com.gildongmu.app.core.speech.SpeechMode
 import com.gildongmu.app.domain.model.GearPosition
+import com.gildongmu.app.domain.rest.RestStopFinder
 import com.gildongmu.app.ui.theme.GdColors
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -87,6 +89,10 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
     val sessionState by coordinator.sessionState.collectAsStateWithLifecycle()
     val logs by AppLog.recent.collectAsStateWithLifecycle()
     val content by container.content.content.collectAsStateWithLifecycle()
+    val restAreas by container.content.restAreas.collectAsStateWithLifecycle()
+    val serviceAreas by container.content.serviceAreas.collectAsStateWithLifecycle()
+    val rest by coordinator.restCare.state.collectAsStateWithLifecycle()
+    val restDistance by coordinator.restCare.distanceM.collectAsStateWithLifecycle()
 
     Column(
         Modifier.fillMaxSize().background(GdColors.Background.copy(alpha = 0.97f)).verticalScroll(rememberScrollState()).padding(24.dp),
@@ -178,17 +184,30 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
             }
         }
 
-        Section("졸음 케어 1단계") {
+        Section("졸음 케어 (1단계 말 걸기 · 2단계 쉬어 가기)") {
             val d = session?.drowsy?.snapshot()
             if (d == null) {
                 Line("세션 없음")
             } else {
                 Line("기준값 ${d.baselineMs?.let { "${it}ms" } ?: "캘리브레이션 중(${d.calibrationCount}/5)"} · 정답률 EMA ${d.baselineAccuracy?.let { "%.2f".format(it) } ?: "-"}")
                 Line("최근 5개 지연 ${d.recentLatencies.joinToString { "${it}ms" }.ifEmpty { "-" }} · 느림 ${d.slowCount}/5 · 난이도 상한 ${d.difficultyCap}")
-                Line("Stage1 ${d.stage1Count}회 · 마지막 ${d.lastTriggerAtMs?.let { SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(Date(it)) } ?: "-"}")
+                Line("Stage1 ${d.stage1Count}회 · 마지막 ${d.lastTriggerAtMs?.let { SimpleDateFormat("HH:mm:ss", Locale.KOREA).format(Date(it)) } ?: "-"} · Stage2 ${d.stage2Count}회")
             }
             Line("세션 단계 ${sessionState?.phase?.label ?: "-"} · 판 ${sessionState?.let { "${it.roundIndex + 1}/${it.plan.roundCount}" } ?: "-"}")
+            // 2단계 미리보기 — 경로 위 목록(내비 TBT·시뮬 경로)과, 지금 걸리면 권할 곳
+            val motion = remember(trip, reading) { coordinator.restCare.currentMotion() }
+            val tablePick = remember(motion, restAreas) { motion?.let { (p, h) -> RestStopFinder.nearestAhead(restAreas, p, h) } }
+            val pick = remember(trip, reading, restAreas, serviceAreas) { coordinator.restCare.preview() }
+            Line(
+                "졸음쉼터 자료 ${restAreas.size}곳 · 휴게소 정보 ${serviceAreas.size}곳 · 위치 ${if (motion == null) "모름(시뮬 여정 시작 또는 adb emu geo fix)" else "방향 ${motion.second.toInt()}°"}" +
+                    " · 표의 앞쪽 졸음쉼터 ${tablePick?.let { (a, dm) -> "${a.displayName}(${a.to} 방향) ${km(dm)}" } ?: "-"}",
+            )
+            Line("경로 위: ${trip?.restStopsAhead?.let { l -> l.take(4).joinToString { "${it.name} ${km(it.distanceM)}" }.ifEmpty { "없음" } } ?: "정보 없음(길 안내 없음 → 표에서 고름)"}")
+            Line("지금 걸리면 권할 곳: ${pick?.let { "${it.name} ${it.distanceLabel} (${it.source.label})${it.facilityLine?.let { f -> " · $f" } ?: ""}" } ?: "없음"}")
+            Line("쉬어 가기 상태: ${restLabel(rest, restDistance)}")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DevButton("2단계 시험 (다음 운전자 답 뒤)", enabled = session != null) { coordinator.simStage2() }
+                DevButton("쉼터 도착 (시뮬)", enabled = rest is RestCareController.State.Heading) { coordinator.simRestArrival() }
                 DevButton("운전자 기준값 초기화") { coordinator.resetBaseline() }
                 DevButton("여정 끝내기") { coordinator.endSession() }
             }
@@ -201,6 +220,17 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
         }
     }
 }
+
+private fun restLabel(state: RestCareController.State?, distanceM: Int?): String = when (state) {
+    null -> "없음"
+    is RestCareController.State.Offered -> "권유 중 · ${state.suggestion?.name ?: "고를 곳 없음"}"
+    is RestCareController.State.Heading ->
+        "가는 중 · ${state.suggestion.name} ${distanceM?.let { km(it) } ?: ""} (${state.suggestion.source.label}) · 근접 알림 ${if (state.alertRegistered) "요청" else "없음 — 주차하면 도착"}" +
+            (state.suggestion.area?.let { " · 도착 시험 geo fix ${it.longitude} ${it.latitude}" } ?: "")
+    is RestCareController.State.Arrived -> "도착 (${state.trigger}) · 주차 후 다시 주행하면 끝"
+}
+
+private fun km(m: Int): String = if (m >= 1_000) "%.1fkm".format(m / 1000.0) else "${m}m"
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {

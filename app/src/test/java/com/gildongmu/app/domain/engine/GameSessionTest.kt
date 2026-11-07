@@ -16,6 +16,8 @@ import com.gildongmu.app.domain.model.Question
 import com.gildongmu.app.domain.model.RegionInfo
 import com.gildongmu.app.domain.model.RoundPlan
 import com.gildongmu.app.domain.model.SessionPlan
+import com.gildongmu.app.domain.rest.RestStopKind
+import com.gildongmu.app.domain.rest.RestStopSuggestion
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
@@ -96,6 +98,20 @@ class GameSessionTest {
         var stage1 = 0
         var summary: SessionSummary? = null
         val logs = mutableListOf<String>()
+        var restSuggestion: RestStopSuggestion? = null
+        val stage2Offers = mutableListOf<RestStopSuggestion?>()
+        val restDecisions = mutableListOf<Boolean>()
+        override fun suggestRestStop(): RestStopSuggestion? = restSuggestion
+        override fun onStage2(driver: Player, suggestion: RestStopSuggestion?) {
+            stage2Offers += suggestion
+        }
+        override fun onRestDecision(suggestion: RestStopSuggestion?, accepted: Boolean) {
+            restDecisions += accepted
+        }
+        var restHolds = 0
+        override fun onRestHold() {
+            restHolds++
+        }
         override fun onVoiceRoundActive(active: Boolean) {
             voiceRound += active
         }
@@ -172,6 +188,132 @@ class GameSessionTest {
         assertEquals(2, s.drowsy.difficultyCap)
         assertTrue(speech.spoken.any { it.contains("운전 오래 하셨죠?") })
         assertTrue(rec.logs.any { it.contains("샘플 제외") })
+        job.cancel()
+    }
+
+    private val osan = RestStopSuggestion("오산 졸음쉼터", RestStopKind.SHELTER, 12_000, "경부선 부산 방향", RestStopSuggestion.Source.TABLE, null)
+
+    @Test
+    fun stage2_offersRest_andVoiceYesAccepts() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { if (it.yesNo) "네" else it.correctAnswer }
+        val rec = Recorder().apply { restSuggestion = osan }
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 6), DriverBaseline(1500.0, 0.9, 10))
+        s.requestStage2() // 디버그 "2단계 시험": 다음 운전자 답 뒤
+        val job = launch { s.run() }
+        advanceTimeBy(30_000)
+        assertEquals(listOf<RestStopSuggestion?>(osan), rec.stage2Offers)
+        assertEquals(listOf(true), rec.restDecisions)
+        assertTrue(speech.spoken.any { it.contains("잠깐 쉬어 갈까요?") && it.contains("경부선 부산 방향 오산 졸음쉼터가 12킬로미터 앞에 있어요.") })
+        assertTrue(speech.spoken.any { it.contains("좋아요. 오산 졸음쉼터에서 쉬어 가요") })
+        assertEquals("2단계도 난이도 상한 -1", 2, s.drowsy.difficultyCap)
+        job.cancel()
+    }
+
+    @Test
+    fun stage2_screenButtonBeatsVoice_andDeclines() = runTest {
+        val env = Env(this)
+        // 두 번째 듣기(네/아니요)는 7초 뒤에야 답한다 → 그 전에 화면 "괜찮아요"
+        val speech = FakeSpeech(env.clock, listOf(1500L, 7000L)) { if (it.yesNo) "네" else it.correctAnswer }
+        val rec = Recorder().apply { restSuggestion = osan }
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 6), DriverBaseline(1500.0, 0.9, 10))
+        s.requestStage2()
+        val job = launch { s.run() }
+        while (speech.spoken.none { it.contains("잠깐 쉬어 갈까요?") }) advanceTimeBy(100)
+        advanceTimeBy(1_000) // 질문을 다 말하고 듣는 중
+        assertTrue("듣는 중이면 버튼 답을 받는다", s.answerRestSuggestion(false))
+        advanceTimeBy(5_000)
+        assertEquals(listOf(false), rec.restDecisions)
+        assertTrue(speech.spoken.any { it.contains("알겠어요. 대신 다음 문제는 쉬운 걸로") })
+        assertTrue("질문이 끝나면 버튼은 세션이 아니라 컨트롤러가 받는다", !s.answerRestSuggestion(true))
+        job.cancel()
+    }
+
+    @Test
+    fun afterRest_greetsBeforeNextTurn_andResetsDifficulty() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { if (it.yesNo) "네" else it.correctAnswer }
+        val rec = Recorder().apply { restSuggestion = osan }
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 8), DriverBaseline(1500.0, 0.9, 10))
+        s.requestStage2()
+        val job = launch { s.run() }
+        while (rec.restDecisions.isEmpty()) advanceTimeBy(100)
+        s.onRestFinished()
+        advanceTimeBy(20_000)
+        assertEquals(3, s.drowsy.difficultyCap)
+        val greet = speech.spoken.indexOfFirst { it == "아빠, 잘 쉬셨나요? 다시 출발해요!" }
+        assertTrue("다음 차례 앞에 인사", greet >= 0 && speech.spoken.drop(greet + 1).any { it.contains("아빠 차례") })
+        job.cancel()
+    }
+
+    private val arrivedLine = "오산 졸음쉼터에 도착했어요. 차를 세우고 충분히 쉬었다 가요."
+
+    @Test
+    fun arrivalAnnouncement_holdsQuestions_untilRestFinished() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val rec = Recorder()
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 8))
+        val job = launch { s.run() }
+        advanceTimeBy(3_000) // 첫 문제를 듣는 중
+        s.announce(arrivedLine, holdAfter = true)
+        while (speech.spoken.none { it == arrivedLine }) advanceTimeBy(100)
+        val afterArrival = speech.spoken.size
+        advanceTimeBy(60_000)
+        assertEquals("도착 안내 뒤에는 다시 출발할 때까지 문제를 내지 않는다", afterArrival, speech.spoken.size)
+        assertEquals(1, rec.restHolds)
+        s.onRestFinished()
+        advanceTimeBy(10_000)
+        assertEquals("풀리면 인사부터", "아빠, 잘 쉬셨나요? 다시 출발해요!", speech.spoken[afterArrival])
+        assertTrue(speech.spoken.drop(afterArrival + 1).any { it.contains("아빠 차례") })
+        job.cancel()
+    }
+
+    @Test
+    fun arrivalHold_continueButtonResumesWithoutGreeting_andParkingWrapsRound() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val rec = Recorder()
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 8))
+        val job = launch { s.run() }
+        advanceTimeBy(3_000)
+        s.announce(arrivedLine, holdAfter = true)
+        while (speech.spoken.none { it == arrivedLine }) advanceTimeBy(100)
+        advanceTimeBy(5_000)
+        val held = speech.spoken.size
+        s.releaseRestHold() // 화면 "계속"
+        advanceTimeBy(3_000)
+        assertTrue("계속이면 바로 다음 문제", speech.spoken.drop(held).any { it.contains("아빠 차례") })
+        assertTrue(speech.spoken.none { it.contains("잘 쉬셨나요") })
+
+        // 다시 도착 안내 → 기다리는 중 정차(화면 게임 가능)하면 판을 마무리한다
+        s.announce(arrivedLine, holdAfter = true)
+        while (speech.spoken.count { it == arrivedLine } < 2) advanceTimeBy(100)
+        advanceTimeBy(1_000)
+        env.screen.value = true
+        advanceTimeBy(5_000)
+        assertEquals(listOf(true, false), rec.voiceRound)
+        job.cancel()
+    }
+
+    @Test
+    fun announcementDuringRest_isSpokenRightAway_withoutStartingNextRound() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val rec = Recorder()
+        val twoRounds = SessionPlan(
+            listOf(RoundPlan(0, GameKind.REGION_QUIZ, 360, 2, 3 * 3600), RoundPlan(1, GameKind.REGION_QUIZ, 360, 2, 3600)),
+            basisRemainSec = 3 * 3600,
+        )
+        val s = session(env, speech, rec, listOf(driver), twoRounds)
+        val job = launch { s.run() }
+        advanceTimeBy(60_000)
+        assertEquals("1판 뒤 쉬는 시간", SessionPhase.RESTING, s.state.value.phase)
+        s.announce("아빠, 잘 쉬셨나요? 다시 출발해요!")
+        advanceTimeBy(5_000)
+        assertTrue(speech.spoken.last() == "아빠, 잘 쉬셨나요? 다시 출발해요!")
+        assertEquals("다음 판은 아직 시작하지 않는다", SessionPhase.RESTING, s.state.value.phase)
+        assertEquals(1, s.state.value.roundIndex)
         job.cancel()
     }
 

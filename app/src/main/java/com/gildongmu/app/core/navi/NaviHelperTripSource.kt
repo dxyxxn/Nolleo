@@ -21,8 +21,13 @@ import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import android.content.Context
 import com.gildongmu.app.core.SdkStatus
 import com.gildongmu.app.core.log.AppLog
+import com.gildongmu.app.domain.model.GeoPoint
 import com.gildongmu.app.domain.model.NaviStatus
 import com.gildongmu.app.domain.model.TripSourceKind
+import com.gildongmu.app.domain.rest.RestStopKind
+import com.gildongmu.app.domain.rest.RouteRestStop
+import com.gildongmu.app.domain.rest.RouteRestStops
+import com.gildongmu.app.domain.rest.TbtItem
 import com.gildongmu.app.domain.model.TurnHint
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -70,6 +75,10 @@ class NaviHelperTripSource(context: Context) : TripSource {
     val naviStatus: StateFlow<NaviStatus?> = _naviStatus.asStateFlow()
     private val navStatus: NaviStatus? get() = _naviStatus.value
 
+    /** 마지막 TBT 목록의 경로 위 휴게소·졸음쉼터(그때 기준 거리)와 그때의 남은 거리 — 이후 남은 거리가 준 만큼 앞당긴다 */
+    private var tbtStops: List<RouteRestStop>? = null
+    private var remainAtTbt: Int? = null
+
     private val listener = object : NaviHelperEventListener {
         override fun onRouteStarted(routeStartInfo: RouteStartInfo) {
             val distance = TripUnits.distanceM(routeStartInfo.distance)
@@ -82,6 +91,7 @@ class NaviHelperTripSource(context: Context) : TripSource {
             if (sec > 0) _activeNaviDestination.value = _snapshot.value
             _events.tryEmit(TripEvent.RouteStarted(sec))
             runCall("getDestinationInfo") { helper?.getDestinationInfo() }
+            refreshTbt() // 경로 위 휴게소·졸음쉼터 목록
         }
 
         override fun onRoutingCompleted() {
@@ -95,12 +105,14 @@ class NaviHelperTripSource(context: Context) : TripSource {
             val sec = TripUnits.remainTimeSec(destinationInfo.remainTime, distance)
             AppLog.i(TAG, "onDestinationInfo raw remainTime=${destinationInfo.remainTime} remainDistance=${destinationInfo.remainDistance} → ${sec}s")
             mark("onDestinationInfo")
-            if (destinationInfo.remainTime <= 0 && destinationInfo.remainDistance <= 0) {
+            if (TripUnits.isNoRoute(destinationInfo.remainTime, destinationInfo.remainDistance)) {
                 // 경로가 없을 때도 0/0 으로 응답한다 (에뮬레이터 관측) → 유효한 남은 시간으로 쓰지 않는다
                 _activeNaviDestination.value = null
                 return
             }
             update(name = destinationInfo.name, remainSec = sec, distanceM = distance)
+            // 목적지 좌표: 진행 방향을 모를 때 "목적지 쪽"을 진행 방향으로 쓴다 (졸음쉼터 고르기)
+            _snapshot.update { it?.copy(destination = GeoPoint(destinationInfo.latitude, destinationInfo.longitude)) }
             // 길 안내가 없다고 확인된 상태(FREE_DRIVE·INACTIVE)만 빼고 홈 카드를 최신 남은 시간으로 갱신
             if (navStatus != NaviStatus.FREE_DRIVE && navStatus != NaviStatus.INACTIVE) {
                 _activeNaviDestination.value = _snapshot.value
@@ -112,6 +124,9 @@ class NaviHelperTripSource(context: Context) : TripSource {
             val distance = TripUnits.distanceM(dest.distance)
             val sec = TripUnits.durationSec(dest.duration, distance)
             mark("onDrivingInfo")
+            // 새 경로를 요청해 내비가 이전 경로를 취소한 직후(FREE_DRIVE)에는 0/0 이 온다 — 남은 시간 0 으로 쓰면
+            // 막 시작한 게임이 곧바로 "도착"으로 끝난다 (11/7 에뮬레이터에서 재현) → onDestinationInfo 와 같은 규칙으로 무시
+            if (TripUnits.isNoRoute(dest.duration, dest.distance)) return
             // onDestinationInfo 가 주 신호. 아직 값이 없을 때만 보조로 쓴다.
             if (_snapshot.value?.remainTimeSec == null) update(name = dest.name, remainSec = sec, distanceM = distance)
         }
@@ -127,6 +142,7 @@ class NaviHelperTripSource(context: Context) : TripSource {
                 runCall("getDestinationInfo") { helper?.getDestinationInfo() }
             } else {
                 _activeNaviDestination.value = null
+                if (next == NaviStatus.FREE_DRIVE || next == NaviStatus.INACTIVE) clearRestStops()
             }
         }
 
@@ -140,7 +156,19 @@ class NaviHelperTripSource(context: Context) : TripSource {
                     needsAttention = it.type.needsAttention(),
                 )
             }
-            _snapshot.update { it?.copy(nextTurn = hint) }
+            // 경로 위 휴게소·졸음쉼터 — 졸음 케어 2단계는 이 목록에서 고른다 (distance 는 구간 거리라 누적, RouteRestStops)
+            // 빈 목록은 "경로 없음"(경로를 다시 잡는 중 등)이다 — "경로 위에 쉼 장소 없음"과 구별해 null
+            val stops = tbtInfoList.takeIf { it.isNotEmpty() }
+                ?.let { list -> RouteRestStops.fromTbt(list.map { TbtItem(it.type.name, it.distance, it.description) }) }
+            tbtStops = stops
+            remainAtTbt = _snapshot.value?.remainDistanceM
+            AppLog.i(
+                TAG,
+                "onTBTInfo ${tbtInfoList.size}개 · 경로 위 휴게소 ${stops?.count { it.kind == RestStopKind.SERVICE_AREA } ?: 0}곳 · " +
+                    "졸음쉼터 ${stops?.count { it.kind == RestStopKind.SHELTER } ?: 0}곳",
+            )
+            stops?.let { AppLog.sensitive(TAG, "TBT.restStops", it.joinToString { s -> "${s.name} ${s.distanceM}m" }) }
+            _snapshot.update { it?.copy(nextTurn = hint, restStopsAhead = stops) }
         }
 
         override fun onCurrentLocationInfo(currentLocationInfo: CurrentLocationInfo) {
@@ -160,6 +188,7 @@ class NaviHelperTripSource(context: Context) : TripSource {
             AppLog.i(TAG, "onRouteCancelled")
             mark("onRouteCancelled")
             _activeNaviDestination.value = null
+            clearRestStops()
             _events.tryEmit(TripEvent.Cancelled)
         }
 
@@ -173,13 +202,13 @@ class NaviHelperTripSource(context: Context) : TripSource {
         // (이벤트 목록은 샘플 NaviHelperViewModel 기준)
         override fun onDestinationChanged() = refreshOn("onDestinationChanged")
 
-        override fun onReRouteEnded() = refreshOn("onReRouteEnded")
+        override fun onReRouteEnded() = refreshOn("onReRouteEnded", tbt = true)
 
-        override fun onRouteOptionChanged(routeOption: RouteOption) = refreshOn("onRouteOptionChanged $routeOption")
+        override fun onRouteOptionChanged(routeOption: RouteOption) = refreshOn("onRouteOptionChanged $routeOption", tbt = true)
 
-        override fun onWaypointChanged(waypointChangedInfo: WaypointChangedInfo) = refreshOn("onWaypointChanged")
+        override fun onWaypointChanged(waypointChangedInfo: WaypointChangedInfo) = refreshOn("onWaypointChanged", tbt = true)
 
-        override fun onWayPointArrived(waypointArrivedInfo: WaypointArrivedInfo) = refreshOn("onWayPointArrived")
+        override fun onWayPointArrived(waypointArrivedInfo: WaypointArrivedInfo) = refreshOn("onWayPointArrived", tbt = true)
 
         override fun onRouteStateInfo(routeStateInfo: RouteStateInfo) {
             AppLog.i(TAG, "onRouteStateInfo isRouting=${routeStateInfo.isRouting} mode=${routeStateInfo.naviMode}")
@@ -231,6 +260,8 @@ class NaviHelperTripSource(context: Context) : TripSource {
             _events.tryEmit(TripEvent.Error("NaviHelper 미연결"))
             return
         }
+        tbtStops = null
+        remainAtTbt = null
         _snapshot.value = TripSnapshot(
             destinationName = preset.poiName,
             remainTimeSec = null,
@@ -268,6 +299,26 @@ class NaviHelperTripSource(context: Context) : TripSource {
         runCall("getDestinationInfo") { helper?.getDestinationInfo() }
     }
 
+    /** TBT 목록 다시 조회 (결과는 onTBTInfo) — 경로가 바뀌었을 때만 (주기 조회는 하지 않는다) */
+    private fun refreshTbt() {
+        if (_status.value != SdkStatus.Available) return
+        runCall("getTBTInfo") { helper?.getTBTInfo() }
+    }
+
+    private fun clearRestStops() {
+        tbtStops = null
+        remainAtTbt = null
+        _snapshot.update { it?.copy(restStopsAhead = null) }
+    }
+
+    /** 마지막 TBT 뒤로 남은 거리가 준 만큼 경로 위 쉼 장소를 앞당긴다 (내비가 TBT 를 자주 보내지 않아도 거리가 맞게) */
+    private fun currentRestStops(remainNow: Int?): List<RouteRestStop>? {
+        val stops = tbtStops ?: return null
+        if (remainAtTbt == null && remainNow != null) remainAtTbt = remainNow
+        val base = remainAtTbt ?: return stops
+        return if (remainNow == null) stops else RouteRestStops.advance(stops, base - remainNow)
+    }
+
     override fun stop() {
         val h = helper ?: return
         runCall("removeListener") { h.removeListener(listener) }
@@ -278,11 +329,13 @@ class NaviHelperTripSource(context: Context) : TripSource {
 
     private fun update(name: String?, remainSec: Int?, distanceM: Int?) {
         _snapshot.update { current ->
+            val remainDistance = distanceM ?: current?.remainDistanceM
             (current ?: emptySnapshot()).copy(
                 destinationName = name?.takeIf { it.isNotBlank() } ?: current?.destinationName.orEmpty(),
                 remainTimeSec = remainSec ?: current?.remainTimeSec,
-                remainDistanceM = distanceM ?: current?.remainDistanceM,
+                remainDistanceM = remainDistance,
                 navStatus = navStatus,
+                restStopsAhead = currentRestStops(remainDistance),
             )
         }
     }
@@ -299,10 +352,11 @@ class NaviHelperTripSource(context: Context) : TripSource {
         _lastEventLabel.value = label
     }
 
-    private fun refreshOn(event: String) {
+    private fun refreshOn(event: String, tbt: Boolean = false) {
         AppLog.i(TAG, "$event → 남은 시간 다시 조회")
         mark(event)
         refresh()
+        if (tbt) refreshTbt()
     }
 
     private inline fun runCall(label: String, action: () -> Unit) {

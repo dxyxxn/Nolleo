@@ -2,10 +2,12 @@ package com.gildongmu.app.core.navi
 
 import com.gildongmu.app.core.SdkStatus
 import com.gildongmu.app.core.log.AppLog
+import com.gildongmu.app.domain.model.GeoMath
 import com.gildongmu.app.domain.model.GeoPoint
 import com.gildongmu.app.domain.model.NaviStatus
 import com.gildongmu.app.domain.model.TripSourceKind
 import com.gildongmu.app.domain.model.TurnHint
+import com.gildongmu.app.domain.rest.RouteRestStop
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -19,8 +21,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-/** 시뮬레이션 여정이 지나는 현재 지점 (SimulatedLocationSource 가 따라간다). */
-data class SimPosition(val point: GeoPoint, val regionCode: String, val label: String)
+/**
+ * 시뮬레이션 여정이 지나는 현재 지점. 지역·이름은 마지막으로 지난 경유 지점 기준이고,
+ * [point] 는 다음 경유 지점까지 시간 비율로 옮겨 간 위치, [headingDeg] 는 그 구간의 진행 방향이다(졸음쉼터 고르기).
+ */
+data class SimPosition(val point: GeoPoint, val regionCode: String, val label: String, val headingDeg: Double? = null)
 
 /**
  * 내비 미탑재·이벤트 없음 환경에서 같은 UI 흐름을 끝까지 시연하기 위한 여정 (지시서 §10).
@@ -140,12 +145,29 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
                 nextTurn = it?.nextTurn,
                 addressHint = null,
                 timeScale = timeScale.value,
+                destination = GeoPoint(p.latitude, p.longitude),
+                restStopsAhead = restStopsAhead(p),
             )
         }
-        val waypoint = p.timeline.lastOrNull { it.atMin * 60 <= elapsedTripSec } ?: p.timeline.first()
-        val current = _position.value
-        if (current == null || current.label != waypoint.label) {
-            _position.value = SimPosition(GeoPoint(waypoint.latitude, waypoint.longitude), waypoint.regionCode, waypoint.label)
+        val index = p.timeline.indexOfLast { it.atMin * 60 <= elapsedTripSec }.coerceAtLeast(0)
+        val from = p.timeline[index]
+        val to = p.timeline.getOrNull(index + 1)
+        val fromPoint = GeoPoint(from.latitude, from.longitude)
+        val point = if (to == null) fromPoint else {
+            val span = ((to.atMin - from.atMin) * 60).coerceAtLeast(1)
+            GeoMath.lerp(fromPoint, GeoPoint(to.latitude, to.longitude), (elapsedTripSec - from.atMin * 60) / span)
+        }
+        val heading = to?.let { GeoMath.bearingDeg(fromPoint, GeoPoint(it.latitude, it.longitude)) } ?: _position.value?.headingDeg
+        _position.value = SimPosition(point, from.regionCode, from.label, heading)
+    }
+
+    /** 경로 위 휴게소·졸음쉼터 중 아직 지나지 않은 곳 (지금까지 간 거리 = 간 시간 비율 × 내비 경로 거리) */
+    private fun restStopsAhead(p: DestinationPreset): List<RouteRestStop>? {
+        val stops = p.restStops ?: return null
+        val travelledM = if (p.estimatedSec == 0) 0.0 else elapsedTripSec / p.estimatedSec * p.routeKm * 1000
+        return stops.mapNotNull { s ->
+            val d = (s.km * 1000 - travelledM).toInt()
+            if (d > 0) RouteRestStop(s.name, s.kind, d) else null
         }
     }
 

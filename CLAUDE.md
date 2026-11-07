@@ -55,7 +55,7 @@ These are large. Importing them with `@` would load them into every session, so 
 
 An Android workspace for building an app on **Pleos** (an Android-based in-vehicle platform) using the Pleos Playground SDKs. It contains two unrelated kinds of Gradle builds:
 
-- **Root project (`./`, module `:app`)** — the app under development: **길동무 (Gildongmu)**, package `com.gildongmu.app`, Jetpack Compose UI, all five Pleos SDKs wired in. See `README.md` (architecture, SDK usage table) and `docs/state/` (latest work status and TODOs).
+- **Root project (`./`, module `:app`)** — the app under development: **길동무 (Gildongmu)**, package `com.gildongmu.app`, Jetpack Compose UI, all five Pleos SDKs wired in. See `README.md` (architecture, SDK usage table), `docs/FEATURE_GUIDE.md` (every feature and how to verify it on the emulator — keep it in sync when behaviour changes) and `docs/state/` (latest work status and TODOs).
 - **`pleos-example/`** — three self-contained reference apps, each its own git repo with its own Gradle wrapper. They are **not** included in the root build; build them from their own directories. Treat them as reference material for how to call each SDK.
     - `pleos-sample-vehicle-app` — Vehicle SDK (`ai.pleos.playground:Vehicle:2.3.2`): vehicle properties (door, HVAC, seat, window, …). Most detailed README; the typed Door Position flow is the canonical integration reference.
     - `pleos-sample-navi-app` — NaviHelper SDK (`ai.pleos.playground:NaviHelper:3.0.5`): route requests and navigation events, sent via NaviService to the default navigation app. Uses Hilt + kapt.

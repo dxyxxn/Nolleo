@@ -9,6 +9,7 @@ import com.gildongmu.app.domain.model.GameKind
 import com.gildongmu.app.domain.model.GameMode
 import com.gildongmu.app.domain.model.Player
 import com.gildongmu.app.domain.model.SessionPlan
+import com.gildongmu.app.domain.rest.RestStopSuggestion
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -32,6 +33,18 @@ class SessionInputs(
 interface SessionCallbacks {
     fun onVoiceRoundActive(active: Boolean)
     fun onStage1(driver: Player, newDifficultyCap: Int)
+
+    /** 졸음 케어 2단계 — 권할 쉼 장소 (진행 방향 앞쪽 졸음쉼터 / 내비 경로 위 쉼터). 없으면 null */
+    fun suggestRestStop(): RestStopSuggestion? = null
+
+    /** 2단계가 걸려 휴식을 권하기 시작함 (화면 카드 표시) */
+    fun onStage2(driver: Player, suggestion: RestStopSuggestion?) = Unit
+
+    /** 휴식 권유에 대한 답: 수락이면 게임을 쉬고 도착 감지를 시작한다 */
+    fun onRestDecision(suggestion: RestStopSuggestion?, accepted: Boolean) = Unit
+
+    /** 졸음쉼터 도착 안내를 말했다 — 다시 출발할 때까지 게임을 쉬게 한다 (화면은 일시정지로) */
+    fun onRestHold() = Unit
     fun onSnapshot(snapshot: SessionSnapshot)
     fun onFinished(summary: SessionSummary)
     fun log(message: String)
@@ -86,6 +99,8 @@ data class SessionSummary(
     val roundsPlayed: List<GameKind>,
     val stage1Count: Int,
     val longestChain: Int,
+    /** 졸음 케어 2단계로 쉬어 가기를 권한 횟수 */
+    val stage2Count: Int = 0,
     /** 도착 전에 사용자가 "게임 끝내기"로 끝냄 */
     val endedByUser: Boolean = false,
 ) {

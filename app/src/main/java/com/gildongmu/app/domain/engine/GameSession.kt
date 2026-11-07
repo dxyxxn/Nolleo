@@ -1,6 +1,7 @@
 package com.gildongmu.app.domain.engine
 
 import com.gildongmu.app.core.Clock
+import com.gildongmu.app.core.speech.ListenHint
 import com.gildongmu.app.core.speech.SttEvent
 import com.gildongmu.app.domain.drowsy.DrowsinessMonitor
 import com.gildongmu.app.domain.drowsy.ResponseSample
@@ -32,6 +33,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -99,6 +102,128 @@ class GameSession(
     /** "다음 판 지금 시작" 버튼 */
     fun requestNextRoundNow() {
         skipWait.value = true
+    }
+
+    // ── 졸음 케어 2단계 (휴식 권유) ─────────────────────────────
+
+    private val restDecision = MutableStateFlow<Boolean?>(null)
+    @Volatile private var awaitingRestDecision = false
+    @Volatile private var forceStage2 = false
+    /** 한 번 말할 안내(졸음쉼터 도착·다시 출발). 판 사이 쉬는 시간에도 VOICE 가 되면 바로 말한다 */
+    private data class Announcement(val line: String, val holdAfter: Boolean)
+    private val announcement = MutableStateFlow<Announcement?>(null)
+
+    /** 쉼터 도착 안내 뒤 "쉬는 중" — 다시 출발([onRestFinished])하거나 계속([releaseRestHold])을 누를 때까지 문제를 내지 않는다 */
+    private val restHold = MutableStateFlow(false)
+
+    /** @return 도착 안내 뒤 쉬었다 왔으면 true — 호출한 쪽은 정차·도착 여부를 다시 확인한다 */
+    private suspend fun sayPendingAnnouncement(): Boolean {
+        val a = announcement.value ?: return false
+        announcement.value = null
+        say(a.line, SessionPhase.FEEDBACK)
+        if (a.holdAfter) holdForRest()
+        return a.holdAfter
+    }
+
+    /**
+     * 쉼터에 도착했다고 말한 직후 바로 다음 문제를 내지 않도록 기다린다. 정차해서 화면 게임이 열리면(판 마무리) 또는
+     * 곧 도착이면 기다림을 끝내 호출한 쪽이 판을 정리하게 둔다. 다시 출발해서 풀리면 "잘 쉬셨나요?"부터 말한다.
+     */
+    private suspend fun holdForRest() {
+        restHold.value = true
+        callbacks.onRestHold()
+        callbacks.log("RestHold: 쉼터 도착 안내 뒤 다시 출발할 때까지 대기")
+        val (held, _) = combine(restHold, inputs.screenAvailable, inputs.remainSec) { h, s, r -> h to (s || arrival(r)) }
+            .first { (h, leave) -> !h || leave }
+        if (!held && awaitVoice()) sayPendingAnnouncement()
+    }
+
+    /** 디버그 패널 "2단계 시험": 다음 운전자 답 뒤에 2단계를 낸다 */
+    fun requestStage2() {
+        forceStage2 = true
+        callbacks.log("Drowsiness: 2단계 시험 예약 (다음 운전자 답 뒤)")
+    }
+
+    /** 화면의 "쉬어 가기"/"괜찮아요" 버튼. 음성 질문을 기다리는 중이면 그 답으로 쓰고 true */
+    fun answerRestSuggestion(accept: Boolean): Boolean {
+        if (!awaitingRestDecision) return false
+        restDecision.value = accept
+        return true
+    }
+
+    /**
+     * 다음 차례 앞에 한 번 말할 안내 (마지막 것만 남긴다).
+     * @param holdAfter 말한 뒤 다시 출발할 때까지 게임을 쉰다 (졸음쉼터 도착 안내)
+     */
+    fun announce(line: String, holdAfter: Boolean = false) {
+        announcement.value = Announcement(line, holdAfter)
+    }
+
+    /** 졸음쉼터에서 쉬고 다시 출발: 응답 창·난이도를 처음으로 되돌리고 인사한다 */
+    fun onRestFinished() {
+        drowsy.resetAfterRest()
+        _state.update { it.copy(difficultyCap = drowsy.difficultyCap) }
+        announce("${driver.name}, 잘 쉬셨나요? 다시 출발해요!")
+        restHold.value = false
+        callbacks.log("Drowsiness: 휴식 후 다시 출발 → 응답 창·난이도 초기화")
+    }
+
+    /** 쉼터에서 "계속"을 눌러 바로 이어 할 때 */
+    fun releaseRestHold() {
+        if (!restHold.value) return
+        restHold.value = false
+        callbacks.log("RestHold: 계속 → 바로 이어서")
+    }
+
+    private suspend fun offerRest(driver: Player, action: DrowsinessMonitor.Action.Stage2) {
+        callbacks.log("Drowsiness: Stage2 (${action.reason.label}) → 휴식 권유 + 경로 위 휴게소·졸음쉼터")
+        val suggestion = callbacks.suggestRestStop()
+        callbacks.onStage2(driver, suggestion)
+        if (suggestion == null) {
+            say("${driver.name}, 반응이 계속 느려졌어요. 가까운 졸음쉼터나 휴게소에서 잠깐 쉬어 가요.", SessionPhase.FEEDBACK)
+            callbacks.onRestDecision(null, false)
+            return
+        }
+        val accepted = askYesNo("${driver.name}, 반응이 계속 느려졌어요. ${suggestion.spokenTarget} 거기서 잠깐 쉬어 갈까요?")
+        callbacks.log("Stage2 응답: ${when (accepted) { true -> "네"; false -> "아니요"; null -> "응답 없음" }}")
+        // 수락하면 곧 게임이 쉬므로(PauseReason.REST_STOP) 안내 말을 먼저 하고 결정을 넘긴다
+        if (accepted == true) {
+            say("좋아요. ${suggestion.name}에서 쉬어 가요. 도착할 때까지 게임은 쉴게요.", SessionPhase.FEEDBACK)
+        } else {
+            say("알겠어요. 대신 다음 문제는 쉬운 걸로 갈게요. 피곤하면 언제든 쉬어 가요.", SessionPhase.FEEDBACK)
+        }
+        callbacks.onRestDecision(suggestion, accepted == true)
+    }
+
+    private data class Decision(val value: Boolean?)
+
+    /** 네/아니요 질문: 음성(STT) 또는 화면 버튼 중 먼저 온 답. 모르면 null */
+    private suspend fun askYesNo(prompt: String): Boolean? {
+        if (!awaitVoice()) return null
+        restDecision.value = null
+        awaitingRestDecision = true
+        try {
+            val hint = ListenHint(correctAnswer = "네", wrongAnswer = "아니요", forDriver = true, yesNo = true)
+            val result = interruptible {
+                _state.update { it.copy(phase = SessionPhase.ASKING, caption = prompt, mic = MicState.SPEAKING) }
+                speech.speak(prompt)
+                restDecision.value?.let { return@interruptible Decision(it) }
+                val t0 = clock.elapsedMs()
+                _state.update { it.copy(phase = SessionPhase.LISTENING, mic = MicState.LISTENING) }
+                val heard = flow {
+                    val r = AnswerCollector.collect(speech.listen(AnswerCollector.FIRST_SPEECH_TIMEOUT_MS, hint), t0, clock)
+                    r.text?.let { callbacks.logSensitive("heard(쉼터 안내)", it) }
+                    emit(YesNo.parse(r.text))
+                }
+                Decision(merge(heard, restDecision.filterNotNull()).first())
+            }
+            // speech.stop() 은 부르지 않는다: Pleos TTS 의 stop 은 비동기라 바로 이어지는 안내 말("좋아요…")을 끊는다.
+            // 버튼이 먼저 온 경우의 듣기는 merge 가 흐름을 취소하면서 멈춘다.
+            _state.update { it.copy(mic = MicState.IDLE, partial = null) }
+            return result?.value ?: restDecision.value
+        } finally {
+            awaitingRestDecision = false
+        }
     }
 
     /**
@@ -195,12 +320,28 @@ class GameSession(
                 turnsInRound = round.questionCount,
             )
         }
-        val result = waitFor { remain, mode, skip ->
-            arrival(remain) || (mode == GameMode.VOICE && (skip || first || remain == null || remain <= round.startAtRemainSec))
+        val waitPhase = if (first) SessionPhase.WAITING else SessionPhase.RESTING
+        while (true) {
+            val r = combine(inputs.remainSec, inputs.mode, skipWait, announcement) { remain, mode, skip, line ->
+                RoundWait(remain, mode, skip, line)
+            }.first { w ->
+                arrival(w.remain) ||
+                    (w.mode == GameMode.VOICE && (w.line != null || w.skip || first || w.remain == null || w.remain <= round.startAtRemainSec))
+            }
+            if (arrival(r.remain)) break
+            // 판 사이에는 게임으로 말을 걸지 않지만, 졸음쉼터 도착·다시 출발 안내 한 줄은 바로 한다
+            if (r.line != null) {
+                sayPendingAnnouncement()
+                setPhase(waitPhase)
+                callbacks.onVoiceRoundActive(false) // 쉬는 동안 오디오 포커스를 붙잡지 않는다
+            }
+            if (r.skip || first || r.remain == null || r.remain <= round.startAtRemainSec) break
         }
         skipWait.value = false
-        return !arrival(result.remain)
+        return !arrival(inputs.remainSec.value)
     }
+
+    private data class RoundWait(val remain: Int?, val mode: GameMode, val skip: Boolean, val line: Announcement?)
 
     /** VOICE 가 될 때까지 기다린다. 일시정지 중 정차(화면 게임 가능)·도착이면 false → 판 마무리 */
     private suspend fun awaitVoice(): Boolean {
@@ -254,6 +395,8 @@ class GameSession(
                 break
             }
             if (!awaitVoice()) break
+            // 졸음쉼터 도착·다시 출발 같은 안내는 다음 차례 앞에 한 번 말한다. 쉼터에서 쉬었다 왔으면 정차·도착부터 다시 본다
+            if (sayPendingAnnouncement()) continue
 
             val player = rotation[rotationIndex % rotation.size]
             val next = rotation[(rotationIndex + 1) % rotation.size]
@@ -293,13 +436,24 @@ class GameSession(
             applyScore(player, judgement)
             _state.update { it.copy(lastAnswer = AnswerLine(player.name, heard, judgement.label), partial = null) }
 
-            val action = if (player.isDriver) recordDrowsy(first, judgement, turn, eligible = !firstHumanTurn && !interrupted) else DrowsinessMonitor.Action.None
+            var action = if (player.isDriver) recordDrowsy(first, judgement, turn, eligible = !firstHumanTurn && !interrupted) else DrowsinessMonitor.Action.None
+            if (player.isDriver && forceStage2) {
+                forceStage2 = false
+                action = drowsy.forceStage2(clock.wallMs())
+            }
 
             say(judgement.feedback, SessionPhase.FEEDBACK)
-            if (action is DrowsinessMonitor.Action.Stage1) {
-                callbacks.onStage1(player, action.newDifficultyCap)
-                _state.update { it.copy(difficultyCap = action.newDifficultyCap) }
-                say("${player.name}, 운전 오래 하셨죠? 다음 문제는 조금 쉬운 걸로 가 볼게요.", SessionPhase.FEEDBACK)
+            when (action) {
+                is DrowsinessMonitor.Action.Stage1 -> {
+                    callbacks.onStage1(player, action.newDifficultyCap)
+                    _state.update { it.copy(difficultyCap = action.newDifficultyCap) }
+                    say("${player.name}, 운전 오래 하셨죠? 다음 문제는 조금 쉬운 걸로 가 볼게요.", SessionPhase.FEEDBACK)
+                }
+                is DrowsinessMonitor.Action.Stage2 -> {
+                    _state.update { it.copy(difficultyCap = action.newDifficultyCap) }
+                    offerRest(player, action)
+                }
+                DrowsinessMonitor.Action.None -> Unit
             }
 
             humanTurns++
@@ -332,6 +486,8 @@ class GameSession(
             if (interrupted) {
                 delay(RESUME_DELAY_MS)
                 if (inputs.mode.value != GameMode.VOICE) continue
+                // 쉬는 동안 생긴 안내(졸음쉼터 도착 등)는 같은 문제를 다시 내기 전에 말한다
+                if (sayPendingAnnouncement() && (inputs.screenAvailable.value || arrivalImminent())) return null
             }
             val prompt = if (interrupted) turn.prompt.ifBlank { turn.reprompt } else turn.prompt
             _state.update { it.copy(currentPlayer = turn.player, display = turn.display, shortDisplay = turn.shortDisplay, partial = null) }
@@ -493,6 +649,7 @@ class GameSession(
             roundsPlayed = s.roundsPlayed,
             stage1Count = drowsy.snapshot().stage1Count,
             longestChain = maxOf(longestChain, chain?.chainLength ?: 0),
+            stage2Count = drowsy.snapshot().stage2Count,
         )
     }
 

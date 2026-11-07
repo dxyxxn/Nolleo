@@ -26,6 +26,12 @@ object TripUnits {
 
     fun distanceM(raw: Int): Int = raw.coerceAtLeast(0)
 
+    /**
+     * 경로가 없을 때 내비가 보내는 0/0 (에뮬레이터 관측: 경로 없음 상태의 onDestinationInfo, 새 경로 요청으로 이전 경로가
+     * 취소된 직후의 onDrivingInfo). 남은 시간 0 으로 쓰면 진행 중인 게임이 곧바로 "도착"으로 끝나므로 무시한다.
+     */
+    fun isNoRoute(rawTime: Int, rawDistance: Int): Boolean = rawTime <= 0 && rawDistance <= 0
+
     private fun toSeconds(raw: Int, distanceM: Int?, label: String): Int {
         if (raw <= 0) return 0
         if (distanceM != null && distanceM > 2_000) {

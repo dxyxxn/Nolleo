@@ -89,6 +89,36 @@ class ContentAssetsTest {
     }
 
     @Test
+    fun restAreas_areDomesticHighwayRestStopsWithBothDirections() {
+        val areas = ContentParser.parseRestAreas(asset("content/rest_areas.json"))
+        assertTrue("전국 졸음쉼터 200곳 이상: ${areas.size}", areas.size >= 200)
+        areas.forEach { a ->
+            assertTrue("${a.name} 위도", a.latitude in 33.0..39.0)
+            assertTrue("${a.name} 경도", a.longitude in 124.0..132.0)
+            assertTrue("${a.name} 방위각", a.heading in 0..359)
+            assertTrue("${a.name} 기점≠종점", a.from != a.to)
+        }
+        // 시연 경로(경부선)에 양방향 쉼터가 있다
+        val gyeongbu = areas.filter { it.route == "경부선" }
+        assertTrue(gyeongbu.any { it.to == "부산" } && gyeongbu.any { it.to == "서울" })
+    }
+
+    @Test
+    fun serviceAreas_haveDirectionsAndFacilities() {
+        val infos = ContentParser.parseServiceAreas(asset("content/service_areas.json"))
+        assertTrue("휴게소 150곳 이상: ${infos.size}", infos.size >= 150)
+        assertTrue("수유실 정보", infos.count { "수유실" in it.amenities } >= 100)
+        assertTrue("수면실 정보(졸음 케어)", infos.any { "수면실" in it.amenities })
+        assertTrue("가족사랑 화장실 정보", infos.any { it.familyRestroom == true })
+        infos.forEach { i ->
+            assertTrue("${i.name} 이름에 '휴게소'·괄호가 남지 않는다", !i.name.contains("휴게소") && !i.name.contains("("))
+            assertTrue("${i.name} 방향 도시 좌표(통합 제외)", i.direction == "통합" || ((i.dirLat ?: 0.0) in 33.0..39.0 && (i.dirLng ?: 0.0) in 124.0..132.0))
+        }
+        // 시뮬 여정(서울 → 부산)의 경로 위 휴게소가 자료와 맞는다
+        listOf("기흥", "안성", "망향").forEach { n -> assertTrue("$n(부산)", infos.any { it.name == n && it.direction == "부산" }) }
+    }
+
+    @Test
     fun demoScripts_parse() {
         listOf("demo/answers_normal.json", "demo/answers_sleepy.json").forEach { path ->
             val entries = JSONObject(asset(path)).getJSONArray("entries")

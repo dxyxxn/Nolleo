@@ -1,9 +1,11 @@
 package com.gildongmu.app.core.navi
 
 import com.gildongmu.app.core.SdkStatus
+import com.gildongmu.app.domain.model.GeoPoint
 import com.gildongmu.app.domain.model.NaviStatus
 import com.gildongmu.app.domain.model.TripSourceKind
 import com.gildongmu.app.domain.model.TurnHint
+import com.gildongmu.app.domain.rest.RouteRestStop
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -18,6 +20,13 @@ data class TripSnapshot(
     val addressHint: String? = null,
     /** 여정 시간 / 실제 시간 배율. 실제 내비는 1, 시뮬레이션은 압축 배율 */
     val timeScale: Float = 1f,
+    /**
+     * 경로 위 휴게소·졸음쉼터 (지금부터의 거리, 경로 순서) — 내비 TBT(`TURN_ENTER_SERVICEAREA`·`TURN_RESTAREA`) 또는 시뮬 경로.
+     * null = 경로 정보 없음(길 안내 없음·아직 못 받음), 빈 목록 = 경로 위에 없음. 졸음 케어 2단계는 경로 위에서만 고른다
+     */
+    val restStopsAhead: List<RouteRestStop>? = null,
+    /** 목적지 좌표 — 진행 방향을 모를 때 "목적지 쪽"을 진행 방향으로 쓴다 */
+    val destination: GeoPoint? = null,
 )
 
 sealed interface TripEvent {
