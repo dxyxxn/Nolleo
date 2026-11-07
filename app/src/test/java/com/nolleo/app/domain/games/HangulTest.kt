@@ -55,8 +55,31 @@ class HangulTest {
 
     @Test
     fun allowedStarts_includesOriginalAndDueum() {
-        assertEquals(setOf('력', '역'), Hangul.allowedStarts('력'))
+        assertEquals(setOf('력', '녁', '역'), Hangul.allowedStarts('력'))
         assertEquals(setOf('과'), Hangul.allowedStarts('과'))
+    }
+
+    @Test
+    fun allowedStarts_isBidirectionalForRieulAndNieun() {
+        // ㄹ↔ㄴ (ㅏ·ㅐ·ㅗ·ㅚ·ㅜ·ㅡ)
+        assertEquals(setOf('래', '내'), Hangul.allowedStarts('래'))
+        assertEquals(setOf('내', '래'), Hangul.allowedStarts('내'))
+        assertEquals(setOf('노', '로'), Hangul.allowedStarts('노'))
+        // ㄹ·ㄴ·ㅇ (ㅕ·ㅛ·ㅠ·ㅣ) — 려↔여, 녀↔여, 리↔니↔이
+        assertEquals(setOf('려', '녀', '여'), Hangul.allowedStarts('려'))
+        assertEquals(setOf('녀', '려', '여'), Hangul.allowedStarts('녀'))
+        assertEquals(setOf('여', '려', '녀'), Hangul.allowedStarts('여'))
+        assertEquals(setOf('이', '리', '니'), Hangul.allowedStarts('이'))
+        // ㄹ↔ㅇ 만 (ㅑ·ㅖ — ㄴ 은 두음법칙 대상 아님)
+        assertEquals(setOf('야', '랴'), Hangul.allowedStarts('야'))
+        assertEquals(setOf('예', '례'), Hangul.allowedStarts('예'))
+        // 받침 유지
+        assertEquals(setOf('량', '양'), Hangul.allowedStarts('량'))
+        assertEquals(setOf('녁', '력', '역'), Hangul.allowedStarts('녁'))
+        assertEquals(setOf('낙', '락'), Hangul.allowedStarts('낙'))
+        // 대상이 아닌 음절·ㅇ 초성이지만 짝이 없는 음절
+        assertEquals(setOf('아'), Hangul.allowedStarts('아'))
+        assertEquals(setOf('기'), Hangul.allowedStarts('기'))
     }
 
     @Test

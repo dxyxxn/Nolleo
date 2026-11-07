@@ -8,9 +8,10 @@ import kotlin.random.Random
 
 /**
  * 끝말잇기: 앱 ↔ 운전자 ↔ 동승자 순서.
- *  - 마지막 음절로 시작 + 두음법칙(녀→여, 력→역, 라→나 …) + 사용 단어 중복 금지 + 2음절 이상
- *  - 사전에 없는 단어는 한 번 "다시 한번 말해 줄래요?" 후 관대하게 인정 (가족 게임; 로그에는 남긴다)
- *  - 앱 차례에는 다음 사람이 이을 수 있는 단어를 고른다(막다른 음절 회피). 이을 단어가 없으면 "제가 졌어요!"
+ *  - 마지막 음절로 시작 + 두음법칙 양방향(력↔역, 래↔내, 리↔니↔이 …, [Hangul.allowedStarts]) + 사용 단어 중복 금지 + 2음절 이상
+ *  - 사람 낱말은 검증용 사전으로 판정. 없으면 한 번 "다시 한번 말해 줄래요?" 후 관대하게 인정 (가족 게임; 로그에는 남긴다)
+ *  - 앱 차례에는 출제용 사전에서만, 졸음 케어 난이도 상한 안의 등급([WordLevel])으로, 다음 사람이 이을 수 있는 단어를 고른다
+ *    (막다른 음절 회피). 막다른 말밖에 없으면 [RESTART_LINE] 으로 새 낱말부터 다시, 이을 말이 아예 없으면 "제가 졌어요!"
  *  - 사람이 못 이으면 같은 음절이 다음 사람에게 넘어간다
  */
 class WordChainGame(
@@ -47,10 +48,17 @@ class WordChainGame(
 
     private fun appTurn(ctx: TurnContext): Turn {
         val required = requiredSyllable()
+        var restarted = false
         val word = if (required == null) {
-            dictionary.randomStarter(random, STARTERS)
+            dictionary.randomStarter(random, STARTERS, ctx.difficultyCap, exclude = used)
         } else {
-            dictionary.pickNext(required, used, random, avoidDeadEnd = true)
+            when (val pick = dictionary.pick(required, used, random, ctx.difficultyCap)) {
+                is WordDictionary.Pick.Word -> pick.word
+                // 이을 말이 다음 사람을 막다른 길로 모는 말뿐이면, 판을 끝내지 않고 새 낱말로 다시 시작한다
+                WordDictionary.Pick.OnlyDeadEnds -> dictionary.randomStarter(random, STARTERS, ctx.difficultyCap, exclude = used)
+                    ?.also { restarted = true }
+                WordDictionary.Pick.Nothing -> null
+            }
         }
         if (word == null) {
             appJustNamedNext = false
@@ -70,8 +78,8 @@ class WordChainGame(
         val next = word.last()
         return Turn(
             player = Player.APP,
-            prompt = "저는 '$word'! ${ctx.nextPlayer.name}, ${startsWithPhrase(next)} 시작하는 말!",
-            display = "놀레오: $word\n${startsWithPhrase(next)} 시작하는 말",
+            prompt = (if (restarted) "$RESTART_LINE " else "") + "저는 '$word'! ${ctx.nextPlayer.name}, ${startsWithPhrase(next)} 시작하는 말!",
+            display = (if (restarted) "놀레오: 다른 말로 다시 시작 — $word" else "놀레오: $word") + "\n${startsWithPhrase(next)} 시작하는 말",
             shortDisplay = "${syllableLabel(next)} 차례",
             expectsAnswer = false,
         )
@@ -83,7 +91,7 @@ class WordChainGame(
         val fullPrompt = "${startsWithPhrase(required)} 시작하는 말, ${ctx.player.name} 차례예요!"
         val prompt = if (appJustNamedNext) "" else fullPrompt
         appJustNamedNext = false
-        val sample = dictionary.pickNext(required, used, random, avoidDeadEnd = false)
+        val sample = dictionary.pickNext(required, used, random, avoidDeadEnd = false, difficultyCap = ctx.difficultyCap)
         return Turn(
             player = ctx.player,
             prompt = prompt,
@@ -165,5 +173,8 @@ class WordChainGame(
 
     companion object {
         val STARTERS = listOf("기차", "나무", "사과", "바다", "토끼", "구름", "우산", "고래", "하늘", "자동차", "바나나", "도토리")
+
+        /** 앱이 이을 말이 막다른 말뿐일 때 — 판을 끝내지 않고 새 낱말로 다시 시작한다 */
+        const val RESTART_LINE = "이 말은 잇기 어렵네요, 다른 말로 다시 시작할까요?"
     }
 }

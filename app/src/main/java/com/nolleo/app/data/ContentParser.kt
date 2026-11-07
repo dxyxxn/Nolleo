@@ -1,5 +1,6 @@
 package com.nolleo.app.data
 
+import com.nolleo.app.domain.games.WordLevel
 import com.nolleo.app.domain.model.IdiomChar
 import com.nolleo.app.domain.model.IdiomItem
 import com.nolleo.app.domain.model.Question
@@ -116,8 +117,22 @@ object ContentParser {
         }
     }
 
+    /** 한 줄에 한 낱말 (끝말잇기 검증용 words_ko_valid.txt) */
     fun parseWords(text: String): List<String> =
         text.lineSequence().map { it.trim().removePrefix(BOM) }.filter { it.isNotEmpty() && !it.startsWith("#") }.toList()
+
+    /**
+     * 끝말잇기 출제용 (words_ko_play.json): [{word, level, category, definition, from_team_list}] → 낱말·어휘 등급.
+     * 앱은 `word`·`level` 만 쓴다. 등급 표기를 모르면 중급으로 본다.
+     */
+    fun parsePlayWords(json: String): List<Pair<String, WordLevel>> {
+        val arr = JSONArray(json.removePrefix(BOM))
+        return (0 until arr.length()).mapNotNull { i ->
+            val o = arr.optJSONObject(i) ?: return@mapNotNull null
+            val word = o.optString("word").trim()
+            if (word.isEmpty()) null else word to (WordLevel.fromLabel(o.optString("level")) ?: WordLevel.INTERMEDIATE)
+        }
+    }
 
     private fun parseQuestions(arr: JSONArray, regionCode: String?): List<Question> =
         (0 until arr.length()).mapNotNull { i ->

@@ -6,6 +6,8 @@ import com.nolleo.app.core.location.RegionResolver
 import com.nolleo.app.core.speech.AnswerInput
 import com.nolleo.app.core.speech.AnswerScript
 import com.nolleo.app.core.speech.ScriptEntry
+import com.nolleo.app.domain.games.ValidWords
+import com.nolleo.app.domain.games.WordBlocklist
 import com.nolleo.app.domain.games.WordDictionary
 import com.nolleo.app.domain.model.GameContent
 import com.nolleo.app.domain.rest.RestArea
@@ -14,6 +16,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
@@ -27,6 +31,10 @@ class ContentRepository(context: Context) {
 
     private val _dictionary = MutableStateFlow<WordDictionary?>(null)
     val dictionary: StateFlow<WordDictionary?> = _dictionary.asStateFlow()
+
+    /** 끝말잇기 금칙어 — 출제용·검증용을 읽을 때 한 번 더 거른다 */
+    private var blocklist: WordBlocklist = WordBlocklist.EMPTY
+    private val validMutex = Mutex()
 
     private val _resolver = MutableStateFlow<RegionResolver?>(null)
     val resolverFlow: StateFlow<RegionResolver?> = _resolver.asStateFlow()
@@ -52,7 +60,12 @@ class ContentRepository(context: Context) {
         val idioms = readOrNull("content/quiz_idioms.json")
             ?.let { runCatching { ContentParser.parseIdioms(it) }.onFailure { e -> AppLog.e(TAG, "quiz_idioms parse", e) }.getOrNull() }
             .orEmpty()
-        val words = readOrNull("content/words_ko.txt")?.let { ContentParser.parseWords(it) }.orEmpty()
+        blocklist = readOrNull("content/words_blocklist.txt")?.let { WordBlocklist.parse(it) } ?: WordBlocklist.EMPTY
+        // 끝말잇기 출제용 — 금칙어를 한 번 더 거른다(사전 파일은 고치지 않는다). 검증용은 첫 판 시작 때 [loadValidWords]
+        val playAll = readOrNull("content/words_ko_play.json")
+            ?.let { runCatching { ContentParser.parsePlayWords(it) }.onFailure { e -> AppLog.e(TAG, "words_ko_play parse", e) }.getOrNull() }
+            .orEmpty()
+        val play = playAll.filterNot { blocklist.blocks(it.first) }
         _restAreas.value = readOrNull("content/rest_areas.json")
             ?.let { runCatching { ContentParser.parseRestAreas(it) }.onFailure { e -> AppLog.e(TAG, "rest_areas parse", e) }.getOrNull() }
             .orEmpty()
@@ -61,13 +74,32 @@ class ContentRepository(context: Context) {
             .orEmpty()
 
         _resolver.value = RegionResolver(regions)
-        _dictionary.value = WordDictionary(words)
+        val dictionary = WordDictionary(play.map { it.first }, play.toMap())
+        _dictionary.value = dictionary
         _content.value = GameContent(regions, regionQuiz, general, idioms)
         AppLog.i(
             TAG,
             "content loaded in ${System.currentTimeMillis() - started}ms: regions=${regions.size}, " +
-                "regionQuiz=${regionQuiz.values.sumOf { it.size }}, general=${general.size}, idioms=${idioms.size}, words=${_dictionary.value?.size}, restAreas=${_restAreas.value.size}, serviceAreas=${_serviceAreas.value.size}",
+                "regionQuiz=${regionQuiz.values.sumOf { it.size }}, general=${general.size}, idioms=${idioms.size}, " +
+                "playWords=${dictionary.size} (blocked ${playAll.size - play.size}), deadEndSyllables=${dictionary.deadEndSyllableCount}, " +
+                "restAreas=${_restAreas.value.size}, serviceAreas=${_serviceAreas.value.size}",
         )
+    }
+
+    /**
+     * 끝말잇기 검증용 낱말(약 19만 어)을 백그라운드에서 읽어 사전에 붙인다. 첫 판을 시작할 때 부른다(앱 실행을 늦추지 않으려고).
+     * 이미 붙었으면 아무것도 하지 않는다. 금칙어를 한 번 더 거른다.
+     */
+    suspend fun loadValidWords() = withContext(Dispatchers.IO) {
+        val dictionary = _dictionary.value ?: return@withContext
+        validMutex.withLock {
+            if (dictionary.hasValidation) return@withLock
+            val started = System.currentTimeMillis()
+            val all = readOrNull("content/words_ko_valid.txt")?.let { ContentParser.parseWords(it) } ?: return@withLock
+            val kept = all.filterNot { blocklist.blocks(it) }
+            dictionary.attachValidation(ValidWords.of(kept))
+            AppLog.i(TAG, "valid words loaded in ${System.currentTimeMillis() - started}ms: ${kept.size} (blocked ${all.size - kept.size})")
+        }
     }
 
     fun loadScript(input: AnswerInput): AnswerScript? {

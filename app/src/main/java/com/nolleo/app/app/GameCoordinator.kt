@@ -297,6 +297,8 @@ class GameCoordinator(private val c: AppContainer) {
         val players = buildPlayers(h)
         activeDriverId = h.driverId
         updateSettings { it.copy(lastPresetId = h.presetId ?: it.lastPresetId, lastDriverId = h.driverId, lastPassengerCount = h.passengerCount, lastChoice = h.choice, lastPacing = h.pacing) }
+        // 끝말잇기 검증용 사전(약 19만 어)은 첫 판을 시작할 때 백그라운드에서 붙인다 — 세션 시작을 기다리게 하지 않는다
+        scope.launch { c.content.loadValidWords() }
         scope.launch {
             val baseline = c.preferences.loadBaseline(h.driverId)
                 ?: if (demo) DEMO_BASELINE.also { AppLog.i(TAG, "demo: seeded driver baseline ${it.latencyEmaMs.toLong()}ms") } else null
@@ -327,6 +329,7 @@ class GameCoordinator(private val c: AppContainer) {
         val content = c.content.content.value ?: return
         val dictionary = c.content.dictionary.value ?: return
         _restorable.value = null
+        scope.launch { c.content.loadValidWords() }
         scope.launch {
             activeDriverId = drivers.firstOrNull { d -> snap.players.firstOrNull { it.isDriver }?.name == d.name }?.id ?: 1
             val baseline = c.preferences.loadBaseline(activeDriverId) ?: if (snap.demo) DEMO_BASELINE else null

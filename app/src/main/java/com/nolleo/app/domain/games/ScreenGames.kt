@@ -232,7 +232,9 @@ class WordChainScreenGame(
             choices = choices,
             answerIndex = choices.indexOf(answer),
             speech = "'$word'! $phrase 시작하는 말을 골라 봐요.",
-            note = Hangul.dueum(syllable)?.let { "두음법칙으로 '$it'${Hangul.euro(it.toString()).drop(1)} 시작해도 돼요" },
+            // 정답이 다른 첫 음절(두음법칙 양방향)이면 그 음절을, 아니면 표준 두음법칙 음절을 알려 준다
+            note = (answer.first().takeIf { it != syllable } ?: Hangul.dueum(syllable))
+                ?.let { "두음법칙으로 '$it'${Hangul.euro(it.toString()).drop(1)} 시작해도 돼요" },
             revealLine = "$word → $answer",
         )
     }

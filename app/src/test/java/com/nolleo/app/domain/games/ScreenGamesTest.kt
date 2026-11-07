@@ -87,11 +87,17 @@ class ScreenGamesTest {
         assertEquals("힌트 ${q.id}", quiz.afterAnswer(q, true).last())
     }
 
-    private val words = ContentParser.parseWords(File("src/main/assets/content/words_ko.txt").readText(Charsets.UTF_8))
+    /** 앱과 같은 출제용 사전(금칙어를 거른 words_ko_play.json) */
+    private val words: WordDictionary by lazy {
+        val blocklist = WordBlocklist.parse(File("src/main/assets/content/words_blocklist.txt").readText(Charsets.UTF_8))
+        val play = ContentParser.parsePlayWords(File("src/main/assets/content/words_ko_play.json").readText(Charsets.UTF_8))
+            .filterNot { blocklist.blocks(it.first) }
+        WordDictionary(play.map { it.first }, play.toMap())
+    }
 
     @Test
     fun wordChain_exactlyOneChoiceContinues_andChainFollowsTheAnswer() {
-        val game = WordChainScreenGame(WordDictionary(words), Random(5))
+        val game = WordChainScreenGame(words, Random(5))
         var previousAnswer: String? = null
         repeat(30) { i ->
             val q = game.next()
@@ -110,7 +116,7 @@ class ScreenGamesTest {
 
     @Test
     fun wordChain_streakCountsAndResetsOnMiss() {
-        val game = WordChainScreenGame(WordDictionary(words), Random(6))
+        val game = WordChainScreenGame(words, Random(6))
         val q1 = game.next()!!
         game.answer(q1, q1.answerIndex)
         val q2 = game.next()!!

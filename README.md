@@ -16,7 +16,7 @@
 
 | 파일 | 설명 |
 |---|---|
-| [`apk/돈도아연_놀레오_release.apk`](apk/돈도아연_놀레오_release.apk) | 실행 가능한 **release** 빌드 (서명됨, `debuggable=false`, R8 최적화) · 약 23 MB |
+| [`apk/돈도아연_놀레오_release.apk`](apk/돈도아연_놀레오_release.apk) | 실행 가능한 **release** 빌드 (서명됨, `debuggable=false`, R8 최적화) · 약 24 MB |
 
 ---
 
@@ -133,7 +133,7 @@ com.nolleo.app
 ├─ domain/
 │  ├─ model/     DriveState · UxState · GameMode · PauseReason · TripContext · SessionPlan · Player · Question · GeoMath …
 │  ├─ engine/    DriveStateDeriver · ModeArbiter · ModeController · SessionPlanner · GameSession · AnswerMatcher · AnswerCollector · YesNo
-│  ├─ games/     VoiceGame · RegionQuizGame · WordChainGame · IdiomQuizGame · IdiomSpeech(읽기용 문장) · ScreenGames(정차 중 화면판: 사자성어 · 지역 퀴즈 · 끝말잇기) · WordDictionary · Hangul
+│  ├─ games/     VoiceGame · RegionQuizGame · WordChainGame · IdiomQuizGame · IdiomSpeech(읽기용 문장) · ScreenGames(정차 중 화면판: 사자성어 · 지역 퀴즈 · 끝말잇기) · WordDictionary(출제용·검증용) · WordBlocklist(금칙어) · Hangul(두음법칙)
 │  ├─ drowsy/    DrowsinessMonitor (1단계 말 걸기 · 2단계 쉬어 가기)
 │  └─ rest/      RouteRestStops(TBT → 경로 위 쉼 장소) · RestStopFinder(고르기·상하행 맞추기) · RestArea · ServiceAreaInfo · MotionHeading
 ├─ data/       ContentRepository(assets) · ContentParser · AppPreferences(DataStore) · SnapshotCodec
@@ -177,7 +177,7 @@ GameMode    IDLE(세션 없음) · VOICE(주행/정차/DO) · SCREEN(주차 && !
 ```bash
 ./gradlew lintDebug testDebugUnitTest assembleRelease
 ```
-- 단위 테스트 173개 — 모드 판정·판 짜기·게임 규칙(음성 판·정차 중 화면 게임)·졸음 케어·쉼 장소 고르기·콘텐츠 자산·저장본·내비 처리·창 배치 등
+- 단위 테스트 185개 — 모드 판정·판 짜기·게임 규칙(음성 판·정차 중 화면 게임)·졸음 케어·쉼 장소 고르기·콘텐츠 자산·저장본·내비 처리·창 배치 등
 - 사용량(release APK, 에뮬레이터 4코어, 11/8 측정 — 기기 전체 = 100% 기준): 주행 중 음성 게임 CPU 평균 0.2%·최대 0.5%, 정차 중 화면 게임 평균 0.1%·최대 0.3%, 메모리 PSS 44~64 MB, 첫 실행 0.91초. 기준(주행 중 CPU 5% 미만 · 정차 중 25% 이하 · RAM 400 MB 이하 · 실행 10초 이하) 안이다. 음성 합성은 Pleos 플랫폼 서비스가 따로 한다. 상황별 표는 `docs/WORK_STATUS.md` 1.18
 
 ## 7. 문서
@@ -190,6 +190,8 @@ GameMode    IDLE(세션 없음) · VOICE(주행/정차/DO) · SCREEN(주차 && !
 
 ### 콘텐츠 라이선스
 `app/src/main/assets/content/quiz_idioms.json`(사자성어 1,014문항)은 앱 소스 코드와 별개로 **CC BY-SA 4.0** 으로 배포합니다. 뜻풀이·유래 출처는 국립국어원 《표준국어대사전》(CC BY-SA 2.0 KR, https://stdict.korean.go.kr)이고, k1tech-ai-kr/k1-db-idioms(CC BY-SA 4.0)를 거쳐 가공했습니다. 한자 훈·음은 한국어문회 급수 한자(rycont/hanja-grade-dataset), libhangul 한자 사전(LGPL 2.1), Wiktionary(CC BY-SA 4.0), 팀 보충에서 가져왔습니다. 변경 사항과 자세한 출처는 [`docs/CONTENT_SOURCES.md`](docs/CONTENT_SOURCES.md)에 있습니다.
+
+끝말잇기 사전(`words_ko_valid.txt` 194,871어 · `words_ko_play.json` 7,882어)은 국립국어원 《표준국어대사전》·《한국어기초사전》(CC BY-SA 2.0 KR)에서 가져와 가공했고, 단어 목록 파일은 앱 코드와 별개로 **CC BY-SA 4.0** 으로 배포합니다.
 
 ## 8. release 서명 키 만들기 (직접 빌드할 때)
 ```bash

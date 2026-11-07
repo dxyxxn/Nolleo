@@ -71,10 +71,26 @@ object Hangul {
         return compose(j.copy(initial = newInitial))
     }
 
-    /** 끝말잇기에서 [lastSyllable] 다음에 올 수 있는 첫 음절들 = 원래 음절 + 두음법칙 변환 */
-    fun allowedStarts(lastSyllable: Char): Set<Char> = setOfNotNull(lastSyllable, dueum(lastSyllable))
+    /**
+     * 끝말잇기에서 [lastSyllable] 다음에 올 수 있는 첫 음절들 — 두음법칙을 ㄹ·ㄴ 초성 **양방향**으로 본다(받침 유지).
+     * 같은 중성·종성에서 ㄹ·ㄴ·ㅇ 초성 중 두음법칙을 적용한 꼴([dueum])이 같은 음절끼리 서로 잇는다:
+     * 래↔내, 력↔역↔녁, 리↔니↔이, 랴↔야. ㄴ·ㄹ·ㅇ 초성이 아니면 자기 자신뿐.
+     * 사람 답 판정과 막다른 음절 계산이 모두 이 함수를 쓴다.
+     */
+    fun allowedStarts(lastSyllable: Char): Set<Char> {
+        val j = decompose(lastSyllable) ?: return setOf(lastSyllable)
+        if (j.initial != I_NIEUN && j.initial != I_RIEUL && j.initial != I_IEUNG) return setOf(lastSyllable)
+        val base = dueum(lastSyllable) ?: lastSyllable
+        return buildSet {
+            add(lastSyllable)
+            for (initial in intArrayOf(I_RIEUL, I_NIEUN, I_IEUNG)) {
+                val t = compose(j.copy(initial = initial))
+                if ((dueum(t) ?: t) == base) add(t)
+            }
+        }
+    }
 
-    /** 끝말잇기 안내 음절: "'과'" / "'력'이나 '역'" (두음법칙 음절을 함께) */
+    /** 끝말잇기 안내 음절: "'과'" / "'력'이나 '역'" (표준 방향 두음법칙 음절만 함께 — 판정은 [allowedStarts] 로 양방향) */
     fun syllableLabel(s: Char): String {
         val alt = dueum(s) ?: return "'$s'"
         return "'$s'${if (hasBatchim(s)) "이나" else "나"} '$alt'"

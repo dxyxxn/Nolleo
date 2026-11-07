@@ -4,7 +4,15 @@ import com.nolleo.app.domain.engine.AnswerMatcher
 import com.nolleo.app.domain.games.Hangul
 import com.nolleo.app.domain.games.IdiomQuizGame
 import com.nolleo.app.domain.games.IdiomSpeech
+import com.nolleo.app.domain.games.Outcome
+import com.nolleo.app.domain.games.Turn
+import com.nolleo.app.domain.games.TurnContext
+import com.nolleo.app.domain.games.ValidWords
+import com.nolleo.app.domain.games.WordBlocklist
+import com.nolleo.app.domain.games.WordChainGame
 import com.nolleo.app.domain.games.WordDictionary
+import com.nolleo.app.domain.games.WordLevel
+import com.nolleo.app.domain.model.Player
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -24,9 +32,24 @@ class ContentAssetsTest {
     private val general = ContentParser.parseGeneralQuiz(asset("content/quiz_general.json"))
     private val idiomsJson = asset("content/quiz_idioms.json")
     private val idioms = ContentParser.parseIdioms(idiomsJson)
-    private val words = ContentParser.parseWords(asset("content/words_ko.txt"))
-
     private fun sentences(text: String) = text.split(Regex("(?<=[.?!])\\s*")).filter { it.isNotBlank() }
+
+    /** 끝말잇기 사전은 크니까(검증용 약 19만 줄) 클래스에서 한 번만 읽는다 */
+    companion object {
+        private fun read(path: String) = File("src/main/assets/$path").readText(Charsets.UTF_8)
+        private val validRaw by lazy { read("content/words_ko_valid.txt") }
+        private val validWords by lazy { ContentParser.parseWords(validRaw) }
+        private val playJson by lazy { read("content/words_ko_play.json") }
+        private val playWords by lazy { ContentParser.parsePlayWords(playJson) }
+        private val blocklist by lazy { WordBlocklist.parse(read("content/words_blocklist.txt")) }
+
+        /** 앱과 같은 방식: 금칙어를 거른 출제용 + 검증용을 붙인 사전 */
+        private val wordDictionary by lazy {
+            val play = playWords.filterNot { blocklist.blocks(it.first) }
+            WordDictionary(play.map { it.first }, play.toMap())
+                .also { d -> d.attachValidation(ValidWords.of(validWords.filterNot { blocklist.blocks(it) })) }
+        }
+    }
 
     @Test
     fun seventeenRegions_eachWithAtLeastEightQuestions() {
@@ -72,20 +95,73 @@ class ContentAssetsTest {
     }
 
     @Test
-    fun dictionary_hasAtLeast3000CleanNouns() {
-        assertTrue("단어 수 ${words.size}", words.size >= 3000)
-        assertEquals("중복 없음", words.size, words.toSet().size)
-        words.forEach { w -> assertTrue("2음절 이상 한글: $w", w.length >= 2 && w.all(Hangul::isSyllable)) }
-        val dict = WordDictionary(words)
-        assertEquals(words.size, dict.size)
+    fun wordChainFiles_lineCounts() {
+        assertEquals("검증용 줄 수", 194_871, validRaw.lineSequence().count { it.isNotBlank() })
+        assertEquals("출제용 항목 수", 7_882, JSONArray(playJson).length())
+        assertEquals("출제용 파싱", 7_882, playWords.size)
     }
 
     @Test
-    fun dictionary_coversCommonChainSyllables() {
-        val dict = WordDictionary(words)
-        listOf('기', '이', '리', '자', '지', '수', '사', '도', '구', '차').forEach { s ->
-            assertTrue("'$s' 로 이을 말", dict.continuationCount(s) >= 5)
+    fun wordChainFiles_cleanNouns_playInsideValid() {
+        assertEquals("검증용 중복 없음", validWords.size, validWords.toSet().size)
+        validWords.forEach { w -> assertTrue("검증용 2음절 이상 한글: $w", WordDictionary.isWord(w)) }
+        val playSet = playWords.map { it.first }
+        assertEquals("출제용 중복 없음", playSet.size, playSet.toSet().size)
+        playSet.forEach { w -> assertTrue("출제용 2음절 이상 한글: $w", WordDictionary.isWord(w)) }
+        val valid = validWords.toSet()
+        assertTrue("출제용은 모두 검증용 안에", playSet.all { it in valid })
+        // 등급 표기는 초급·중급·고급·팀목록 네 가지뿐
+        val arr = JSONArray(playJson)
+        val labels = (0 until arr.length()).map { arr.getJSONObject(it).getString("level") }.toSet()
+        assertEquals(WordLevel.entries.map { it.label }.toSet(), labels)
+    }
+
+    @Test
+    fun wordChain_blocklist_filtersBothSets_withoutEverydayFalsePositives() {
+        listOf("살인", "맥주", "담배", "바보", "거지", "이혼녀").forEach { assertTrue("금칙어: $it", blocklist.blocks(it)) }
+        listOf("술래", "술래잡기", "미술", "입술", "설거지", "사장님", "성교육", "시신경", "무기력", "얼음주머니", "고속도로", "주행거리", "물총")
+            .forEach { assertFalse("오탐: $it", blocklist.blocks(it)) }
+        assertTrue("출제용에서 빠진 말이 있다", playWords.count { blocklist.blocks(it.first) } > 0)
+        assertFalse("출제용에 금칙어가 남지 않는다", "살인" in wordDictionary.continuations('살'))
+        assertFalse("검증용에서도 빠진다", "살인" in wordDictionary)
+    }
+
+    @Test
+    fun wordChain_validAcceptsEverydayCompounds_rejectsNonStandard() {
+        assertTrue(wordDictionary.hasValidation)
+        assertTrue("고속도로" in wordDictionary)
+        assertTrue("주행거리" in wordDictionary)
+        assertTrue("가자미" in wordDictionary)
+        assertFalse("가재미(비표준어)", "가재미" in wordDictionary)
+    }
+
+    @Test
+    fun wordChain_nonStandardWord_isAskedAgainThenLenientlyAccepted() {
+        val lenient = mutableListOf<String>()
+        val driver = Player(1, "아빠", isDriver = true)
+        fun turnAfter(g: WordChainGame, last: String): Turn {
+            g.restoreState(mapOf("used" to last, "lastWord" to last))
+            return g.nextTurn(TurnContext(driver, Player.APP, null, 3))!!
         }
+        val g = WordChainGame(wordDictionary, Random(1)) { lenient += it }
+        val t = turnAfter(g, "만화가")
+        assertEquals(Outcome.RETRY, g.judge(t, "가재미", attempt = 1).outcome)
+        assertEquals(Outcome.ACCEPTED_LENIENT, g.judge(t, "가재미", attempt = 2).outcome)
+        assertEquals(listOf("가재미"), lenient)
+        val g2 = WordChainGame(wordDictionary, Random(1))
+        assertEquals(Outcome.CORRECT, g2.judge(turnAfter(g2, "만화가"), "가자미", attempt = 1).outcome)
+        val g3 = WordChainGame(wordDictionary, Random(1))
+        assertEquals("사전 미등재 일상 복합어", Outcome.CORRECT, g3.judge(turnAfter(g3, "아주"), "주행거리", attempt = 1).outcome)
+    }
+
+    @Test
+    fun dictionary_coversCommonChainSyllables_andDeadEndsAreComputed() {
+        listOf('기', '이', '리', '자', '지', '수', '사', '도', '구', '차').forEach { s ->
+            assertTrue("'$s' 로 이을 말", wordDictionary.continuationCount(s) >= 5)
+            assertFalse("'$s' 는 막다른 음절이 아님", wordDictionary.isDeadEnd(s))
+        }
+        assertTrue("막다른 음절이 계산돼 있다", wordDictionary.deadEndSyllableCount > 0)
+        assertTrue("'름'(이을 말 거의 없음)", wordDictionary.isDeadEnd('름'))
     }
 
     @Test
