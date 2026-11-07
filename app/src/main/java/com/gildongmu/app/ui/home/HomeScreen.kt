@@ -24,7 +24,9 @@ import com.gildongmu.app.R
 import com.gildongmu.app.app.AppContainer
 import com.gildongmu.app.core.navi.DestinationPreset
 import com.gildongmu.app.core.navi.TripUnits
+import com.gildongmu.app.domain.engine.SessionPlanner
 import com.gildongmu.app.domain.model.GameChoice
+import com.gildongmu.app.domain.model.RoundPacing
 import com.gildongmu.app.ui.common.ChoiceButton
 import com.gildongmu.app.ui.common.GdCard
 import com.gildongmu.app.ui.common.PrimaryButton
@@ -95,6 +97,7 @@ fun HomeScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         GameSection(home.choice, coordinator::selectChoice)
+                        PacingSection(home.pacing, coordinator::selectPacing)
                         PlanSection(preview, settings.demoMode, coordinator::startSession)
                     }
                 }
@@ -102,6 +105,7 @@ fun HomeScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 DestinationSection(home.presetId, home.useNaviRoute, naviDest?.destinationName, naviDest?.remainTimeSec, coordinator::selectPreset, coordinator::selectNaviRoute)
                 PeopleSection(container, home.driverId, home.passengerCount, detected)
                 GameSection(home.choice, coordinator::selectChoice)
+                PacingSection(home.pacing, coordinator::selectPacing)
                 PlanSection(preview, settings.demoMode, coordinator::startSession)
             }
             Spacer(Modifier.height(8.dp))
@@ -192,6 +196,25 @@ private fun GameSection(choice: GameChoice, onChoice: (GameChoice) -> Unit) {
     }
 }
 
+/** 판 간격 — 여정에 판을 얼마나 촘촘히 놓을지 (판 사이에는 말을 걸지 않는다) */
+@Composable
+private fun PacingSection(pacing: RoundPacing, onPacing: (RoundPacing) -> Unit) {
+    Column {
+        SectionTitle("얼마나 자주 할까요?")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            RoundPacing.entries.forEach { p ->
+                ChoiceButton(
+                    text = p.label,
+                    subText = p.detail,
+                    selected = p == pacing,
+                    onClick = { onPacing(p) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun PlanSection(preview: com.gildongmu.app.app.PlanPreview?, demo: Boolean, onStart: () -> Unit) {
     GdCard(Modifier.fillMaxWidth()) {
@@ -204,6 +227,9 @@ private fun PlanSection(preview: com.gildongmu.app.app.PlanPreview?, demo: Boole
                 val rounds = preview.plan.rounds.take(6).joinToString(" · ") { "${it.index + 1}판 ${it.game.label}" } +
                     if (preview.plan.roundCount > 6) " …" else ""
                 Text(rounds, style = MaterialTheme.typography.bodyMedium, color = GdColors.Muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                SessionPlanner.restBetweenRoundsSec(preview.plan)?.let { rest ->
+                    Text("판 사이 약 ${TripUnits.formatDuration(rest)} 쉬어요", style = MaterialTheme.typography.bodyMedium, color = GdColors.Muted)
+                }
                 if (demo) Text("데모 모드: 판당 ${preview.plan.rounds.first().questionCount}문제", style = MaterialTheme.typography.labelMedium, color = GdColors.Accent)
             }
             PrimaryButton(

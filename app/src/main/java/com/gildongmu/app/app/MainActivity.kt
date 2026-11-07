@@ -70,7 +70,12 @@ class MainActivity : ComponentActivity() {
 
     private fun requestRuntimePermissions() {
         // dangerous: android.car.permission.CAR_SPEED, pleos.car.permission.FUSED_LOCATION
-        val needed = listOf(AaosCarStateSource.SPEED_PERMISSION, FusedLocationSource.PERMISSION).filter {
+        // FUSED_LOCATION 은 위치 서비스가 있을 때만 요청한다 (샘플 순서: isSupported → 퍼미션 → initialize)
+        val candidates = buildList {
+            add(AaosCarStateSource.SPEED_PERMISSION)
+            if (container.fusedLocation.isSupported()) add(FusedLocationSource.PERMISSION)
+        }
+        val needed = candidates.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
         if (needed.isNotEmpty()) permissionLauncher.launch(needed.toTypedArray())

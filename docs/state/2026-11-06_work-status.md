@@ -1,7 +1,7 @@
 # 길동무 작업 현황 — 2026-11-06
 
-- 브랜치: `feat/gildongmu-prototype` (main 에서 분기, 아직 main 에 병합·push 하지 않음)
-- 기준 지시서: `docs/GILDONGMU_PROTOTYPE_PROMPT.md` (사용자가 `ff8783f` 에서 `.gitignore` 변경과 함께 커밋)
+- 브랜치: `main` — `feat/gildongmu-prototype` 작업을 사용자가 main 으로 합쳐 `origin`(github.com/dxyxxn/HMC-Contest)에 push. 이때 히스토리가 다시 쓰여 아래 커밋 해시는 현재 main 기준이다.
+- 기준 지시서: `docs/GILDONGMU_PROTOTYPE_PROMPT.md` (사용자가 `1cb7d90` 에서 `.gitignore` 변경과 함께 커밋)
 - 변수: 팀명 `Team-DonDoAYeon` · 패키지 `com.gildongmu.app` · 앱 이름 `길동무` · Pleos Client ID/Secret 없음 → TTS/STT `Mode.ON_DEVICE`
 - 검증 환경: Pleos Connect Emulator v2.1.0 AVD(cold boot, 2560×1440), Gradle 9.6.0 / AGP 9.5.0 / built-in Kotlin 2.2.10 / compileSdk 37
 
@@ -13,14 +13,15 @@
 
 | 마일스톤 | 커밋 | 내용 | 검증 |
 |---|---|---|---|
-| M0 환경 | `aa6a894` | Pleos Maven, SDK 5종 + Compose + DataStore + 코루틴, 매니페스트(필요 퍼미션만·allowBackup=false·ROTARY_SUPPORTED=false·distractionOptimized), applicationId/앱 이름, local.properties → BuildConfig | `assembleDebug` 통과, 빈 화면 AVD 실행 |
-| M1 주행 상태·모드 | `67cd35b` | AaosCarStateSource(기어·속도·주차브레이크·UX 규제), VehicleSdkClient(Brake·Seat), SimulatedCarStateSource, DriveStateDeriver, ModeArbiter(DO 즉시·1.5초 디바운스·판 마무리 후 SCREEN), ModeController | Virtual Console 기어 P↔D·속도·브레이크 → 2초 안 모드 전환, 테스트 25개 |
-| M2 여정 | `1f1209c` | NaviHelperTripSource, SimulatedTripSource(×30 압축·TBT 2회), TripRepository(오류·60초 무응답 폴백), TripUnits, SessionPlanner | `requestRoute` → `onRouteStarted(14820s, 378km)` 수신, 단위=초 확정, 테스트 13개 |
-| M3 음성 | `07fda00` | Pleos/Android/대본 엔진, SpeechRouter, AudioFocusHelper, AnswerCollector(지연 측정) | Pleos TTS/STT ON_DEVICE 초기화·발화 완료·STT 타임아웃 측정, 포커스 충돌 없음 |
-| M4~M6 게임·졸음·P1·UI | `ea6942f` | 콘텐츠(170+48+40, 사전 3,582), 지역 퀴즈·끝말잇기·초성 퀴즈, GameSession, FusedLocation·지역 판정, DrowsinessMonitor(1단계), TBT 일시정지, 요약 화면, Compose 화면 전부, 디버그 패널, 상태 저장/복원 | 기기에서 전체 흐름 확인(아래 1.2), 테스트 총 101개 |
-| M7 마감 | `9f0b89c` | README, DEMO_SCENARIO, PHASE2_NOTES, CONTENT_SOURCES, release 서명 APK, CLAUDE.md 현행화, 이 문서 | `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 0 errors) |
-| 피드백 반영 ① | `f5e6be0` | 게임 끝내기 버튼, 중간 종료 요약 제목, 쉬는 시간 안내를 "약 N분 뒤"로 (아래 1.6) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 102개 |
-| 피드백 반영 ② | (이 커밋) | 내비에서 시작한 길 안내를 홈에 실시간 반영, 3분할에서 길동무를 맨 오른쪽 창으로 (아래 1.7) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 115개 |
+| M0 환경 | `9cce509` | Pleos Maven, SDK 5종 + Compose + DataStore + 코루틴, 매니페스트(필요 퍼미션만·allowBackup=false·ROTARY_SUPPORTED=false·distractionOptimized), applicationId/앱 이름, local.properties → BuildConfig | `assembleDebug` 통과, 빈 화면 AVD 실행 |
+| M1 주행 상태·모드 | `120d1b4` | AaosCarStateSource(기어·속도·주차브레이크·UX 규제), VehicleSdkClient(Brake·Seat), SimulatedCarStateSource, DriveStateDeriver, ModeArbiter(DO 즉시·1.5초 디바운스·판 마무리 후 SCREEN), ModeController | Virtual Console 기어 P↔D·속도·브레이크 → 2초 안 모드 전환, 테스트 25개 |
+| M2 여정 | `bb25233` | NaviHelperTripSource, SimulatedTripSource(×30 압축·TBT 2회), TripRepository(오류·60초 무응답 폴백), TripUnits, SessionPlanner | `requestRoute` → `onRouteStarted(14820s, 378km)` 수신, 단위=초 확정, 테스트 13개 |
+| M3 음성 | `f0b3fac` | Pleos/Android/대본 엔진, SpeechRouter, AudioFocusHelper, AnswerCollector(지연 측정) | Pleos TTS/STT ON_DEVICE 초기화·발화 완료·STT 타임아웃 측정, 포커스 충돌 없음 |
+| M4~M6 게임·졸음·P1·UI | `2fa3812` | 콘텐츠(170+48+40, 사전 3,582), 지역 퀴즈·끝말잇기·초성 퀴즈, GameSession, FusedLocation·지역 판정, DrowsinessMonitor(1단계), TBT 일시정지, 요약 화면, Compose 화면 전부, 디버그 패널, 상태 저장/복원 | 기기에서 전체 흐름 확인(아래 1.2), 테스트 총 101개 |
+| M7 마감 | `d858f72` | README, DEMO_SCENARIO, PHASE2_NOTES, CONTENT_SOURCES, release 서명 APK, CLAUDE.md 현행화, 이 문서 | `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 0 errors) |
+| 피드백 반영 ① | `228b798` | 게임 끝내기 버튼, 중간 종료 요약 제목, 쉬는 시간 안내를 "약 N분 뒤"로 (아래 1.6) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 102개 |
+| 피드백 반영 ② | `67930d6` | 내비에서 시작한 길 안내를 홈에 실시간 반영, 3분할에서 길동무를 맨 오른쪽 창으로 (아래 1.7) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 115개 |
+| 샘플 대조·문서 점검 + 판 간격 선택 | (이 커밋) | `pleos-example` 샘플과 SDK 사용법 대조 후 보완, 문서 최신화 (아래 1.8) · 홈에서 판 간격 3종 선택, 화면에서 사라지면 일시정지 유지 결정 (아래 1.9) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 120개 |
 
 M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로 묶었다.
 
@@ -43,9 +44,9 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 | CarUxRestrictionsManager | 실제 SDK로 검증 (기어 D 에서 DO 수신) |
 | Pleos Vehicle Brake·Seat | 실제 SDK로 검증 (capability → register/getCurrent) |
 | NaviHelper requestRoute / onRouteStarted / onDestinationInfo / onTBTInfo / onCurrentLocationInfo | 실제 SDK로 검증 (차량이 움직이지 않아 남은 시간 감소는 시뮬로 시연) |
-| FusedLocation | 실제 SDK로 수신 (에뮬레이터 기본 GPS가 미국 → 지역 판정은 내비 주소/시뮬 폴백) |
+| FusedLocation | 실제 SDK로 검증 — 기본 좌표로는 국내 지역이 안 나와 내비 주소/시뮬로 폴백, `adb emu geo fix 126.9780 37.5665` 를 넣으면 `region=seoul via FusedLocation` (11/7 확인) |
 | Pleos TTS | 실제 SDK로 검증 (onDone, 포커스 스택 확인) |
-| Pleos STT | 초기화·청취는 실제, 음성 인식 결과는 미검증(호스트 마이크 미사용) → 대본 응답으로 시연 |
+| Pleos STT | 초기화·청취 실제. 에뮬레이터 Microphone 을 호스트 입력으로 켜고 응답 입력 "마이크"로 실제 인식 확인(사용자, 11/7). 마이크 없이 시연할 때는 대본 응답 |
 | Android TTS/STT 폴백 | 이 에뮬레이터에 한국어 TTS 엔진 없음 → 자동으로 건너뜀(코드 경로만 존재) |
 | `driving_regulation on/off` 셸 | 이 사용자 빌드에 `hmg_car_service` 없음 → 기어 D 로 대체 검증 |
 | 통화·Gleo 로 인한 `AUDIOFOCUS_LOSS_TRANSIENT` | 코드만 구현, 에뮬레이터에서 재현 못 함 |
@@ -57,12 +58,13 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - **퍼미션**: 지시서 목록 그대로(CAR_DRIVE, CAR_SEATS, NAVI_ROUTE, NAVI_ROUTE_SEARCH, TTS_SERVICE, STT_SERVICE, FUSED_LOCATION, android.car CAR_POWERTRAIN·CAR_SPEED, RECORD_AUDIO). SDK AAR 이 `INTERNET`·`*_BINDING` 을 병합함.
 - **`distractionOptimized=true` 메타데이터 추가** (지시서 체크리스트에는 없지만 주행 중 음성 화면을 띄우려면 AAOS 에서 필요. DEV_GUIDE 에 선언 방법이 없어 AAOS 표준 키 사용).
 - **release 서명 키 생성**: `C:\Users\rlaeh\.android\gildongmu-release.jks` (리포 밖), 비밀번호는 `local.properties` 에만. **분실하면 같은 서명으로 업데이트할 수 없으므로 반드시 안전한 곳에 백업**.
-- **작업 브랜치 `feat/gildongmu-prototype`** 에 커밋 (main 직접 커밋·push 안 함).
+- 작업 브랜치 `feat/gildongmu-prototype` 에서 개발 → 11/6 사용자가 main 으로 합쳐 push(이후 main 기준).
 - JSON 은 `org.json` 으로 통일(테스트 클래스패스에만 `org.json:json` 추가), DI 는 수동(AppContainer), 영속화는 DataStore(Preferences).
 - 오디오 포커스: 음성 판 시작 시 요청, 판 종료·일시정지·백그라운드 시 반납(긴 쉬는 시간 동안 transient 포커스를 붙잡지 않기 위함). 통화 대기(LOSS_TRANSIENT) 중에는 GAIN 을 받으려고 유지.
 - Pleos TTS 발화 중 들어온 포커스 손실은 Speech Service 자체 포커스로 보고 무시(관측상 충돌은 없었음).
 - 정차(VOICE→SCREEN): "판이 끝날 때까지" 대신 **진행 중인 차례만 끝내고 판을 마무리** — 데모·실사용 모두 10분을 기다리지 않게.
 - 판 진행은 문제 수 기준(문제당 약 30초 환산), 판 시작 시점은 "남은 시간이 기준값 이하"로 판단. 시뮬 여정은 주차 중 시간이 흐르지 않음.
+- 판 간격은 홈에서 사용자가 고른다(여유 있게 기본 · 자주 · 쉬지 않고). 길동무가 화면에서 사라지면 일시정지(백그라운드 음성 진행 없음) — 11/7 사용자 결정.
 - TBT 일시정지: 같은 안내가 20초 넘게 그대로면 정체/정차로 보고 재개(에뮬레이터의 고정 TBT "TURN_LEFT 80m" 대응).
 - 졸음 기준값: 캘리브레이션 5개는 중앙값, 무응답(8초)은 캘리브레이션에서 제외, EMA 는 느리지 않은 응답으로만 갱신.
 - 데모 모드: 판당 6문제, 운전자 기준값 없으면 1.5초 시드. sleepy 대본은 운전자 차례에만 적용(driverOnly).
@@ -99,20 +101,47 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 
 확인(release APK, 에뮬레이터): 길동무를 켠 채 내비에서 안내 시작 → 7 ms 안에 `navi route detected` + 카드 선택("내비 목적지: 부산역 · 남은 시간 4시간 2분", 플랜 "4시간 2분 → 5판"), 안내 종료 → 카드 제거·프리셋 복귀, 30초 주기 재조회 로그 확인. 창 막대를 끌어 3분할 → 길동무가 [853–1694] → [1718–2559]로 이동하는 동안 길동무 생명주기 이벤트 없음(게임 멈춤 없음), 가운데 막대 탭으로 사용자가 바꾼 위치는 유지. 퍼미션 추가 없음(`NAVI_CUSTOM_MAP` 은 시험 후 제거). 테스트 115개(+13).
 
+### 1.8 `pleos-example` 샘플 대조 · 문서 점검 (11/7)
+샘플 3종(Vehicle `VehicleClient`, Navi `NaviHelperViewModel`, FusedLocation `FusedLocationClient`)과 우리 SDK 클라이언트를 대조했다. 생명주기(생성 → initialize → 리스너 등록 → 같은 인스턴스로 해제 → release), capability 확인 후 읽기, 필요한 퍼미션만 선언은 이미 샘플과 같았다.
+
+| 변경 | 근거(샘플) | 내용 |
+|---|---|---|
+| 내비 변경 이벤트 즉시 반영 | Navi 샘플이 받는 `onDestinationChanged`·`onReRouteEnded`·`onRouteOptionChanged`·`onWaypointChanged`·`onWayPointArrived` | 우리는 무시하고 있었다 → 받으면 바로 `getDestinationInfo` (30초 주기를 기다리지 않음) |
+| FusedLocation 권한 요청 순서 | FusedLocation 샘플: `isSupported()` → 권한 요청 → `initialize()` | 위치 서비스가 없는 차량에서는 `FUSED_LOCATION` 권한 대화상자를 띄우지 않음 (`FusedLocationSource.isSupported`, `MainActivity`) |
+| 시연 보호 | (문서 점검 중 발견) | 디버그 패널 여정=시뮬이면 내비 길 안내가 있어도 홈에서 자동 선택하지 않음 — 1.7 의 자동 선택이 시연용 시뮬 여정을 실제 내비 여정으로 바꿔 버릴 수 있었다 (`HomeState.withNaviRoute(autoSelect)`) |
+| FusedLocation 실제 위치 시험 | FusedLocation 샘플 README 의 `adb emu geo fix` | 에뮬레이터에서 서울 좌표를 넣으면 FusedLocation 으로 `seoul` 판정 확인 → README·시연 대본·이 문서의 "에뮬레이터 GPS 가 미국이라 판정 불가" 설명을 바로잡음 |
+
+제안만 하고 구현하지 않은 것(`docs/PHASE2_NOTES.md` §1·§7): `requestTrip` 으로 출발 전 프리셋 예상 시간을 실제 내비 값으로, Vehicle SDK 리스너를 화면이 보일 때만 등록, 근접 알림 시험 절차.
+
+문서 점검: 커밋 해시(main 으로 합치며 다시 쓰임)·브랜치 상태, README 아키텍처의 `WindowPlacement`, 테스트 수, 시연 체크리스트(내비 카드와 시뮬 여정)를 고쳤다. 콘텐츠 수량(170·48·40·3,582)은 자산 파일과 일치.
+
+확인(release APK, 에뮬레이터): 여정=시뮬에서 내비 안내 시작 → 카드("부산역 · 남은 시간 4시간 38분")는 뜨고 서울 → 부산 프리셋 선택 유지, 안내 종료 → 카드 제거. `geo fix` → `region=seoul via FusedLocation`. `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 오류 0·경고 17, 테스트 116개).
+
+### 1.9 사용자 결정 반영 (11/7) — 판 간격 선택 · 화면에서 사라지면 일시정지 유지
+결정: 2.1 의 8번(판 간격)은 "처음 화면에서 고르는 방식", 9번(내비가 앱 영역 전체를 덮을 때)은 "지금처럼 일시정지".
+
+| 항목 | 내용 |
+|---|---|
+| 판 간격 선택 | 홈에 "얼마나 자주 할까요?" — **여유 있게**(기본, 약 45분마다) · **자주**(약 20분마다) · **쉬지 않고**(판 사이 2분). 4시간 10분 기준 5판(쉬는 시간 약 39분) / 12판(약 10분) / 20판(약 2분). 미리보기에 "판 사이 약 N분 쉬어요" 추가 |
+| 구현 | `RoundPacing`(판 시작 간격 목표값) → `SessionPlanner.plan(…, pacing)`. 판 길이는 간격 안에서 여유 1/4·자주 1/2·쉬지 않고 "간격 − 2분"(모두 6~10분 제한), 최소 휴지 2분·도착 5분 전 종료 규칙은 그대로. 간격은 `SessionPlan.pacing` 에 담겨 남은 시간이 바뀌어 다시 짤 때(`replanRemaining`)와 이어 하기 저장본(`SnapshotCodec`, 이전 저장본은 여유 있게로 읽음)에도 유지. 마지막으로 출발한 간격은 설정(`AppSettings.lastPacing`)에 저장 |
+| 일시정지 유지 | 길동무가 화면에서 사라지면(onStop) 지금처럼 즉시 멈추고 포커스 반납·상태 저장, 다시 보이면 "계속"으로 같은 문제부터. 백그라운드 음성 진행(포그라운드 서비스)은 하지 않기로 결정 |
+
+확인(release APK, 에뮬레이터): 홈 기본 "여유 있게" → "4시간 10분 → 5판 · 판 사이 약 39분 쉬어요", "쉬지 않고" → "20판 · 판 사이 약 2분 쉬어요"로 바뀌고 출발 시 `session start → … 20판`. 시험 뒤 간격을 "여유 있게"로 되돌려 둠. 테스트 120개(+4: 간격 3종·재계산 시 간격 유지·판 1개일 때 휴지 없음·옛 저장본 호환).
+
 ---
 
 ## 2. 추후 작업할 내용 (우선순위 순)
 
 ### 2.1 11/15 1차 접수 전 (사람이 해야 할 일)
 1. **시연 영상 녹화** — `docs/DEMO_SCENARIO.md` 대본(3분). 녹화 전 체크리스트(권한·포트 포워딩·데모 모드·대본 선택·볼륨) 확인. 녹화 후 README 상단 "시연 영상" 링크 채우기.
-2. **브랜치 병합·push** — `feat/gildongmu-prototype` → main 병합 후 GitHub push. Private 저장소면 심사용 계정을 Collaborator 로 초대. `docs/GILDONGMU_PROTOTYPE_PROMPT.md` 는 `ff8783f` 에서 커밋됨 — 공개 저장소에 그대로 둘지 push 전에 확인.
-3. **서명 키 백업** — `C:\Users\rlaeh\.android\gildongmu-release.jks` 와 `local.properties` 의 비밀번호를 팀 비밀 저장소에 보관. 최종(2027/2) APK 도 같은 키로 서명해야 한다.
+2. (완료) **브랜치 병합·push** — `feat/gildongmu-prototype` → main 병합 후 GitHub push. Private 저장소면 심사용 계정을 Collaborator 로 초대. `docs/GILDONGMU_PROTOTYPE_PROMPT.md` 는 `1cb7d90` 에서 커밋됨 — 공개 저장소에 그대로 둘지 확인.
+3. (완료) **서명 키 백업** — `C:\Users\rlaeh\.android\gildongmu-release.jks` 와 `local.properties` 의 비밀번호를 팀 비밀 저장소에 보관. 최종(2027/2) APK 도 같은 키로 서명해야 한다.
 4. **콘텐츠 사람 검수** — 지역 퀴즈 170문항·일반 48문항을 팀원이 한 번 더 확인(AI 생성 + 1회 검수 상태).
 5. **기획서 접수양식 5번과 README SDK 표 대조** — Vehicle 활용에 "AAOS Car API(기어·속도·주행 규제) + Pleos Vehicle(브레이크·좌석)"로 구체화했으니 기획서 문구도 맞출 것.
-6. (선택) 실제 마이크 시연 — 에뮬레이터 Microphone 을 호스트 입력으로 켜고 응답 입력 "마이크"로 Pleos STT 인식 품질 확인.
+6. (완료) 실제 마이크 시연 — 에뮬레이터 Microphone 을 호스트 입력으로 켜고 응답 입력 "마이크"로 Pleos STT 인식 품질 확인.
 7. (선택) Pleos Playground Client ID/Secret 을 받으면 `local.properties` 에 넣어 HYBRID 모드 품질 비교.
-8. (결정 필요) 판 간격 — 지금은 약 45분마다 한 판(4시간 10분 여정이면 판 사이 약 39분 휴식). 아이와 함께 갈 때 길게 느껴지면 `SessionPlanner.SLOT_SEC` 를 줄이거나 "쉬지 않고 이어 하기" 옵션을 추가.
-9. (결정 필요) 내비를 앱 영역 전체로 볼 때도 게임을 음성으로 이어 갈지 — 지금은 길동무가 화면에서 사라지면 일시정지한다(§5.4 백그라운드 정책에 맞춘 선택). 이어 가려면 포그라운드 서비스·알림·백그라운드 마이크 정책 검토가 필요.
+8. (완료) 판 간격 — 홈에서 "여유 있게(약 45분마다, 기본) · 자주(약 20분마다) · 쉬지 않고(판 사이 2분)" 중 고르도록 구현 (위 1.9).
+9. (결정) 내비를 앱 영역 전체로 볼 때 — 지금처럼 길동무가 화면에서 사라지면 일시정지한다(§5.4 백그라운드 정책). 백그라운드 음성 진행은 하지 않음 (위 1.9).
 
 ### 2.2 12/3 2차 PT 전 (기능, `docs/PHASE2_NOTES.md` 상세)
 1. 졸음 케어 2단계(15분 내 Stage1 2회 또는 느림+정답률<50%) → 휴식 권유 → 졸음쉼터 탐색(오프라인 테이블 + FusedLocation) → `NaviHelper.addWaypoint` 길 안내 → `FusedLocation.addProximityAlert` 도착 감지
@@ -120,6 +149,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 3. 구간별 일시정지 고도화: `onRouteStateInfo.trafficStatus`(HEAVY), `onCautionPointInfo`, `onCameraAlert` (콜백 자리 `TODO(phase2)`)
 4. 이동 앨범(요약 화면 확장), 그림 맞히기(정차 중 화면 게임 2종째)
 5. Gleo Interface(`assets/schema.json`: START_GAME / PAUSE_GAME / SKIP_QUESTION) — 1차에는 파일을 넣지 않음
+6. 샘플 대조에서 나온 제안: `requestTrip` 으로 프리셋 예상 시간을 실제 내비 값으로, Vehicle SDK 리스너를 화면이 보일 때만 등록 (`PHASE2_NOTES.md` §7)
 
 ### 2.3 기술 부채·검증 못 한 것
 - 통화·Gleo 호출로 인한 `AUDIOFOCUS_LOSS_TRANSIENT` → PAUSED → GAIN 1초 뒤 재출제 흐름을 실차/전화 시뮬레이션으로 검증
@@ -139,5 +169,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - 빌드/검사: `./gradlew lintDebug testDebugUnitTest assembleRelease` → `apk/` 에 복사 (`app/build/outputs/apk/release/app-release.apk` → `apk/Team-DonDoAYeon_길동무_release.apk`)
 - 에뮬레이터 차량 조작 자동화: `adb forward tcp:8088 tcp:8088` 후
   `curl -X POST "http://127.0.0.1:8088/browser/session?client=cli"` (하트비트, 3초 유효) → `curl -X PUT "http://127.0.0.1:8088/vehicle/gear?gear=Drive"`
-- 로그: `adb logcat -s Gildongmu/ModeArbiter:I Gildongmu/GameSession:I Gildongmu/Coordinator:I`
+- 로그: `adb logcat -s Gildongmu/ModeArbiter:I Gildongmu/GameSession:I Gildongmu/Coordinator:I Gildongmu/NaviHelper:I Gildongmu/Location:I Gildongmu/Window:I`
+- SDK 사용법이 헷갈리면 `pleos-example/` 샘플(Vehicle `VehicleClient.kt`, Navi `NaviHelperViewModel.kt`, FusedLocation `FusedLocationClient.kt`)과 대조
+- 에뮬레이터 위치: `adb emu geo fix <경도> <위도>` (예: 서울 시청 `126.9780 37.5665`) → FusedLocation 지역 판정
 - 코드 지도: README §5 아키텍처, 주요 진입점 `app/GameCoordinator.kt`, `domain/engine/GameSession.kt`, `domain/engine/ModeArbiter.kt`

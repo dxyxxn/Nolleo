@@ -2,6 +2,7 @@ package com.gildongmu.app.domain.engine
 
 import com.gildongmu.app.domain.model.GameChoice
 import com.gildongmu.app.domain.model.GameKind
+import com.gildongmu.app.domain.model.RoundPacing
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -120,6 +121,50 @@ class SessionPlannerTest {
         assertEquals(null, SessionPlanner.secondsUntilNextRound(null, 212 * 60))
         assertEquals(null, SessionPlanner.secondsUntilNextRound(250 * 60, null))
         assertEquals("보너스 판(즉시 시작)", 0, SessionPlanner.secondsUntilNextRound(3600, Int.MAX_VALUE))
+    }
+
+    /** 판 간격별: 판 길이 6~10분, 판 사이 ≥ 2분, 마지막 판은 도착 5분 전에 끝난다 */
+    private fun assertPlanInvariants(plan: com.gildongmu.app.domain.model.SessionPlan) = assertRoundInvariants(plan.rounds)
+
+    private fun assertRoundInvariants(rounds: List<com.gildongmu.app.domain.model.RoundPlan>) {
+        rounds.forEach { assertTrue(it.targetDurationSec in SessionPlanner.MIN_ROUND_SEC..SessionPlanner.MAX_ROUND_SEC) }
+        rounds.zipWithNext { a, b ->
+            assertTrue("판 사이 휴지 ≥ 2분", (a.startAtRemainSec - a.targetDurationSec) - b.startAtRemainSec >= SessionPlanner.MIN_GAP_SEC)
+        }
+        val last = rounds.last()
+        assertTrue(last.startAtRemainSec - last.targetDurationSec >= SessionPlanner.END_BUFFER_SEC)
+    }
+
+    @Test
+    fun pacing_relaxedIsDefault_andOftenNonstopAddRounds() {
+        val remain = 250 * 60
+        val relaxed = SessionPlanner.plan(remain, GameChoice.QUIZ)
+        val often = SessionPlanner.plan(remain, GameChoice.QUIZ, pacing = RoundPacing.OFTEN)
+        val nonstop = SessionPlanner.plan(remain, GameChoice.QUIZ, pacing = RoundPacing.NONSTOP)
+        assertEquals(RoundPacing.RELAXED, relaxed.pacing)
+        assertEquals(5, relaxed.roundCount)
+        assertEquals(12, often.roundCount)
+        assertEquals(20, nonstop.roundCount)
+        listOf(relaxed, often, nonstop).forEach(::assertPlanInvariants)
+        // 4시간 10분 기준 판 사이 쉬는 시간: 여유 약 39분 > 자주 약 10분 > 쉬지 않고 2분대
+        assertEquals(39 * 60, SessionPlanner.restBetweenRoundsSec(relaxed))
+        assertTrue(SessionPlanner.restBetweenRoundsSec(often)!! in 9 * 60..11 * 60)
+        assertTrue(SessionPlanner.restBetweenRoundsSec(nonstop)!! in SessionPlanner.MIN_GAP_SEC..3 * 60)
+    }
+
+    @Test
+    fun replan_keepsPacing() {
+        val original = SessionPlanner.plan(4 * 3600, GameChoice.ALTERNATE, pacing = RoundPacing.NONSTOP)
+        val replanned = SessionPlanner.replanRemaining(original, keepCount = 1, actualRemainSec = 5 * 3600, choice = GameChoice.ALTERNATE)
+        assertEquals(RoundPacing.NONSTOP, replanned.pacing)
+        assertRoundInvariants(replanned.rounds.drop(1)) // 새로 짠 판들 (진행한 판은 옛 기준 그대로)
+        val restAfterReplan = (replanned.rounds[1].startAtRemainSec - replanned.rounds[1].targetDurationSec) - replanned.rounds[2].startAtRemainSec
+        assertTrue("쉬지 않고: 다시 짜도 판 사이 2분대", restAfterReplan in SessionPlanner.MIN_GAP_SEC..3 * 60)
+    }
+
+    @Test
+    fun restBetweenRounds_singleRoundIsNull() {
+        assertEquals(null, SessionPlanner.restBetweenRoundsSec(SessionPlanner.plan(10 * 60, GameChoice.QUIZ)))
     }
 
     @Test

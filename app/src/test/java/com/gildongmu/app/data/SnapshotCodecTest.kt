@@ -8,6 +8,8 @@ import com.gildongmu.app.domain.model.DriveState
 import com.gildongmu.app.domain.model.GameChoice
 import com.gildongmu.app.domain.model.GameKind
 import com.gildongmu.app.domain.model.Player
+import com.gildongmu.app.domain.model.RoundPacing
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -22,7 +24,7 @@ class SnapshotCodecTest {
             players = listOf(Player(1, "아빠", true), Player(2, "조수석", false)),
             choice = GameChoice.ALTERNATE,
             demo = true,
-            plan = SessionPlanner.plan(4 * 3600, GameChoice.ALTERNATE, demo = true),
+            plan = SessionPlanner.plan(4 * 3600, GameChoice.ALTERNATE, demo = true, pacing = RoundPacing.OFTEN),
             roundIndex = 1,
             turnInRound = 2,
             rotationIndex = 3,
@@ -40,6 +42,22 @@ class SnapshotCodecTest {
             savedAtWallMs = 999,
         )
         assertEquals(snap, SnapshotCodec.decode(SnapshotCodec.encode(snap)))
+    }
+
+    @Test
+    fun oldSnapshotWithoutPacing_readsAsRelaxed() {
+        val plan = SessionPlanner.plan(3600, GameChoice.QUIZ, pacing = RoundPacing.NONSTOP)
+        val snap = SessionSnapshot(
+            destinationName = "강릉역", presetId = null, players = listOf(Player(1, "엄마", true)),
+            choice = GameChoice.QUIZ, demo = false, plan = plan, roundIndex = 0, turnInRound = 0, rotationIndex = 0,
+            scores = emptyMap(), correctCounts = emptyMap(), regionsVisited = emptyList(), roundsPlayed = emptyList(),
+            quizState = emptyMap(), chainState = emptyMap(), pendingQuestionId = null, drowsyWindow = emptyList(),
+            difficultyCap = 3, lastTriggerAtMs = null, stage1Count = 0, savedAtWallMs = 1,
+        )
+        val json = JSONObject(SnapshotCodec.encode(snap))
+        assertEquals("NONSTOP", json.getJSONObject("plan").getString("pacing"))
+        json.getJSONObject("plan").remove("pacing") // pacing 필드가 생기기 전 저장본
+        assertEquals(RoundPacing.RELAXED, SnapshotCodec.decode(json.toString())?.plan?.pacing)
     }
 
     @Test

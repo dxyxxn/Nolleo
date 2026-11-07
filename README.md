@@ -49,10 +49,11 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 ### 2.5 앱 사용 순서
 1. 첫 실행 시 권한 2개 허용: **차량 속도**(`android.car.permission.CAR_SPEED`), **차량 위치**(`pleos.car.permission.FUSED_LOCATION`)
 2. 홈에서 목적지(프리셋 또는 "내비 목적지") · 운전자 · 동승자 수 · 게임을 고르고 **출발**
-   - 길동무를 켜 둔 채 **내비 앱에서 길 안내를 시작**해도 홈에 "내비 목적지: ○○ · 남은 시간 …" 카드가 바로 생기고 자동으로 선택됩니다. 안내를 끝내면 카드가 사라지고 프리셋으로 돌아갑니다.
+   - 길동무를 켜 둔 채 **내비 앱에서 길 안내를 시작**해도 홈에 "내비 목적지: ○○ · 남은 시간 …" 카드가 바로 생기고 자동으로 선택됩니다(디버그 패널 여정이 **시뮬**이면 카드만 보이고 자동 선택하지 않음 — 시연용 시뮬 여정 보호). 안내를 끝내면 카드가 사라지고 프리셋으로 돌아갑니다. 목적지·경유지·경로 옵션을 바꾸거나 재탐색하면 남은 시간도 바로 다시 받습니다.
    - **3분할**(왼쪽 Driving view + 앱 2개): 화면 오른쪽 끝 창 막대(⋮)를 왼쪽으로 끌면 내비와 나란히 놓입니다. 길동무가 운전석 쪽 창에 들어가면 스스로 **맨 오른쪽(조수석 쪽)** 으로 옮겨 Driving view | 내비 | 길동무 가 됩니다. 사용자가 창 막대를 탭해 직접 바꾼 위치는 그대로 둡니다.
 3. Virtual Console 에서 기어 **D** → 음성 게임 시작 / 기어 **P** → 판을 마무리하고 화면 게임(초성 퀴즈)
-4. 판은 여정 전체에 나눠 둡니다(4시간 10분 → 약 49분마다 10분짜리 한 판, 모두 5판). 판 사이 **쉬는 시간**에는 말을 걸지 않고 "다음 판은 약 N분 뒤에 시작해요"를 보여 줍니다. 바로 하려면 **지금 시작**.
+4. 판은 여정 전체에 나눠 둡니다. 홈의 **"얼마나 자주 할까요?"** 에서 간격을 고릅니다 — **여유 있게**(기본, 약 45분마다: 4시간 10분 → 5판, 판 사이 약 39분) · **자주**(약 20분마다: 12판, 판 사이 약 10분) · **쉬지 않고**(판 사이 2분: 20판). 고른 간격은 다음 실행 때도 유지되고, 미리보기에 "판 사이 약 N분 쉬어요"가 나옵니다. 판 사이 **쉬는 시간**에는 말을 걸지 않고 "다음 판은 약 N분 뒤에 시작해요"를 보여 줍니다. 바로 하려면 **지금 시작**.
+   - 길동무가 화면에서 사라지면(내비가 앱 영역 전체를 덮는 등) 게임은 **일시정지**합니다. 다시 보이면 "계속"으로 같은 문제부터 이어 갑니다(DEV_GUIDE §5.4 백그라운드 정책에 맞춘 결정).
 5. **게임 끝내기**: 음성 화면에서는 일시정지·쉬는 시간에, 정차 중 화면 게임에서는 상단에 있습니다(문제를 내고 듣는 중에는 운전 중 조작을 줄이려고 **일시정지** 하나만 보임). 맞힌 문제나 마친 판이 있으면 "오늘의 길동무 · 여기까지 했어요" 요약 → **처음으로**, 없으면 바로 홈으로 갑니다. 내비 길 안내는 취소하지 않습니다.
 6. 제목 **"길동무"를 길게 누르면 디버그 패널**(DEV): 입력 소스 강제 선택, 시뮬레이션 기어·속도·지역·남은 시간, 대본, 졸음 지표, 최근 로그
 
@@ -67,7 +68,7 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 | 에뮬레이터 | Pleos Connect Emulator v2.1.0 (`Pleos_Connect_v2.1.0`, Android 14 / API 34 Automotive, 2560×1440, cold boot) |
 | 빌드 | Gradle 9.6.0 · AGP 9.5.0 (built-in Kotlin 2.2.10) · compileSdk 37 · Java 11 target |
 | UI | Jetpack Compose (BOM 2025.09.00) + Material3, 다크 테마 |
-| 런타임 권한 | `android.car.permission.CAR_SPEED`(dangerous), `pleos.car.permission.FUSED_LOCATION`(dangerous), `RECORD_AUDIO`(Android 폴백 인식기가 선택될 때만 요청) |
+| 런타임 권한 | `android.car.permission.CAR_SPEED`(dangerous), `pleos.car.permission.FUSED_LOCATION`(dangerous, `FusedLocation.isSupported()` 가 true 일 때만 요청), `RECORD_AUDIO`(Android 폴백 인식기가 선택될 때만 요청) |
 | `local.properties` (선택) | `PLEOS_CLIENT_ID`, `PLEOS_CLIENT_SECRET` — 있으면 TTS/STT 가 `Mode.HYBRID`, 없으면 `Mode.ON_DEVICE` (이 제출본은 **ON_DEVICE**) |
 | release 서명 (선택) | `RELEASE_STORE_FILE`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` — 없으면 debug 키로 서명 |
 
@@ -79,9 +80,9 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 | 주행 규제 (`CarUxRestrictionsManager`) | ✅ **실제** | 기어 D 에서 `requiresDO=true, active=80(NO_VIDEO+NO_SETUP)` 수신 |
 | 브레이크 페달 · 좌석 착좌 (Pleos Vehicle SDK) | ✅ **실제** | `checkXxxCapabilities` → `register`/`getCurrent` |
 | 경로 요청·남은 시간·TBT (NaviHelper) | ✅ **실제** (요청·이벤트) / ⚠️ 진행은 시뮬 | `requestRoute` → `onRouteStarted(14820s, 378km)`·`onDestinationInfo`·`onTBTInfo` 수신. 내비 앱에서 직접 시작·종료한 길 안내도 `onRouteStarted`·`onNavigationStatus`·`onRouteCancelled` 로 즉시 반영(→ `getDestinationInfo`, 길 안내 중 30초마다 재조회). 에뮬레이터 차량이 움직이지 않아 남은 시간이 줄지 않으므로 **시연은 시뮬레이션 여정(시간 압축 ×30)** 사용 |
-| 현재 위치 (FusedLocation) | ✅ **실제** (값은 에뮬레이터 기본 GPS) | 기본 좌표가 미국이라 국내 지역 판정 불가 → NaviHelper 주소("수정구 시흥동" → 경기) → 시뮬 경로 순으로 폴백 |
+| 현재 위치 (FusedLocation) | ✅ **실제** | 에뮬레이터 기본 좌표로는 국내 지역이 안 나와 NaviHelper 주소("수정구 시흥동" → 경기) → 시뮬 경로 순으로 폴백. `adb emu geo fix 126.9780 37.5665`(경도 먼저)로 국내 좌표를 넣으면 FusedLocation 으로 판정(확인: `region=seoul via FusedLocation`). 시뮬 여정 중에는 시뮬 경로의 지역이 우선 |
 | 음성 출력 (Pleos TTS) | ✅ **실제** (`ON_DEVICE`) | 발화 완료(onDone) 확인, 오디오 포커스 충돌 없음 |
-| 음성 인식 (Pleos STT) | ✅ 초기화·청취 실제 / ⚠️ 응답은 마이크 필요 | 호스트 마이크를 켜지 않으면 8초 무응답 처리 → 시연은 **대본 응답**(ScriptedSpeechEngine) 사용 |
+| 음성 인식 (Pleos STT) | ✅ **실제** (호스트 마이크 필요) | 에뮬레이터 Microphone 을 호스트 입력으로 켜고 응답 입력 "마이크"로 실제 인식 확인. 마이크를 켜지 않으면 8초 무응답 처리 → 마이크 없이 시연할 때는 **대본 응답**(ScriptedSpeechEngine) 사용 |
 | `driving_regulation on/off` 셸 명령 | ❌ 없음 | 이 사용자 빌드 에뮬레이터에는 `hmg_car_service` 가 없음 → 규제는 기어 D 로 검증 |
 
 ### 3.2 알려진 제약
@@ -110,7 +111,7 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 
 ```
 com.gildongmu.app
-├─ app/        GildongmuApp · AppContainer(수동 DI) · MainActivity(단일 액티비티) · GameCoordinator
+├─ app/        GildongmuApp · AppContainer(수동 DI) · MainActivity(단일 액티비티) · GameCoordinator · WindowPlacement(3분할 창 위치)
 ├─ core/
 │  ├─ car/       CarStateSource · AaosCarStateSource · VehicleSdkClient · SimulatedCarStateSource · CarStateRepository
 │  ├─ navi/      TripSource · NaviHelperTripSource · SimulatedTripSource · TripRepository · TripUnits · DestinationPreset
@@ -133,7 +134,8 @@ DriveState  PARKED(기어 P) · STOPPED(저속 3초 또는 속도0+브레이크)
 GameMode    IDLE(세션 없음) · VOICE(주행/정차/DO) · SCREEN(주차 && !requiresDO) · PAUSED(길 안내·통화·사용자·백그라운드)
 규칙  1) requiresDO 면 SCREEN 금지(즉시)  2) 주행 상태 1.5초 디바운스  3) PAUSED 진입 시 TTS/STT 즉시 중단, 재개 시 같은 문제
       4) SCREEN→VOICE 즉시, VOICE→SCREEN 은 음성 판 마무리 후  5) 전환 로그 "ModeArbiter: DRIVING+DO → VOICE (reason=…)"
-세션  남은 시간 → 판 수(약 45분마다 1판, 판 6~10분, 휴지 ≥2분, 도착 5분 전 종료, 12분 미만 짧은 판), ±20% 변하면 남은 판 재계산
+세션  남은 시간 + 판 간격(여유 있게 45분 · 자주 20분 · 쉬지 않고 휴지 2분) → 판 수(판 6~10분, 휴지 ≥2분, 도착 5분 전 종료,
+      12분 미만 짧은 판), ±20% 변하면 같은 간격으로 남은 판 재계산
 졸음  운전자 응답 지연(TTS 끝→첫 인식) 기준값 EMA, 최근 5개 중 3개 느림 → 말 걸기 + 난이도 -1 + 쿨다운 5분 (보조 기능)
 ```
 
@@ -143,7 +145,7 @@ GameMode    IDLE(세션 없음) · VOICE(주행/정차/DO) · SCREEN(주차 && !
 ```bash
 ./gradlew lintDebug testDebugUnitTest assembleRelease
 ```
-- 단위 테스트 115개 (ModeArbiter·DriveStateDeriver·SessionPlanner·AnswerMatcher·두음법칙·끝말잇기·지역 판정·콘텐츠 자산 검증·졸음 모니터·저장본 코덱·GameSession 통합·내비 재조회 조건·홈 내비 목적지 선택·3분할 창 위치)
+- 단위 테스트 120개 (ModeArbiter·DriveStateDeriver·SessionPlanner(판 간격 3종 포함)·AnswerMatcher·두음법칙·끝말잇기·지역 판정·콘텐츠 자산 검증·졸음 모니터·저장본 코덱·GameSession 통합·내비 재조회 조건·홈 내비 목적지 선택·3분할 창 위치)
 - 주행 중 CPU 0~0.5%, 메모리 PSS 약 50 MB (에뮬레이터 `top`/`dumpsys meminfo` 측정)
 
 ## 7. 문서

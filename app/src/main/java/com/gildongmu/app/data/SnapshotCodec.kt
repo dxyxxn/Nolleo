@@ -7,6 +7,7 @@ import com.gildongmu.app.domain.model.DriveState
 import com.gildongmu.app.domain.model.GameChoice
 import com.gildongmu.app.domain.model.GameKind
 import com.gildongmu.app.domain.model.Player
+import com.gildongmu.app.domain.model.RoundPacing
 import com.gildongmu.app.domain.model.RoundPlan
 import com.gildongmu.app.domain.model.SessionPlan
 import org.json.JSONArray
@@ -85,6 +86,7 @@ object SnapshotCodec {
 
     private fun encodePlan(p: SessionPlan) = JSONObject().apply {
         put("basis", p.basisRemainSec)
+        put("pacing", p.pacing.name)
         put("rounds", JSONArray(p.rounds.map { r ->
             JSONObject().put("index", r.index).put("game", r.game.name).put("duration", r.targetDurationSec)
                 .put("count", r.questionCount).put("startAt", r.startAtRemainSec).put("short", r.isShort)
@@ -104,7 +106,9 @@ object SnapshotCodec {
                 isShort = r.optBoolean("short"),
             )
         }
-        return SessionPlan(rounds, o.getInt("basis"))
+        // pacing 이 없는 이전 저장본은 기본 간격(여유 있게)으로 읽는다
+        val pacing = runCatching { RoundPacing.valueOf(o.getString("pacing")) }.getOrDefault(RoundPacing.RELAXED)
+        return SessionPlan(rounds, o.getInt("basis"), pacing)
     }
 
     private fun encodeSample(s: ResponseSample) = JSONObject()

@@ -2,6 +2,7 @@ package com.gildongmu.app.core.navi
 
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.constants.NavigationStatus
+import ai.pleos.playground.navi.constants.RouteOption
 import ai.pleos.playground.navi.constants.TurnType
 import ai.pleos.playground.navi.data.CameraAlert
 import ai.pleos.playground.navi.data.CautionPoint
@@ -13,6 +14,8 @@ import ai.pleos.playground.navi.data.RouteInfo
 import ai.pleos.playground.navi.data.RouteStartInfo
 import ai.pleos.playground.navi.data.RouteStateInfo
 import ai.pleos.playground.navi.data.TBTInfo
+import ai.pleos.playground.navi.data.WaypointArrivedInfo
+import ai.pleos.playground.navi.data.WaypointChangedInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
 import android.content.Context
@@ -166,6 +169,18 @@ class NaviHelperTripSource(context: Context) : TripSource {
             _events.tryEmit(TripEvent.Error(errorCode.name))
         }
 
+        // 목적지·경유지·경로 옵션이 바뀌거나 재탐색이 끝나면 남은 시간이 달라진다 → 30초 주기를 기다리지 않고 바로 조회
+        // (이벤트 목록은 샘플 NaviHelperViewModel 기준)
+        override fun onDestinationChanged() = refreshOn("onDestinationChanged")
+
+        override fun onReRouteEnded() = refreshOn("onReRouteEnded")
+
+        override fun onRouteOptionChanged(routeOption: RouteOption) = refreshOn("onRouteOptionChanged $routeOption")
+
+        override fun onWaypointChanged(waypointChangedInfo: WaypointChangedInfo) = refreshOn("onWaypointChanged")
+
+        override fun onWayPointArrived(waypointArrivedInfo: WaypointArrivedInfo) = refreshOn("onWayPointArrived")
+
         override fun onRouteStateInfo(routeStateInfo: RouteStateInfo) {
             AppLog.i(TAG, "onRouteStateInfo isRouting=${routeStateInfo.isRouting} mode=${routeStateInfo.naviMode}")
             // TODO(phase2): routeStateInfo.trafficStatus (TrafficCongestionType.HEAVY) → 정체 구간 자동 일시정지
@@ -282,6 +297,12 @@ class NaviHelperTripSource(context: Context) : TripSource {
 
     private fun mark(label: String) {
         _lastEventLabel.value = label
+    }
+
+    private fun refreshOn(event: String) {
+        AppLog.i(TAG, "$event → 남은 시간 다시 조회")
+        mark(event)
+        refresh()
     }
 
     private inline fun runCall(label: String, action: () -> Unit) {

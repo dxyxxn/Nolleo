@@ -20,6 +20,14 @@ class HomeStateTest {
     }
 
     @Test
+    fun simulatedTripMode_showsCardButDoesNotAutoSelect() {
+        val home = HomeState(presetId = "seoul_busan").withNaviRoute(available = true, autoSelect = false)
+        assertFalse(home.useNaviRoute)
+        // 길 안내가 끝나면 이미 고른 내비 목적지는 자동 선택 여부와 상관없이 해제
+        assertFalse(HomeState(useNaviRoute = true).withNaviRoute(available = false, autoSelect = false).useNaviRoute)
+    }
+
+    @Test
     fun noChange_returnsSameInstance() {
         val picked = HomeState(presetId = "seoul_busan", useNaviRoute = true)
         assertSame(picked, picked.withNaviRoute(available = true))

@@ -8,6 +8,8 @@
 - **졸음쉼터 탐색**: 오프라인 테이블 `assets/content/rest_areas.json`(고속도로 졸음쉼터 좌표) + FusedLocation 현재 위치로 진행 방향 앞쪽 가장 가까운 곳 선택
 - **길 안내**: `NaviHelper.addWaypoint(RequestWaypointInfo(..., waypointIndex = WaypointIndex.FIRST))` — 경유지로 넣어 원래 목적지를 유지. 퍼미션 `NAVI_ROUTE_SEARCH`(이미 선언)
 - **도착 감지**: `FusedLocation.addProximityAlert(ProximityAlertRequest(lat, lng, radiusMeters = 300f, setOf(ENTER)))` → 도착하면 게임을 쉬는 시간으로 전환하고 "잘 쉬셨나요?" 확인, `NaviHelperEventListener.onWayPointArrived` 와 교차 확인
+  - 리스너 `ProximityAlertListener`(onRegistered(alertId) / onTransition(event) / onError), 해제는 `removeProximityAlert(alertId)` — `pleos-example/pleos-sample-fusedlocation-app` 의 `FusedLocationClient` 참고
+  - 에뮬레이터 시험(샘플 README 절차): `adb shell appops set --user current com.gildongmu.app android:mock_location allow` → 위치 수신 후 등록 → `adb emu geo fix <경도> <위도>` 로 반경 안/밖 좌표를 번갈아 넣어 ENTER/EXIT 확인 (경도가 먼저)
 - 판단 원칙 유지: "졸음운전 감지" 같은 단정 표현 금지, 반복 경고 금지(쿨다운)
 
 ## 2. 지역 스탬프 영속화
@@ -44,6 +46,8 @@
 - Gleo 호출 시 `AUDIOFOCUS_LOSS_TRANSIENT` 는 이미 처리(즉시 중단 → GAIN 시 1초 뒤 같은 문제)
 
 ## 7. 그 밖의 2차 작업 후보
+- **출발 전 예상 시간을 실제 내비 값으로**: 홈 프리셋의 "약 4시간 10분"은 고정값이다. `NaviHelper.requestTrip(TripRequest(lat, lng, poiId, poiName, poiSubId))` 를 부르면 길 안내를 시작하지 않고 `onTripInfo(TripInfo(distance m, eta 초, …))` 로 예상 시간을 받는다(퍼미션 `NAVI_ROUTE` — 이미 선언, 샘플 `NaviTestData.tripRequest`). 미리보기 "N시간 → M판"을 실제 교통 반영 값으로 바꿀 수 있다
+- **Vehicle SDK 리스너를 화면이 보일 때만 등록**: 샘플 README("관찰하는 화면이 멈추면 unregister")·DEV_GUIDE §5.4 기준. 지금은 브레이크·좌석 리스너가 앱 수명 동안 등록돼 있다(좌석은 홈에서만 쓰임)
 - 운전자 프로필 확장(이름 직접 입력은 정차 중에만, 좌석 착좌·운전석 프로필 연동)
 - 동승자 이름 커스터마이즈, 아이 연령대별 난이도
 - 서버 TTS/STT(HYBRID) 품질 비교 — `local.properties` 에 Client ID/Secret 만 넣으면 전환

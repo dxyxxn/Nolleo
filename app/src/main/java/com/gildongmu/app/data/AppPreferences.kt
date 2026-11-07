@@ -16,6 +16,7 @@ import com.gildongmu.app.core.speech.SpeechMode
 import com.gildongmu.app.domain.drowsy.DriverBaseline
 import com.gildongmu.app.domain.engine.SessionSnapshot
 import com.gildongmu.app.domain.model.GameChoice
+import com.gildongmu.app.domain.model.RoundPacing
 import kotlinx.coroutines.flow.first
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "gildongmu")
@@ -33,6 +34,7 @@ data class AppSettings(
     val lastDriverId: Int = 1,
     val lastPassengerCount: Int = 1,
     val lastChoice: GameChoice = GameChoice.ALTERNATE,
+    val lastPacing: RoundPacing = RoundPacing.RELAXED,
 )
 
 /**
@@ -55,6 +57,7 @@ class AppPreferences(context: Context) {
         val DRIVER = intPreferencesKey("last_driver")
         val PASSENGERS = intPreferencesKey("last_passengers")
         val CHOICE = stringPreferencesKey("last_choice")
+        val PACING = stringPreferencesKey("last_pacing")
         val SESSION = stringPreferencesKey("session_snapshot")
         fun baseline(driverId: Int) = stringPreferencesKey("baseline_$driverId")
     }
@@ -73,6 +76,7 @@ class AppPreferences(context: Context) {
             lastDriverId = p[Keys.DRIVER] ?: 1,
             lastPassengerCount = p[Keys.PASSENGERS] ?: 1,
             lastChoice = p[Keys.CHOICE].toEnum(GameChoice.ALTERNATE),
+            lastPacing = p[Keys.PACING].toEnum(RoundPacing.RELAXED),
         )
     }.onFailure { AppLog.w(TAG, "settings read failed", it) }.getOrDefault(AppSettings())
 
@@ -90,6 +94,7 @@ class AppPreferences(context: Context) {
                 p[Keys.DRIVER] = s.lastDriverId
                 p[Keys.PASSENGERS] = s.lastPassengerCount
                 p[Keys.CHOICE] = s.lastChoice.name
+                p[Keys.PACING] = s.lastPacing.name
             }
         }.onFailure { AppLog.w(TAG, "settings write failed", it) }
     }

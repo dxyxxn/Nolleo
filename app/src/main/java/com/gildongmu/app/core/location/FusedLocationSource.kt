@@ -48,19 +48,27 @@ class FusedLocationSource(context: Context) {
     fun hasPermission(): Boolean =
         ContextCompat.checkSelfPermission(appContext, PERMISSION) == PackageManager.PERMISSION_GRANTED
 
+    /** 위치 서비스 지원 여부. 샘플과 같이 퍼미션 요청·initialize() 전에 확인한다 (미지원 차량에서 권한 대화상자를 띄우지 않기 위해) */
+    fun isSupported(): Boolean = try {
+        (fused ?: FusedLocation(appContext).also { fused = it }).isSupported()
+    } catch (t: Throwable) {
+        AppLog.w(TAG, "FusedLocation isSupported failed", t)
+        false
+    }
+
     fun start() {
         if (subscribed) return
+        if (!isSupported()) {
+            AppLog.i(TAG, "FusedLocation not supported → 위치 기능 비활성")
+            _status.value = SdkStatus.Unavailable("미지원")
+            return
+        }
         if (!hasPermission()) {
             _status.value = SdkStatus.Unavailable("퍼미션 거부")
             return
         }
         try {
             val f = fused ?: FusedLocation(appContext).also { fused = it }
-            if (!f.isSupported()) {
-                AppLog.i(TAG, "FusedLocation not supported → 위치 기능 비활성")
-                _status.value = SdkStatus.Unavailable("미지원")
-                return
-            }
             if (!initialized) {
                 f.initialize()
                 initialized = true

@@ -32,6 +32,7 @@ import com.gildongmu.app.domain.model.GameMode
 import com.gildongmu.app.domain.model.GearPosition
 import com.gildongmu.app.domain.model.PauseReason
 import com.gildongmu.app.domain.model.Player
+import com.gildongmu.app.domain.model.RoundPacing
 import com.gildongmu.app.domain.model.SessionPlan
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -61,10 +62,15 @@ data class HomeState(
     val driverId: Int = 1,
     val passengerCount: Int = 1,
     val choice: GameChoice = GameChoice.ALTERNATE,
+    /** 판 간격 (여유 있게 / 자주 / 쉬지 않고) */
+    val pacing: RoundPacing = RoundPacing.RELAXED,
 ) {
-    /** 내비 길 안내가 새로 잡히면 그 목적지를 기본으로 고르고, 길 안내가 끝나면 프리셋으로 돌아간다 */
-    fun withNaviRoute(available: Boolean): HomeState = when {
-        available && !useNaviRoute -> copy(useNaviRoute = true)
+    /**
+     * 내비 길 안내가 새로 잡히면 그 목적지를 기본으로 고르고, 길 안내가 끝나면 프리셋으로 돌아간다.
+     * [autoSelect] = false(디버그 패널 여정=시뮬, 시연용)면 카드만 보여 주고 고르지는 않는다 — 고르면 시뮬 여정이 아니게 된다.
+     */
+    fun withNaviRoute(available: Boolean, autoSelect: Boolean = true): HomeState = when {
+        available && autoSelect && !useNaviRoute -> copy(useNaviRoute = true)
         !available && useNaviRoute -> copy(useNaviRoute = false)
         else -> this
     }
@@ -146,7 +152,7 @@ class GameCoordinator(private val c: AppContainer) {
             h.useNaviRoute && navi?.remainTimeSec != null -> navi.remainTimeSec to navi.destinationName
             else -> DestinationPreset.byId(h.presetId)?.let { it.estimatedSec to it.poiName } ?: return@combine null
         }
-        val plan = SessionPlanner.plan(remain, h.choice, s.demoMode)
+        val plan = SessionPlanner.plan(remain, h.choice, s.demoMode, h.pacing)
         PlanPreview(SessionPlanner.previewText(remain, plan, TripUnits::formatDuration), plan, remain, name)
     }.stateIn(scope, SharingStarted.Eagerly, null)
 
@@ -185,7 +191,8 @@ class GameCoordinator(private val c: AppContainer) {
                 driverId = s.lastDriverId,
                 passengerCount = s.lastPassengerCount.coerceIn(0, 3),
                 choice = s.lastChoice,
-            ).withNaviRoute(c.naviTrip.activeNaviDestination.value != null)
+                pacing = s.lastPacing,
+            ).withNaviRoute(c.naviTrip.activeNaviDestination.value != null, autoSelect = s.tripMode != SourceMode.SIM)
             c.content.load()
             val saved = c.preferences.loadSession()
             if (saved != null && c.clock.wallMs() - saved.savedAtWallMs < RESTORE_MAX_AGE_MS) {
@@ -226,6 +233,7 @@ class GameCoordinator(private val c: AppContainer) {
     fun selectDriver(id: Int) = _home.update { it.copy(driverId = id) }
     fun setPassengers(count: Int) = _home.update { it.copy(passengerCount = count.coerceIn(0, 3)) }
     fun selectChoice(choice: GameChoice) = _home.update { it.copy(choice = choice) }
+    fun selectPacing(pacing: RoundPacing) = _home.update { it.copy(pacing = pacing) }
     fun dismissMessage() {
         _message.value = null
     }
@@ -256,7 +264,7 @@ class GameCoordinator(private val c: AppContainer) {
         val demo = _settings.value.demoMode
         val players = buildPlayers(h)
         activeDriverId = h.driverId
-        updateSettings { it.copy(lastPresetId = h.presetId ?: it.lastPresetId, lastDriverId = h.driverId, lastPassengerCount = h.passengerCount, lastChoice = h.choice) }
+        updateSettings { it.copy(lastPresetId = h.presetId ?: it.lastPresetId, lastDriverId = h.driverId, lastPassengerCount = h.passengerCount, lastChoice = h.choice, lastPacing = h.pacing) }
         scope.launch {
             val baseline = c.preferences.loadBaseline(h.driverId)
                 ?: if (demo) DEMO_BASELINE.also { AppLog.i(TAG, "demo: seeded driver baseline ${it.latencyEmaMs.toLong()}ms") } else null
@@ -503,7 +511,8 @@ class GameCoordinator(private val c: AppContainer) {
         c.naviTrip.activeNaviDestination.map { it != null }.distinctUntilChanged().onEach { available ->
             if (_session.value != null) return@onEach
             val before = _home.value.useNaviRoute
-            _home.update { it.withNaviRoute(available) }
+            val autoSelect = _settings.value.tripMode != SourceMode.SIM
+            _home.update { it.withNaviRoute(available, autoSelect) }
             if (before != _home.value.useNaviRoute) {
                 AppLog.i(TAG, if (available) "navi route detected → 홈에서 내비 목적지 선택" else "navi route ended → 프리셋으로")
             }
