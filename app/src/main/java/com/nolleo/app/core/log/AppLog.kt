@@ -13,7 +13,7 @@ import java.util.Locale
 /**
  * 앱 공통 로거. logcat 출력 + 디버그 패널용 최근 로그 링버퍼.
  *
- * PII 규칙 (지시서 §9 보안): 인식된 발화 텍스트와 위치는 [sensitive] 로만 남기고,
+ * PII 규칙 (DEV_GUIDE §11.4 보안): 인식된 발화 텍스트와 위치는 [sensitive] 로만 남기고,
  * release 빌드에서는 logcat·디버그 패널 모두 마스킹한다.
  */
 object AppLog {

@@ -14,7 +14,7 @@ import org.junit.Test
 import java.io.File
 import kotlin.random.Random
 
-/** 실제 assets 콘텐츠가 지시서 §6 규칙을 지키는지 검증한다. */
+/** 실제 assets 콘텐츠가 게임 콘텐츠 규칙(지역 17곳·지역마다 8문항 이상·일반 40문항 이상 등)을 지키는지 검증한다. */
 class ContentAssetsTest {
 
     private fun asset(path: String) = File("src/main/assets/$path").readText(Charsets.UTF_8)

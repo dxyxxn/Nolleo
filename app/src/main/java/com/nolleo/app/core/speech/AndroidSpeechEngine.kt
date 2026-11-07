@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 
 /**
- * Android 플랫폼 TTS/SpeechRecognizer 폴백 (지시서 §5.4).
+ * Android 플랫폼 TTS/SpeechRecognizer 폴백.
  * 에뮬레이터에 엔진이 없을 수 있으므로 엔진 목록·언어·isRecognitionAvailable 로 감지해 없으면 건너뛴다.
  * SpeechRecognizer 는 RECORD_AUDIO 런타임 퍼미션이 필요하다 — 이 경로가 선택될 때만 요청한다.
  */

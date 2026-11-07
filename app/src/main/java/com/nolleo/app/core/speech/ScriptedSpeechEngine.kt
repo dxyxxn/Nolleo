@@ -25,7 +25,7 @@ data class AnswerScript(val name: String, val entries: List<ScriptEntry>, val dr
 }
 
 /**
- * 데모 녹화·테스트용 엔진 (지시서 §5.4, §10).
+ * 데모 녹화·테스트용 엔진.
  *  - speak: 화면 자막(세션 상태가 표시)만 쓰고 소리 없이 글자 수에 비례해 기다린다.
  *  - listen: 대본(assets/demo/answers_*.json)의 답을 지정된 지연 뒤에 돌려준다. "{correct}"·"{wrong}" 토큰 지원.
  *  - 디버그 패널의 직접 입력/정답·오답·무응답 버튼은 [submitManual] 로 현재 듣기에 즉시 답한다.

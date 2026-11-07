@@ -41,7 +41,7 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 /**
- * 게임 루프 (지시서 §3·§6·§7): 판 시작 대기 → 출제(TTS) → 듣기(STT) → 판정 → 결과(TTS) → 다음 차례.
+ * 게임 루프: 판 시작 대기 → 출제(TTS) → 듣기(STT) → 판정 → 결과(TTS) → 다음 차례.
  *
  *  - PAUSED 진입 시 진행 중인 TTS/STT 를 즉시 멈추고(현재 문제 보존), 해제되면 1초 뒤 같은 문제를 다시 낸다.
  *  - 정차(화면 게임 가능)하면 진행 중인 차례만 끝내고 판을 마무리한다 → ModeArbiter 가 SCREEN 으로 전환.
@@ -682,7 +682,7 @@ class GameSession(
     }
 
     companion object {
-        /** 일시정지 해제(GAIN 등) 후 같은 문제를 다시 낼 때까지 (지시서 §5.4: 1초 뒤 재출제) */
+        /** 일시정지 해제(GAIN 등) 후 같은 문제를 다시 낼 때까지 (1초 뒤 재출제) */
         const val RESUME_DELAY_MS = 1_000L
     }
 }

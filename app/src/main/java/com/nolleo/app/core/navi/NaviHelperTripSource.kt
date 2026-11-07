@@ -38,7 +38,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * NaviHelper SDK — 남은 시간·경로·안내 시점 (지시서 §5.2, DEV_GUIDE §8.2).
+ * NaviHelper SDK — 남은 시간·경로·안내 시점 (DEV_GUIDE §8.2).
  * 패턴은 샘플 NaviHelperViewModel 과 같다: NaviHelper(appContext) → initialize(onConnected, onFailed)
  * → addListener → API 호출(결과는 전부 콜백) → removeListener(같은 인스턴스) → release().
  *

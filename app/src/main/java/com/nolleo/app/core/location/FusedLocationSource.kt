@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Pleos FusedLocation SDK — 지역 퀴즈 선택 (지시서 §5.3, DEV_GUIDE §8.5, 샘플 FusedLocationClient 패턴).
+ * Pleos FusedLocation SDK — 지역 퀴즈 선택 (DEV_GUIDE §8.5, 샘플 FusedLocationClient 패턴).
  * isSupported() 가 true 일 때만 initialize() → registerFusedLocationCallback. 종료 시 unregister → release
  * (둘은 서로 대체 불가). 퍼미션 pleos.car.permission.FUSED_LOCATION 은 dangerous → 런타임 요청, 거부되면 위치 기능만 끈다.
  */

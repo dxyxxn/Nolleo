@@ -6,7 +6,7 @@ import com.nolleo.app.domain.model.PauseReason
 import com.nolleo.app.domain.model.UxState
 
 /**
- * 주행 상태 + 플랫폼 규제 + 일시정지 사유 → [GameMode] (지시서 §3 규칙 1~5).
+ * 주행 상태 + 플랫폼 규제 + 일시정지 사유 → [GameMode]. 규칙:
  *
  * 1. requiresDO == true 면 어떤 경우에도 SCREEN 금지 (플랫폼 규제가 기어 신호보다 우선, 디바운스 없이 즉시 반영)
  * 2. DriveState 전환은 [debounceMs] 디바운스 → 흔들리는 신호로 모드가 깜빡이지 않는다

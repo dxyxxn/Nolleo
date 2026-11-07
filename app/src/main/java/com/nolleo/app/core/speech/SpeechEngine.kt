@@ -42,7 +42,7 @@ data class ListenHint(
     val yesNo: Boolean = false,
 )
 
-/** 지시서 §5.4 의 SpeechEngine 인터페이스 (+ 대본용 hint, 상태). */
+/** 음성 엔진(Pleos·Android·대본) 공통 인터페이스 (+ 대본용 hint, 상태). */
 interface SpeechEngine {
     val kind: SpeechEngineKind
     val ttsStatus: StateFlow<SdkStatus>

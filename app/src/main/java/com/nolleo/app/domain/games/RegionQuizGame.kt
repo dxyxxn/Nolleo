@@ -9,7 +9,7 @@ import com.nolleo.app.domain.model.Question
 import kotlin.random.Random
 
 /**
- * 지역 퀴즈 (지시서 §6): 현재 regionCode 의 미출제 문제 → 없으면 인접 지역 → 없으면 일반 퀴즈.
+ * 지역 퀴즈: 현재 regionCode 의 미출제 문제 → 없으면 인접 지역 → 없으면 일반 퀴즈.
  * 난이도는 DrowsinessMonitor 가 내린 상한 이하에서 고른다. 지역이 바뀌면 "이제 충청북도예요!" 한 줄 안내.
  * 위치를 모르면 일반 가족 퀴즈.
  */

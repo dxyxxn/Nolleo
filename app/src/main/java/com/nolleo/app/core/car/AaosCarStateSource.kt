@@ -172,7 +172,7 @@ class AaosCarStateSource(context: Context) : CarStateSource {
             _signals.update { it.copy(speedMps = null) }
             return
         }
-        // 1 Hz 이하 (지시서 §5.1). 폴링 금지 — 콜백만.
+        // 1 Hz 이하. 폴링 금지 — 콜백만.
         speedRegistered = register(pm, VehiclePropertyIds.PERF_VEHICLE_SPEED, 1f)
     }
 

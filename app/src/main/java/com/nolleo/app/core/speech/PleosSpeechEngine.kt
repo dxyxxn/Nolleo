@@ -32,7 +32,7 @@ import ai.pleos.playground.tts.listener.OnInitializeListener as TtsInitListener
 import ai.pleos.playground.tts.listener.OnServerConnectionListener as TtsServerListener
 
 /**
- * Pleos TextToSpeech / SpeechToText SDK (DEV_GUIDE §8.3–8.4, 지시서 §5.4).
+ * Pleos TextToSpeech / SpeechToText SDK (DEV_GUIDE §8.3–8.4).
  *
  *  TTS: TextToSpeech(appContext, mode) → initialize(OnInitializeListener) → addEventListener → setLocale(KOREA)
  *       → (자격증명 있을 때만) registerApp → speak(text, isFinal=true) → onDone

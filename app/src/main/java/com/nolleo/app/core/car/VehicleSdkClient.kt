@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * Pleos Vehicle SDK — OEM 특화 보조 신호 (지시서 §5.1).
+ * Pleos Vehicle SDK — OEM 특화 보조 신호.
  *  - Brake.BrakePedalStatus (pleos.car.permission.CAR_DRIVE): STOPPED 판정 보조 (속도 0 + 브레이크 on)
  *  - Seat.SeatOccupancy     (pleos.car.permission.CAR_SEATS): 동승자 수 자동 제안
  *

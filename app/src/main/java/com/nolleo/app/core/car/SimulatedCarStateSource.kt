@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.update
 
 /**
  * 시연·테스트용 차량 상태. 디버그 패널의 기어·속도·DO 토글로 조작한다.
- * 실제 CarUxRestrictionsManager 가 살아 있으면 CarStateRepository 가 그 값을 우선한다 (지시서 §10).
+ * 실제 CarUxRestrictionsManager 가 살아 있으면 CarStateRepository 가 그 값을 우선한다.
  */
 class SimulatedCarStateSource : CarStateSource {
     override val kind = CarSourceKind.SIMULATED

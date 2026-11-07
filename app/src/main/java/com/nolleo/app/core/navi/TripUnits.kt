@@ -3,7 +3,7 @@ package com.nolleo.app.core.navi
 import com.nolleo.app.core.log.AppLog
 
 /**
- * NaviHelper 값의 단위 변환을 한 곳에 모은다 (지시서 §5.2 단위 주의).
+ * NaviHelper 값의 단위 변환을 한 곳에 모은다 (단위 주의).
  *
  * 근거: PLEOS_CONNECT_API_REFERENCE.md
  *  - DestinationInfo.remainTime  "estimated remaining travel time ... (in seconds)"

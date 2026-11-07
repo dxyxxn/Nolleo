@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 enum class FocusChange { GAIN, LOSS, LOSS_TRANSIENT, LOSS_TRANSIENT_CAN_DUCK }
 
 /**
- * 오디오 포커스 (DEV_GUIDE §7.2–7.3, 지시서 §5.4).
+ * 오디오 포커스 (DEV_GUIDE §7.2–7.3).
  * 게임 음성은 USAGE_MEDIA / CONTENT_TYPE_SPEECH 로 음성 세션 시작 시 AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK 을 1회 요청하고,
  * 세션 종료·일시정지·Suspend(백그라운드) 시 abandon 한다. 포커스 변경 콜백은 [changes] 로 내보내고
  * 처리(일시정지·재출제)는 GameCoordinator 가 한다.

@@ -165,7 +165,7 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
                 DevButton("오답") { coordinator.manualAnswer(ScriptedSpeechEngine.ManualAnswer.Wrong) }
                 DevButton("무응답") { coordinator.manualAnswer(ScriptedSpeechEngine.ManualAnswer.Silence) }
             }
-            // 주행 규제(requiresDO) 중에는 텍스트 입력 금지 (지시서 §5.4)
+            // 주행 규제(requiresDO) 중에는 텍스트 입력 금지 (DEV_GUIDE §7.1 NO_KEYBOARD)
             var typed by remember { mutableStateOf("") }
             val keyboardAllowed = !ux.requiresDO && !ux.noKeyboard
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

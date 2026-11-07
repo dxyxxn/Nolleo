@@ -108,7 +108,7 @@ data class SessionSummary(
     val winner: Player? get() = players.maxByOrNull { scores[it.id] ?: 0 }?.takeIf { (scores[it.id] ?: 0) > 0 }
 }
 
-/** 프로세스 재생성·백그라운드 복귀 대비 저장본 (지시서 §9 상태 복원) */
+/** 프로세스 재생성·백그라운드 복귀 대비 저장본 (상태 복원) */
 data class SessionSnapshot(
     val destinationName: String,
     val presetId: String?,

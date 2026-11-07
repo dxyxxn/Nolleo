@@ -5,7 +5,7 @@ import com.nolleo.app.domain.model.DriveState
 import com.nolleo.app.domain.model.GearPosition
 
 /**
- * 원시 차량 신호 → [DriveState] (지시서 §3). 순수 로직, 시간은 인자로 받는다.
+ * 원시 차량 신호 → [DriveState]. 순수 로직, 시간은 인자로 받는다.
  *
  * - PARKED  : gear == PARK. 기어를 모를 때만 parkingBrake == true && speed ≈ 0 을 보조로 쓴다.
  *             (기어가 D 인데 주차 브레이크 텔테일이 켜져 있는 에뮬레이터 상태에서 PARKED 로 오판하지 않기 위함)
@@ -43,7 +43,7 @@ class DriveStateDeriver(
             return Result(DriveState.UNKNOWN, null)
         }
         if (speed == null) {
-            // 속도 퍼미션 거부: STOPPED 판정 불가 → DRIVING 으로 간주 (지시서 §5.1)
+            // 속도 퍼미션 거부: STOPPED 판정 불가 → DRIVING 으로 간주
             lowSpeedSinceMs = null
             return Result(DriveState.DRIVING, null)
         }

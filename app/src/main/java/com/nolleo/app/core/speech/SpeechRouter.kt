@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 
-/** 디버그 패널: 음성 엔진 강제 선택 (지시서 §10 speech=auto|pleos|android|scripted) */
+/** 디버그 패널: 음성 엔진 강제 선택 (auto|pleos|android|scripted) */
 enum class SpeechMode(val label: String) { AUTO("자동"), PLEOS("Pleos"), ANDROID("Android"), SCRIPTED("대본") }
 
 /** 응답 입력: 마이크(STT) 또는 대본 */
@@ -24,7 +24,7 @@ enum class AnswerInput(val label: String, val scriptAsset: String?) {
 }
 
 /**
- * TTS 와 STT 를 각각 Pleos → Android → Scripted 순서로 자동 선택한다 (지시서 §5.4).
+ * TTS 와 STT 를 각각 Pleos → Android → Scripted 순서로 자동 선택한다.
  * 실제 SDK 경로가 1순위이고, 대본은 빈 곳만 메운다. 선택 결과는 [ttsKind]/[sttKind] 로 UI·로그에 드러난다.
  */
 class SpeechRouter(

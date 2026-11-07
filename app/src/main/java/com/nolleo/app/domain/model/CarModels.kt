@@ -1,6 +1,6 @@
 package com.nolleo.app.domain.model
 
-/** 차량 입력에서 파생되는 주행 상태 (지시서 §3). */
+/** 차량 입력에서 파생되는 주행 상태. */
 enum class DriveState(val label: String) {
     /** gear == PARK (기어 미상일 때만: parkingBrake == true && speed ≈ 0) */
     PARKED("주차"),

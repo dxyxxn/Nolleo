@@ -27,7 +27,7 @@ enum class LocationSourceKind(val label: String) {
 data class RegionReading(val regionCode: String?, val source: LocationSourceKind)
 
 /**
- * 지역 판정 폴백 순서 (지시서 §5.3): FusedLocation → NaviHelper onCurrentLocationInfo.address → 시뮬레이션 → 없음(일반 퀴즈).
+ * 지역 판정 폴백 순서: FusedLocation → NaviHelper onCurrentLocationInfo.address → 시뮬레이션 → 없음(일반 퀴즈).
  * 여정이 시뮬레이션이면 위치도 시뮬레이션 경로를 따른다 (정지한 에뮬레이터 위치와 압축된 여정이 어긋나지 않게).
  */
 class LocationRepository(

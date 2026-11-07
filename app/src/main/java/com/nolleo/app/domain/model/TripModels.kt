@@ -14,7 +14,7 @@ data class TurnHint(
     val needsAttention: Boolean,
 )
 
-/** 트립 컨텍스트 (지시서 §3). */
+/** 트립 컨텍스트. */
 data class TripContext(
     val destinationName: String,
     val remainTimeSec: Int?,

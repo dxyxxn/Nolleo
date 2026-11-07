@@ -27,7 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
 /**
- * 수동 DI 컨테이너 (지시서 §4: Hilt/kapt 미사용). SDK 싱글톤을 소유하고 앱 수명 동안 공유한다.
+ * 수동 DI 컨테이너 (Hilt/kapt 미사용). SDK 싱글톤을 소유하고 앱 수명 동안 공유한다.
  * 입력 소스 3종(차량·여정·위치)과 음성 엔진은 런타임에 Real → Fallback → Simulated 순으로 자동 선택된다.
  */
 class AppContainer(val application: Application) {

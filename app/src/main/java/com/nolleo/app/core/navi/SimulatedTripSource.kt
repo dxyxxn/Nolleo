@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
 data class SimPosition(val point: GeoPoint, val regionCode: String, val label: String, val headingDeg: Double? = null)
 
 /**
- * 내비 미탑재·이벤트 없음 환경에서 같은 UI 흐름을 끝까지 시연하기 위한 여정 (지시서 §10).
+ * 내비 미탑재·이벤트 없음 환경에서 같은 UI 흐름을 끝까지 시연하기 위한 여정.
  * 프리셋 타임라인을 [timeScale] 배로 압축한다 (기본 실제 1분 = 여정 30분). remainTime 은 5초마다 갱신.
  * 중간에 "분기점 안내 300 m" TBT 를 내고 실제 시간 8초 동안 유지한다 (P1 자동 일시정지 시연용).
  */

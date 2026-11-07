@@ -43,7 +43,7 @@ Where things go (the docs are in Korean; write in the same plain style):
 | `docs/FEATURE_GUIDE.md` | a feature's behaviour changes: what it does, emulator steps, expected screen/voice/log output, log tags (§12), what can't be verified (§13), troubleshooting (§14). Keep the table of contents and anchors valid |
 | `docs/DEMO_SCENARIO.md` | the 3-minute demo flow, on-screen/TTS wording, timing, or pre-recording checklist changes |
 | `docs/WORK_STATUS.md` | always, for any change: a milestone row (commit hash), a numbered section with what changed and why, decisions (§1.4), doc-vs-reality findings (§1.5), emulator verification results and DoD numbers (lint errors/warnings, test count), and remaining work (§2). It is **one file updated in place** — never create per-date files. The user edits it concurrently, so re-read it right before editing |
-| `docs/PHASE2_NOTES.md` | a phase-2 item is implemented (mark it done) or a follow-up idea comes up |
+| `docs/PHASE2_NOTES.md` | a follow-up idea comes up, or a phase-2 item is implemented — then **remove** it (the file lists only unimplemented work; first make sure FEATURE_GUIDE/WORK_STATUS cover what was built) |
 | `docs/CONTENT_SOURCES.md` | any asset/data file is added, edited or removed: source, licence, transformation steps, counts, data quirks |
 | `docs/README.md` | a doc is added, removed, renamed, or its scope changes |
 | `CLAUDE.md` | build commands, toolchain, conventions or these rules change |
@@ -189,7 +189,7 @@ Redesigned 2026-11-08 for readability (the team picked the "yellow" palette); su
 - Use only the tokens in `ui/theme/Theme.kt`: colours via `Nl.colors.*` (never hard-coded `Color(...)` in screens), spacing `Sp`, shapes `Radius`. Day = light grey ground, white cards, near-black ink; night (system night mode) = charcoal ground, white ink. Yellow (`action`) only for the primary button, selection marks and must-see prompt cards; text on yellow is always ink. Every text/ground pair stays ≥ 4.5:1 in both modes.
 - Use the components in `ui/common/Components.kt`: `PrimaryButton` (exactly one filled per view), `SecondaryButton`, `SegmentedControl` + `SettingRow` (pick one of a few options in a single row — prefer this over scattered buttons), `ChoiceRow` (radio list row), `NlCard`, `BandCard` (only for must-see prompts such as drowsiness care), `Chip`, `Avatar`, `Hairline`, `Logo`. Every tappable surface uses `Modifier.pressable` (instant pressed overlay, no Material ripple — the ripple looked slow). Don't add a second button, card or radius style.
 - Group, don't scatter: a screen is a few cards; each screen has one header row with at most one button on each side.
-- One accent colour; success/danger only for idiom answer states. Never violet or lavender (also check Material defaults leaking into components).
+- One accent colour; success/danger only for screen-game answer states and the voice screen's live/listening indicators. Never violet or lavender (also check Material defaults leaking into components).
 - Type: platform font (Asta Sans) at weights 400 and 600 (700 only for the `Nolleo` wordmark) — on Pleos, 500 maps to Regular and 700 to ExtraBold. Smallest text 18sp, touch targets ≥ 76dp.
 - The title bar is the logo + English wordmark `Nolleo` only (no subtitle, no source/engine text — that lives in the debug panel). Copy: headings are nouns ("목적지", "오늘의 게임"), no exclamation marks in UI labels (spoken TTS lines may keep them).
 - **Security (§11.4)**:

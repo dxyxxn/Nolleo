@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 /**
- * 한 번의 응답 결과 (졸음 케어의 원재료, 지시서 §5.4).
+ * 한 번의 응답 결과 (졸음 케어의 원재료).
  *  - t0     = 문제 TTS 의 onDone 시각 (호출자가 넘긴다)
  *  - tFirst = 첫 Partial(text != blank) 또는 SpeechDetected 중 먼저 온 것
  *  - latencyMs = tFirst - t0. 8초 안에 말이 없으면 latencyMs = 8000, text = null (느린 응답으로 집계)
