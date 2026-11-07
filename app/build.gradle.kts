@@ -18,7 +18,7 @@ fun String.asBuildConfigString(): String = "\"" + replace("\\", "\\\\").replace(
 val hasReleaseKeystore = localProp("RELEASE_STORE_FILE").isNotEmpty()
 
 android {
-    namespace = "com.gildongmu.app"
+    namespace = "com.nolleo.app"
     compileSdk {
         version = release(37)
     }
@@ -26,7 +26,7 @@ android {
     useLibrary("android.car")
 
     defaultConfig {
-        applicationId = "com.gildongmu.app"
+        applicationId = "com.nolleo.app"
         minSdk = 28
         targetSdk = 37
         versionCode = 1

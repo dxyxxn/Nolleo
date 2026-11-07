@@ -24,5 +24,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Gildongmu"
+rootProject.name = "Nolleo"
 include(":app")

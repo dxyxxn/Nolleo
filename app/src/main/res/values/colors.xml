@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="gd_background">#FF0F1419</color>
-    <color name="gd_primary">#FF5CC8FF</color>
+    <!-- 창 바탕(첫 화면이 그려지기 전). 실제 색은 Compose 테마(ui/theme/Theme.kt)가 정한다. 밤 값은 values-night -->
+    <color name="nl_ground">#FFF3F4F6</color>
+    <color name="nl_accent">#FF16181D</color>
 </resources>

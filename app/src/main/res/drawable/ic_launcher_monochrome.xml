@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 놀레오 마크 단색판(테마 아이콘용): 해의 눈·입과 언덕 위 길을 구멍(evenOdd)으로 뚫어 한 색으로도 같은 그림이 보이게 한다 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M57,36a11,11 0,1 0,22 0a11,11 0,1 0,-22 0z M62.9,34.6a1.7,1.7 0,1 0,3.4 0a1.7,1.7 0,1 0,-3.4 0z M69.7,34.6a1.7,1.7 0,1 0,3.4 0a1.7,1.7 0,1 0,-3.4 0z M63.2,38.6Q68,43.8 72.8,38.6Q68,47.6 63.2,38.6z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M10,66C30,52 76,50 98,62L98,98L10,98Z M38,98C44,82 54,70 56,57.5L59,57.3C61,70 64,84 72,98Z M56.7,61h1.2v3h-1.2z M55.6,67.5h1.8v4.5h-1.8z M54,76h2.6v6.5h-2.6z M53.1,87h3.4v8h-3.4z" />
+</vector>

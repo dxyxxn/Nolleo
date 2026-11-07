@@ -1,11 +1,13 @@
 <resources>
-    <!-- 다크 테마 기본 (DEV_GUIDE §6). 실제 UI 는 Compose 테마가 그린다. -->
-    <style name="Theme.Gildongmu" parent="android:Theme.Material.NoActionBar">
-        <item name="android:windowBackground">@color/gd_background</item>
-        <item name="android:colorBackground">@color/gd_background</item>
-        <item name="android:colorPrimary">@color/gd_primary</item>
-        <item name="android:colorAccent">@color/gd_primary</item>
-        <item name="android:statusBarColor">@color/gd_background</item>
-        <item name="android:navigationBarColor">@color/gd_background</item>
+    <!-- 주간: 밝은 테마. 야간 모드는 values-night (DEV_GUIDE §6.1·§6.5). 실제 UI 는 Compose 테마가 그린다. -->
+    <style name="Theme.Nolleo" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/nl_ground</item>
+        <item name="android:colorBackground">@color/nl_ground</item>
+        <item name="android:colorPrimary">@color/nl_accent</item>
+        <item name="android:colorAccent">@color/nl_accent</item>
+        <item name="android:statusBarColor">@color/nl_ground</item>
+        <item name="android:navigationBarColor">@color/nl_ground</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>

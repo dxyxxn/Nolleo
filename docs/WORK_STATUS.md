@@ -1,10 +1,10 @@
-# 길동무 작업 현황
+# 놀레오 작업 현황
 
-> 날짜별 파일이 아니라 이 한 파일을 계속 갱신한다(2026-11-06 작성 시작, 마지막 갱신 2026-11-07). 11/7 까지는 `docs/state/2026-11-06_work-status.md` 였다.
+> 날짜별 파일이 아니라 이 한 파일을 계속 갱신한다(2026-11-06 작성 시작, 마지막 갱신 2026-11-08). 11/7 까지는 `docs/state/2026-11-06_work-status.md` 였다.
 
-- 브랜치: `main` — `feat/gildongmu-prototype` 작업을 사용자가 main 으로 합쳐 `origin`(github.com/dxyxxn/HMC-Contest)에 push. 이때 히스토리가 다시 쓰여 아래 커밋 해시는 현재 main 기준이다.
-- 기준 지시서: `docs/GILDONGMU_PROTOTYPE_PROMPT.md` (사용자가 `1cb7d90` 에서 `.gitignore` 변경과 함께 커밋)
-- 변수: 팀명 `Team-DonDoAYeon` · 패키지 `com.gildongmu.app` · 앱 이름 `길동무` · Pleos Client ID/Secret 없음 → TTS/STT `Mode.ON_DEVICE`
+- 브랜치: `main` — 프로토타입 작업 브랜치를 사용자가 main 으로 합쳐 `origin`(github.com/dxyxxn/HMC-Contest)에 push. 이때 히스토리가 다시 쓰여 아래 커밋 해시는 현재 main 기준이다.
+- 기준 지시서: `docs/NOLLEO_PROTOTYPE_PROMPT.md` (사용자가 `1cb7d90` 에서 `.gitignore` 변경과 함께 커밋, 11/7 앱 이름 변경으로 파일 이름을 바꿈)
+- 변수: 팀명 `돈도아연`(영문으로 적을 때 DonDoAYeon — 11/8 확정) · 패키지 `com.nolleo.app` · 앱 이름 `놀레오`(영문 Nolleo, 부제 "가는 길이 놀이가 되는 가족 게임" — 11/7 변경, 1.13; 앱 안 제목 줄은 11/8 부터 로고 + `Nolleo` 만) · APK `apk/돈도아연_놀레오_release.apk`(11/8 확정) · Pleos Client ID/Secret 없음 → TTS/STT `Mode.ON_DEVICE`
 - 검증 환경: Pleos Connect Emulator v2.1.0 AVD(cold boot, 2560×1440), Gradle 9.6.0 / AGP 9.5.0 / built-in Kotlin 2.2.10 / compileSdk 37
 
 ---
@@ -22,10 +22,13 @@
 | M4~M6 게임·졸음·P1·UI | `2fa3812` | 콘텐츠(170+48+40, 사전 3,582), 지역 퀴즈·끝말잇기·초성 퀴즈, GameSession, FusedLocation·지역 판정, DrowsinessMonitor(1단계), TBT 일시정지, 요약 화면, Compose 화면 전부, 디버그 패널, 상태 저장/복원 | 기기에서 전체 흐름 확인(아래 1.2), 테스트 총 101개 |
 | M7 마감 | `d858f72` | README, DEMO_SCENARIO, PHASE2_NOTES, CONTENT_SOURCES, release 서명 APK, CLAUDE.md 현행화, 이 문서 | `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 0 errors) |
 | 피드백 반영 ① | `228b798` | 게임 끝내기 버튼, 중간 종료 요약 제목, 쉬는 시간 안내를 "약 N분 뒤"로 (아래 1.6) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 102개 |
-| 피드백 반영 ② | `67930d6` | 내비에서 시작한 길 안내를 홈에 실시간 반영, 3분할에서 길동무를 맨 오른쪽 창으로 (아래 1.7) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 115개 |
+| 피드백 반영 ② | `67930d6` | 내비에서 시작한 길 안내를 홈에 실시간 반영, 3분할에서 놀레오를 맨 오른쪽 창으로 (아래 1.7) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 115개 |
 | 샘플 대조·문서 점검 + 판 간격 선택 | `0dca7d1` | `pleos-example` 샘플과 SDK 사용법 대조 후 보완, 문서 최신화 (아래 1.8) · 홈에서 판 간격 3종 선택, 화면에서 사라지면 일시정지 유지 결정 (아래 1.9) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 120개 |
 | 졸음 케어 2단계 + 경로 위 휴게소·졸음쉼터 안내 | `e8bb846` | 2단계 판단·쉬어 가기 질문, 도착 후 대기·재출발 인사, 내비 0/0 버그 수정, 사용설명서 `docs/FEATURE_GUIDE.md` (아래 1.10) → 같은 날 개정: 내비 TBT 의 경로 위 휴게소·졸음쉼터(구간 거리 누적)에서 고르기, 휴게소 편의시설 247곳, `addWaypoint` 제거, 서거나 주차해야 도착 (아래 1.11) | 에뮬레이터 debug·release 빌드로 확인, DoD 통과, 테스트 152개 |
 | 정차 중 화면 게임 → 사자성어 | `459fc97` | 초성 퀴즈를 사자성어 4지선다로 교체: 뜻 TTS → 고르기 → 한자 훈·음 풀이 + 정답·유래 TTS → 자동으로 다음 문제, 읽는 동안만 오디오 포커스 (아래 1.12) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 166개 |
+| 앱 이름 변경(놀레오) + 화면 디자인 개편 | (커밋 전) | 앱 이름·패키지 `com.nolleo.app`·로그 태그·APK·문서 전체 변경, Taste Skill 규칙으로 디자인 시스템(주간 샌드·코발트 / 야간 남색·샌드, 컴포넌트 한 벌, 가족 아바타, 새 아이콘)을 다시 만듦 (아래 1.13) | 에뮬레이터 debug·release 빌드로 확인(주간·야간·3분할), DoD 통과, 테스트 166개 |
+| 화면 다시 짜기(가독성) + 옐로 테마 | (커밋 전) | 사용자 피드백("색이 마음에 안 듦, 버튼이 많고 흩어져 가독성이 없음") 반영: 홈을 카드 두 개·선택 막대·출발 하나로, 음성 문제를 흰 카드 하나로, 사자성어 머리 줄 하나로. 색은 사용자가 고른 옐로. 제목 `Nolleo` 만, APK·팀명 표기 (아래 1.14) | 에뮬레이터 debug·release 빌드로 확인(주간·야간·3분할), DoD 통과, 테스트 166개 |
+| 로고·즉시 눌림 + 정차 게임 3종 + 이름 확정 | (커밋 전) | 제목 줄에 로고(입력 소스 글은 뺌), 누르면 바로 반응, 정차 중 화면 게임에 지역 퀴즈·끝말잇기 추가(음성 판과 따로) + 틀린 그림 찾기·노래방 준비 중 카드, 게임 화면을 가운데 위아래 배치, APK `돈도아연_놀레오_release.apk`·팀명 `돈도아연` 확정, 좌석 센서 3명 원인 기록 (아래 1.15) | 에뮬레이터 debug·release 빌드로 확인(주간·야간·3분할), DoD 통과, 테스트 173개 |
 
 M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로 묶었다.
 
@@ -46,13 +49,13 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 |---|---|
 | AAOS CarPropertyManager (GEAR_SELECTION, PERF_VEHICLE_SPEED, PARKING_BRAKE_ON) | 실제 SDK로 검증 |
 | CarUxRestrictionsManager | 실제 SDK로 검증 (기어 D 에서 DO 수신) |
-| Pleos Vehicle Brake·Seat | 실제 SDK로 검증 (capability → register/getCurrent) |
+| Pleos Vehicle Brake·Seat | 실제 SDK로 검증 (capability → register/getCurrent). 단 에뮬레이터의 Seat 값은 동승석 4곳 착좌로 고정 — Virtual Console 로 바꿔도 앱이 받는 값이 그대로(11/8, 1.5) |
 | NaviHelper requestRoute / onRouteStarted / onDestinationInfo / onTBTInfo / onCurrentLocationInfo | 실제 SDK로 검증 (차량이 움직이지 않아 남은 시간 감소는 시뮬로 시연) |
 | NaviHelper TBT `TURN_ENTER_SERVICEAREA`·`TURN_RESTAREA` | 실제 SDK로 검증(11/7) — 고속도로 경로 TBT 목록에 휴게소·졸음쉼터가 경로 순서대로 들어 있음(부산역 경로 22곳: 용인졸음쉼터 18.1 km·용인휴게소 28.5 km…). `distance` 는 앞 항목부터의 구간 거리 |
 | NaviHelper addWaypoint | 실제 SDK로 시험(11/7) 후 **쓰지 않기로** — 경유지는 들어가고 내비가 재탐색하지만, POI ID 없는 좌표라 고속도로 옆 일반 도로에 붙어 IC 로 나갔다 들어오는 우회 경로가 됨(아래 1.11) |
 | FusedLocation | 실제 SDK로 검증 — 기본 좌표로는 국내 지역이 안 나와 내비 주소/시뮬로 폴백, `adb emu geo fix 126.9780 37.5665` 를 넣으면 `region=seoul via FusedLocation` (11/7 확인) |
 | FusedLocation addProximityAlert | 실제 SDK로 검증(11/7) — 등록 → `alertId`, `geo fix` 로 쉼터 좌표에 넣으면 ENTER 콜백(`rest stop arrived (근접 알림 ENTER)`) |
-| Pleos TTS | 실제 SDK로 검증 (onDone, 포커스 스택 확인). 정차 중 사자성어 읽기도 같은 엔진 — 읽을 때마다 포커스 요청·다 읽으면 반납(11/7) |
+| Pleos TTS | 실제 SDK로 검증 (onDone, 포커스 스택 확인). 정차 중 화면 게임(사자성어·지역 퀴즈·끝말잇기) 읽기도 같은 엔진 — 읽을 때마다 포커스 요청·다 읽으면 반납(11/7) |
 | Pleos STT | 초기화·청취 실제. 에뮬레이터 Microphone 을 호스트 입력으로 켜고 응답 입력 "마이크"로 실제 인식 확인(사용자, 11/7). 마이크 없이 시연할 때는 대본 응답 |
 | Android TTS/STT 폴백 | 이 에뮬레이터에 한국어 TTS 엔진 없음 → 자동으로 건너뜀(코드 경로만 존재) |
 | `driving_regulation on/off` 셸 | 이 사용자 빌드에 `hmg_car_service` 없음 → 기어 D 로 대체 검증 |
@@ -64,14 +67,14 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - **compileSdk 37 유지** (platforms/android-37.0 에 `optional/android.car.jar` 존재 → 하향 불필요).
 - **퍼미션**: 지시서 목록 그대로(CAR_DRIVE, CAR_SEATS, NAVI_ROUTE, NAVI_ROUTE_SEARCH, TTS_SERVICE, STT_SERVICE, FUSED_LOCATION, android.car CAR_POWERTRAIN·CAR_SPEED, RECORD_AUDIO). SDK AAR 이 `INTERNET`·`*_BINDING` 을 병합함.
 - **`distractionOptimized=true` 메타데이터 추가** (지시서 체크리스트에는 없지만 주행 중 음성 화면을 띄우려면 AAOS 에서 필요. DEV_GUIDE 에 선언 방법이 없어 AAOS 표준 키 사용).
-- **release 서명 키 생성**: `C:\Users\rlaeh\.android\gildongmu-release.jks` (리포 밖), 비밀번호는 `local.properties` 에만. **분실하면 같은 서명으로 업데이트할 수 없으므로 반드시 안전한 곳에 백업**.
-- 작업 브랜치 `feat/gildongmu-prototype` 에서 개발 → 11/6 사용자가 main 으로 합쳐 push(이후 main 기준).
+- **release 서명 키 생성**: `C:\Users\rlaeh\.android\` 아래 키 파일(정확한 경로는 `local.properties` 의 `RELEASE_STORE_FILE`, 리포 밖), 비밀번호는 `local.properties` 에만. 11/7 앱 이름을 바꿀 때 키 파일 이름·별칭은 건드리지 않았다(서명이 그대로여야 하므로). **분실하면 같은 서명으로 업데이트할 수 없으므로 반드시 안전한 곳에 백업**.
+- 프로토타입 작업 브랜치에서 개발 → 11/6 사용자가 main 으로 합쳐 push(이후 main 기준).
 - JSON 은 `org.json` 으로 통일(테스트 클래스패스에만 `org.json:json` 추가), DI 는 수동(AppContainer), 영속화는 DataStore(Preferences).
 - 오디오 포커스: 음성 판 시작 시 요청, 판 종료·일시정지·백그라운드 시 반납(긴 쉬는 시간 동안 transient 포커스를 붙잡지 않기 위함). 통화 대기(LOSS_TRANSIENT) 중에는 GAIN 을 받으려고 유지.
 - Pleos TTS 발화 중 들어온 포커스 손실은 Speech Service 자체 포커스로 보고 무시(관측상 충돌은 없었음).
 - 정차(VOICE→SCREEN): "판이 끝날 때까지" 대신 **진행 중인 차례만 끝내고 판을 마무리** — 데모·실사용 모두 10분을 기다리지 않게.
 - 판 진행은 문제 수 기준(문제당 약 30초 환산), 판 시작 시점은 "남은 시간이 기준값 이하"로 판단. 시뮬 여정은 주차 중 시간이 흐르지 않음.
-- 판 간격은 홈에서 사용자가 고른다(여유 있게 기본 · 자주 · 쉬지 않고). 길동무가 화면에서 사라지면 일시정지(백그라운드 음성 진행 없음) — 11/7 사용자 결정.
+- 판 간격은 홈에서 사용자가 고른다(여유 있게 기본 · 자주 · 쉬지 않고). 놀레오가 화면에서 사라지면 일시정지(백그라운드 음성 진행 없음) — 11/7 사용자 결정.
 - TBT 일시정지: 같은 안내가 20초 넘게 그대로면 정체/정차로 보고 재개(에뮬레이터의 고정 TBT "TURN_LEFT 80m" 대응).
 - 졸음 기준값: 캘리브레이션 5개는 중앙값, 무응답(8초)은 캘리브레이션에서 제외, EMA 는 느리지 않은 응답으로만 갱신.
 - 데모 모드: 판당 6문제, 운전자 기준값 없으면 1.5초 시드. sleepy 대본은 운전자 차례에만 적용(driverOnly).
@@ -80,6 +83,14 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - 디버그 패널은 release 에도 그대로 둔다(11/7 사용자 결정 — 시연·심사용). 앱 마켓 제출본에서는 빼거나 차량 칸(시뮬 전환·시뮬 DO 끔 — 주행 규제 우회 가능)을 숨길 것.
 - 쉼터 이름·거리·진행 방향·좌표도 차의 위치를 짐작하게 하므로 `AppLog.sensitive`(release 에서 `<redacted>`)로만 남긴다. 에뮬레이터 시험용 `geo fix` 좌표는 디버그 패널 화면("쉬어 가기 상태")에서 본다.
 - 정차 중 화면 게임은 **사자성어**(11/7 사용자 결정 — 초성 퀴즈는 너무 쉬움). 힌트 없음, 뜻·정답·유래를 TTS 로 읽고 자동으로 다음 문제 — 고른 때부터 적어도 10초(유래가 길면 다 읽고 2.5초 뒤, 11/7 사용자 요청). 화면 게임의 소리는 읽는 동안만 포커스를 잡고, 출발·닫기·백그라운드·세션 종료·음성 게임 발화·포커스 손실이면 즉시 멈추며 **저절로 다시 읽지 않는다**(자동 재생 금지). SCREEN 모드의 포커스 손실은 세션을 일시정지·종료하지 않고 읽기만 멈춘다(음성 판이 없으므로). 사자성어 점수는 요약 화면에 넣지 않았다(세션 안에서만 유지).
+- **앱 이름 = 놀레오(Nolleo)**, 부제 "가는 길이 놀이가 되는 가족 게임"(11/7 사용자 결정). 옛 이름은 코드·화면·음성·문서·파일 이름 어디에도 남기지 않는다(같은 낱말이던 끝말잇기 사전 항목 1개도 지움). **패키지도 `com.nolleo.app` 으로 바꿨다** — 앱 마켓에는 새 앱으로 올라가고, 에뮬레이터에 예전 빌드가 있으면 따로 남는다.
+- **디자인 시스템**(11/7 사용자 요청 "Taste Skill 규칙 반영, modern·simple, 가정용 앱임이 보이게, 디자인은 자유"): 팔레트는 스킬 추천 도구의 cobalt-on-sand, 주간·야간 두 벌(시스템 야간 모드를 따름), 강조색 하나·보라 금지, 채운 주 버튼은 화면마다 하나, 컴포넌트·모서리·간격 한 벌, 글꼴은 플랫폼 기본(Asta Sans) 400·600. 웹사이트용 규칙(사진·섹션 높이·hover·스크롤 효과)은 차량 앱에 맞지 않아 쓰지 않았다. 규칙은 `CLAUDE.md` "App design system" 과 README §5 "화면 디자인" 에 적음. → 11/8 색·배치를 다시 바꿈(아래 두 줄, 1.14).
+- **색 = 옐로**(11/8 사용자 선택): 미리보기로 4가지(오렌지·그린·블루·옐로)를 보여 주고 고르게 했다. 글은 거의 검정(밤 흰색), 바탕은 연회색·흰 카드(밤 차콜), 노랑은 주 버튼·고른 표시·안내 카드에만. 밤의 안내 카드는 눈부시지 않게 어두운 호박색 + 노란 테두리.
+- **화면 구성 원칙**(11/8, 사용자 피드백 "버튼이 너무 많고 흩어져 가독성이 없다"): 화면은 카드 몇 장으로 묶고, 몇 개 중 하나 고르기는 흩어진 버튼 대신 **한 줄 선택 막대**, 머리 줄은 하나(양쪽에 버튼 최대 하나씩), 채운 버튼은 화면마다 하나. 앱 안 제목 줄은 로고 + 영문 `Nolleo` 만(부제 없음, 입력 소스 표시는 디버그 패널에만) — 11/8 사용자 결정.
+- **APK 파일 이름 = `apk/돈도아연_놀레오_release.apk`, 팀명 = `돈도아연`**(영문으로 적을 때 DonDoAYeon) — 11/8 사용자 최종 결정. 같은 날 오전에 `DonDoAYeon_Nolleo.apk` · `돈도아연(DonDoAYeon)` 으로 바꿨다가 오후에 확정(1.15).
+- **정차 중 화면 게임 = 사자성어 · 지역 퀴즈 · 끝말잇기**(11/8 사용자 요청): 지역 퀴즈·끝말잇기는 주행 중 음성 판과 **따로 노는 터치판**(점수·진행이 이어지지 않음). 틀린 그림 찾기(그림 맞히기에서 바꿈)·노래방은 "준비 중" 카드만. 게임 화면은 창 크기와 상관없이 가운데 맞춘 위아래 배치. 세 게임 모두 사자성어와 같은 소리 규칙(`ScreenQuizController`).
+- 누르는 표시는 Material 물결 대신 **누르는 동안만 어둡게**(`Modifier.pressable`) — 물결은 회색이 천천히 빠져 느려 보였다(11/8 사용자 피드백). 주행 중 애니메이션 금지와도 맞는다.
+- **문서 동기화 규칙**(11/7 사용자 요청): 작업을 마칠 때마다 관련 md 를 같은 작업 안에서 고친다. 어떤 변경을 어느 파일에 적는지는 `CLAUDE.md` "Keep the md docs in sync" 표(README·FEATURE_GUIDE·DEMO_SCENARIO·WORK_STATUS·PHASE2_NOTES·CONTENT_SOURCES·docs/README·CLAUDE.md)를 따른다. 커밋은 사용자가 요청할 때만, 커밋 해시는 뒤따르는 `docs:` 커밋으로 이 문서에 채운다.
 
 ### 1.5 문서·자료와 실제가 달랐던 점 (기획서/문서 수정 참고)
 - API 레퍼런스의 `VehicleException.errorCode` → 배포된 Vehicle 2.3.2 AAR 에서는 클래스가 난독화(`callback.exception.a`)되고 `ErrorCode` 가 runtime 스코프라 컴파일 시 사용 불가 → 메시지 기반 재시도로 대체.
@@ -93,6 +104,10 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - Pleos TTS SDK 는 발화 텍스트를 자체 logcat(`[GAAS][SDK]OnDeviceStreamTts doSpeak text=…`, D 레벨)에 남긴다 — 앱이 막을 수 없는 SDK 동작(앱 로그는 PII 규칙을 지킴).
 - AAOS 런타임 권한 대화상자에서 `CAR_SPEED` 는 "위치" 그룹으로 표시되고, `FUSED_LOCATION` 은 라벨이 없어 "알 수 없는 작업"으로 보인다(플랫폼 측 표기).
 - HOME 키는 이 에뮬레이터에서 앱 창을 가리지 않는다(전용 홈 패널) → 백그라운드 검증은 다른 앱을 같은 창에 띄워서 했다.
+- DEV_GUIDE §6.5 는 글꼴을 Asta Sans 로만 적었는데, 에뮬레이터의 `/product/etc/fonts_customization.xml` 은 `sans-serif` 를 Asta Sans 로 덮으면서 **굵기 500 을 Regular, 600 을 Bold, 700 을 ExtraBold** 파일에 연결한다(Medium 파일은 `pretendard` 라는 이름의 별도 글꼴 묶음에만 연결). 그래서 `FontWeight.Medium` 은 Regular 로 보인다 → 400·600 두 굵기만 쓴다(11/7).
+- Material3 기본 색 역할(secondaryContainer 등)을 채우지 않으면 슬라이더 빈 트랙 같은 곳에 기본 보라색이 나온다 → 테마에서 색 역할 전부를 우리 색으로 지정(11/7).
+- 에뮬레이터의 Pleos Vehicle SDK 좌석 착좌(Seat Occupancy)는 동승석 4곳(`ROW_1_RIGHT`·`ROW_2_LEFT`·`ROW_2_CENTER`·`ROW_2_RIGHT`)을 처음부터 모두 착좌로 보낸다. Virtual Console 의 Seat Occupancy 를 바꿔도(화면·HTTP API `PUT /vehicle/seat?kind=occupied…` 모두) 앱이 받는 값은 그대로였다 → 홈이 늘 "좌석 센서가 동승자 3명을 감지했어요"(앱이 고를 수 있는 최대 3명으로 줄임)를 띄운다. 앱이 값을 정해 둔 것이 아니다. 실차에서 실제 착좌가 반영되는지는 확인 못 함(11/8).
+- 앱을 다시 설치해 아이콘을 바꿔도 하단 독(GNB)은 한동안 예전 아이콘을 보여 준다. 야간/주간을 한 번 바꾸자 새 아이콘으로 바뀌었다(런처 캐시, 11/7).
 
 ### 1.6 사용자 피드백 반영 (11/6)
 피드백: ① 일시정지하거나 멈췄을 때 홈으로 돌아가는 "닫기"가 없다 ② 쉬는 시간 화면의 "남은 시간이 3시간 N분일 때 다음 판을 시작해요"가 "3시간 뒤에 시작"으로 읽힌다(실제 뜻은 "도착까지 남은 시간이 3시간 N분이 되는 시점").
@@ -100,22 +115,22 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 | 변경 | 내용 |
 |---|---|
 | 게임 끝내기 | 음성 화면 하단: 일시정지·쉬는 시간·출발 대기·모든 판 완료 때 "게임 끝내기"를 기존 버튼(계속/지금 시작/한 판 더) 옆에 표시. 문제를 내고 듣는 중에는 "일시정지" 하나만(주행 중 터치 1개 원칙). 정차 중 화면 게임: 상단에 항상 |
-| 끝낸 뒤 | TTS·STT 즉시 중단, 오디오 포커스 반납, 저장된 진행 상태 삭제, 내비 경로는 유지. 맞힌 문제나 마친 판이 있으면 요약("오늘의 길동무 · 여기까지 했어요") → 처음으로, 없으면 바로 홈 (`GameCoordinator.endSession`, `SessionSummary.endedByUser`) |
+| 끝낸 뒤 | TTS·STT 즉시 중단, 오디오 포커스 반납, 저장된 진행 상태 삭제, 내비 경로는 유지. 맞힌 문제나 마친 판이 있으면 요약("여기까지 했어요" — 11/7 전에는 앱 이름을 붙인 제목) → 처음으로, 없으면 바로 홈 (`GameCoordinator.endSession`, `SessionSummary.endedByUser`) |
 | 쉬는 시간 문구 | "다음 판은 약 N분 뒤에 시작해요"(1분 이하면 "곧 다음 판을 시작해요") + "판 사이에는 말을 걸지 않아요 · 바로 하려면 '지금 시작'". 정차 화면 하단은 "다음 음성 판: 주행 약 N분 뒤"(주차 중에는 여정 시간이 흐르지 않으므로). 계산: `SessionPlanner.secondsUntilNextRound` = 남은 시간 − 판 시작 기준 |
 | 기타 | 새 판을 시작할 때 이전 판의 마지막 답 줄(`lastAnswer`)을 지움 |
 
 확인(release APK, 에뮬레이터): 일시정지 → "게임 끝내기 / 계속", 쉬는 시간 → "다음 판은 약 23분 뒤에 시작해요" + "게임 끝내기 / 지금 시작", 1문제 맞힌 뒤 끝내기 → "여기까지 했어요" 요약 → 처음으로 → 홈, 아무것도 하지 않고 끝내기 → 바로 홈. 테스트 102개(`secondsUntilNextRound` 추가).
 
 ### 1.7 사용자 피드백 반영 ② (11/6) — 내비 목적지 실시간 반영 · 3분할 배치
-피드백: ① 길동무를 켠 뒤 내비에서 길 찾기를 시작하면 홈에 "내비 목적지" 버튼이 생기지 않는다 ② 길 안내 중이면 내비도 보여야 하지 않나(3분할) ③ 3분할일 때 게임을 맨 오른쪽에 배치.
+피드백: ① 놀레오를 켠 뒤 내비에서 길 찾기를 시작하면 홈에 "내비 목적지" 버튼이 생기지 않는다 ② 길 안내 중이면 내비도 보여야 하지 않나(3분할) ③ 3분할일 때 게임을 맨 오른쪽에 배치.
 
 | 항목 | 원인·확인 | 변경 |
 |---|---|---|
 | ① 내비 목적지 카드 | 내비 앱에서 직접 시작한 길 안내는 `onRouteStarted`·`onNavigationStatus(ROUTE_DRIVE)` 만 오고 `onRoutingCompleted`·`onDestinationInfo` 는 오지 않음(로그 확인). 카드는 `onDestinationInfo`(조회해야만 옴)에서만 만들어지고 있었다 | `onRouteStarted` 에서 바로 카드 생성 + `getDestinationInfo` 재조회, `ROUTE_DRIVE` 수신 시 재조회, `onRouteCancelled`·`onDestinationArrived`·FREE_DRIVE 에서 카드 제거. 앱이 다시 보일 때 즉시 재조회, 길 안내 중(앱이 보이거나 실제 내비 여정으로 게임 중)에는 30초마다 재조회(`TripRepository.shouldPollNavi`) — 실제 내비 여정의 남은 시간이 멈춰 있던 문제도 함께 해결. 홈은 새 길 안내를 자동 선택, 안내가 끝나면 프리셋으로(`HomeState.withNaviRoute`) |
-| ② 내비 함께 보기 | Pleos 화면 = Driving view(고정) + 앱 창 최대 2개. 창 위치·크기는 사용자가 정한다(§5.4·§6.3). `FLAG_ACTIVITY_LAUNCH_ADJACENT` 는 무시되고 내비가 앱 영역 전체를 덮음(확인) → 앱이 3분할을 만들 수는 없다 | 3분할은 사용자가 창 막대로 만들고, 길동무는 세로 1창 레이아웃으로 그대로 동작(1차 때 확인한 그 테스트). 내비가 가려져 있을 때도 Driving view 에 TBT(회전 방향·거리)가 표시됨 |
-| ③ 게임 맨 오른쪽 | 새로 앞에 나온 앱은 primary(운전석 쪽, 왼쪽) 창으로 가고 다른 앱은 오른쪽으로 밀린다(확인). NaviHelper `requestNavigationScreen(Foreground)` 는 내비가 이미 보이면 다시 실행되지 않아 효과 없음(확인) | 길동무가 운전석 쪽 창에 "새로" 들어오면(창이 줄어듦·처음 보임·다시 앞으로 나옴) 기본 지도 앱(`ACTION_MAIN` + `CATEGORY_APP_MAPS`, 패키지 하드코딩 없음)을 실행 → Driving view \| 내비 \| 길동무. 같은 크기로 자리만 바뀐 경우(사용자가 창 막대 탭)는 존중. 판단은 `WindowPlacement`(순수 함수), 실행은 `MainActivity` |
+| ② 내비 함께 보기 | Pleos 화면 = Driving view(고정) + 앱 창 최대 2개. 창 위치·크기는 사용자가 정한다(§5.4·§6.3). `FLAG_ACTIVITY_LAUNCH_ADJACENT` 는 무시되고 내비가 앱 영역 전체를 덮음(확인) → 앱이 3분할을 만들 수는 없다 | 3분할은 사용자가 창 막대로 만들고, 놀레오는 세로 1창 레이아웃으로 그대로 동작(1차 때 확인한 그 테스트). 내비가 가려져 있을 때도 Driving view 에 TBT(회전 방향·거리)가 표시됨 |
+| ③ 게임 맨 오른쪽 | 새로 앞에 나온 앱은 primary(운전석 쪽, 왼쪽) 창으로 가고 다른 앱은 오른쪽으로 밀린다(확인). NaviHelper `requestNavigationScreen(Foreground)` 는 내비가 이미 보이면 다시 실행되지 않아 효과 없음(확인) | 놀레오가 운전석 쪽 창에 "새로" 들어오면(창이 줄어듦·처음 보임·다시 앞으로 나옴) 기본 지도 앱(`ACTION_MAIN` + `CATEGORY_APP_MAPS`, 패키지 하드코딩 없음)을 실행 → Driving view \| 내비 \| 놀레오. 같은 크기로 자리만 바뀐 경우(사용자가 창 막대 탭)는 존중. 판단은 `WindowPlacement`(순수 함수), 실행은 `MainActivity` |
 
-확인(release APK, 에뮬레이터): 길동무를 켠 채 내비에서 안내 시작 → 7 ms 안에 `navi route detected` + 카드 선택("내비 목적지: 부산역 · 남은 시간 4시간 2분", 플랜 "4시간 2분 → 5판"), 안내 종료 → 카드 제거·프리셋 복귀, 30초 주기 재조회 로그 확인. 창 막대를 끌어 3분할 → 길동무가 [853–1694] → [1718–2559]로 이동하는 동안 길동무 생명주기 이벤트 없음(게임 멈춤 없음), 가운데 막대 탭으로 사용자가 바꾼 위치는 유지. 퍼미션 추가 없음(`NAVI_CUSTOM_MAP` 은 시험 후 제거). 테스트 115개(+13).
+확인(release APK, 에뮬레이터): 놀레오를 켠 채 내비에서 안내 시작 → 7 ms 안에 `navi route detected` + 카드 선택("내비 목적지: 부산역 · 남은 시간 4시간 2분", 플랜 "4시간 2분 → 5판"), 안내 종료 → 카드 제거·프리셋 복귀, 30초 주기 재조회 로그 확인. 창 막대를 끌어 3분할 → 놀레오가 [853–1694] → [1718–2559]로 이동하는 동안 놀레오 생명주기 이벤트 없음(게임 멈춤 없음), 가운데 막대 탭으로 사용자가 바꾼 위치는 유지. 퍼미션 추가 없음(`NAVI_CUSTOM_MAP` 은 시험 후 제거). 테스트 115개(+13).
 
 ### 1.8 `pleos-example` 샘플 대조 · 문서 점검 (11/7)
 샘플 3종(Vehicle `VehicleClient`, Navi `NaviHelperViewModel`, FusedLocation `FusedLocationClient`)과 우리 SDK 클라이언트를 대조했다. 생명주기(생성 → initialize → 리스너 등록 → 같은 인스턴스로 해제 → release), capability 확인 후 읽기, 필요한 퍼미션만 선언은 이미 샘플과 같았다.
@@ -138,9 +153,9 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 
 | 항목 | 내용 |
 |---|---|
-| 판 간격 선택 | 홈에 "얼마나 자주 할까요?" — **여유 있게**(기본, 약 45분마다) · **자주**(약 20분마다) · **쉬지 않고**(판 사이 2분). 4시간 10분 기준 5판(쉬는 시간 약 39분) / 12판(약 10분) / 20판(약 2분). 미리보기에 "판 사이 약 N분 쉬어요" 추가 |
+| 판 간격 선택 | 홈에 "얼마나 자주 할까요?"(11/7 디자인 개편 뒤 제목 `판 간격`) — **여유 있게**(기본, 약 45분마다) · **자주**(약 20분마다) · **쉬지 않고**(판 사이 2분). 4시간 10분 기준 5판(쉬는 시간 약 39분) / 12판(약 10분) / 20판(약 2분). 미리보기에 "판 사이 약 N분 쉬어요" 추가 |
 | 구현 | `RoundPacing`(판 시작 간격 목표값) → `SessionPlanner.plan(…, pacing)`. 판 길이는 간격 안에서 여유 1/4·자주 1/2·쉬지 않고 "간격 − 2분"(모두 6~10분 제한), 최소 휴지 2분·도착 5분 전 종료 규칙은 그대로. 간격은 `SessionPlan.pacing` 에 담겨 남은 시간이 바뀌어 다시 짤 때(`replanRemaining`)와 이어 하기 저장본(`SnapshotCodec`, 이전 저장본은 여유 있게로 읽음)에도 유지. 마지막으로 출발한 간격은 설정(`AppSettings.lastPacing`)에 저장 |
-| 일시정지 유지 | 길동무가 화면에서 사라지면(onStop) 지금처럼 즉시 멈추고 포커스 반납·상태 저장, 다시 보이면 "계속"으로 같은 문제부터. 백그라운드 음성 진행(포그라운드 서비스)은 하지 않기로 결정 |
+| 일시정지 유지 | 놀레오가 화면에서 사라지면(onStop) 지금처럼 즉시 멈추고 포커스 반납·상태 저장, 다시 보이면 "계속"으로 같은 문제부터. 백그라운드 음성 진행(포그라운드 서비스)은 하지 않기로 결정 |
 
 확인(release APK, 에뮬레이터): 홈 기본 "여유 있게" → "4시간 10분 → 5판 · 판 사이 약 39분 쉬어요", "쉬지 않고" → "20판 · 판 사이 약 2분 쉬어요"로 바뀌고 출발 시 `session start → … 20판`. 시험 뒤 간격을 "여유 있게"로 되돌려 둠. 테스트 120개(+4: 간격 3종·재계산 시 간격 유지·판 1개일 때 휴지 없음·옛 저장본 호환).
 
@@ -218,6 +233,76 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 
 확인(release APK, 에뮬레이터): 유래 없는 문제(일구지학)에서 고른 시각 21:31:21.761 → "정답! 일구지학." 1.5초 → 다음 문제 읽기 시작 21:31:31.764(**10.0초**). DoD 통과(lint 오류 0·경고 17), 테스트 166개(자료 검사에 유래 조각 검사를 더함 — 개수 변화 없음).
 
+### 1.13 앱 이름 변경(놀레오) + 화면 디자인 개편 (11/7)
+요청: "Taste Skill(`design-taste-frontend`) 규칙을 반영해 앱을 modern 하고 simple 하게, 그래도 가정용 앱임이 보이게 전체 디자인을 수정(색 변경 자유). 앱 이름은 한글 놀레오 · 영문 Nolleo · 부제 '가는 길이 놀이가 되는 가족 게임'. 옛 이름은 md 를 포함해 어디에도 없어야 함."
+
+| 구성 | 내용 |
+|---|---|
+| 이름 | 앱 표시명 `놀레오`, 제목 줄 부제, 끝말잇기에서 앱이 맡는 플레이어 이름(`Player.APP`)과 화면 문구(`놀레오: 제가 졌어요!`), 도착 TTS("오늘 놀레오는 여기까지예요"), README·docs·CLAUDE.md 전체. **패키지 `com.nolleo.app`**(applicationId·namespace·소스 폴더), 클래스 `NolleoApp`·`NolleoRoot`·`NolleoTheme`, 테마 `Theme.Nolleo`, 로그 태그 `Nolleo/…`, DataStore 이름 `nolleo`, Gradle `rootProject.name = "Nolleo"`, APK 파일 이름(11/8 `apk/돈도아연_놀레오_release.apk` 로 확정, 1.15), 지시서 `docs/NOLLEO_PROTOTYPE_PROMPT.md`. 끝말잇기 사전에서 옛 이름과 같은 낱말 1개 삭제(3,582 → 3,581, 첫 음절 611종 그대로) |
+| 디자인 방향 | Taste Skill 규칙 중 차량 앱에 옮길 수 있는 것: 한 벌의 시스템(버튼 한 쌍·카드 하나·모서리 한 벌·간격 눈금), 화면 대부분은 중립색 + 강조색 하나, 보라 금지, 화면마다 채운 주 버튼 하나, 색이 아니라 대비로 강조, 제목은 명사·라벨에 느낌표 없음. 팔레트는 스킬 도구(`start.mjs deal --page software`)가 낸 3개(cobalt-on-sand · black-crimson · putty-black-teal) 중 가족 앱의 따뜻함(샌드·종이)과 차분함(코발트)이 맞는 cobalt-on-sand |
+| 색 (`ui/theme/Theme.kt`) | 주간: 바탕 샌드 #E6DBC7 · 카드 #F3ECE0 · 칩 #DDD0B9 · 글 코발트 #062B8A · 보조 글 #3253A4. 야간(시스템 야간 모드, `isSystemInDarkTheme` — 앱을 다시 켜지 않고 바뀜): 바탕 #0A1230 · 카드 #131D45 · 글 #EFE7D8 · 주 버튼 샌드. 주의 띠는 코발트(주간 #062B8A, 야간 #1E3A94). 정답 초록·오답 빨강은 사자성어 보기에만. 모든 글/바탕 쌍 4.5:1 이상(계산값은 코드 주석). 창 바탕은 `values`/`values-night` 로 맞춤 |
+| 컴포넌트 (`ui/common/Components.kt`) | `PrimaryButton`(채운 알약) · `SecondaryButton`(테두리 알약) · `OptionTile`(고르면 2dp 테두리 + 체크 아이콘) · `NlCard` · `BandCard`(졸음 케어 말 걸기·쉬어 가기) · `Chip` · `Avatar`(이름 첫 글자) · `Hairline` · `MarkTile`. 예전 `ChoiceButton`·`GdCard`·`Badge`·`GdColors` 는 없앰. 디버그 패널도 같은 색으로 |
+| 화면 | 제목 줄: 마크 + 놀레오 + 부제 + 소스 칩(좁은 창은 줄임) + 1dp 선. 홈: 제목을 명사로(`목적지`·`운전하는 사람`·`함께 타는 사람`·`게임`·`판 간격`·`오늘의 게임 구성`), 운전자 보기에 아바타, 이어서 할 여정이 있으면 출발은 보조 버튼. 음성: 상태 점 + `음성 모드 · 도착까지 …`, 차례에 아바타, 마이크 상태 알약, 가족 점수 카드에 아바타. 정차: 사자성어 카드에 한자 칸 `溫故知新` 미리보기, 그림 맞히기는 `?` 칸. 사자성어: 보기 4개를 카드 타일로(전에는 채운 버튼 4개), 결과 `정답이에요 · +10점`/`아쉬워요 · 정답은 ○○`, 풀이를 카드에. 요약: `도착했어요`/`여기까지 했어요` + `오늘의 기록`(큰 숫자)·`가족 점수` 카드(같은 높이). 화면 문구의 느낌표 2개 뺌(`오늘 준비한 판을 모두 했어요`, `수고 많으셨어요.`) — TTS 문구는 그대로 |
+| 글꼴 | 플랫폼 기본(Asta Sans) 그대로 — 400·600 두 굵기(1.5 참고), 가장 작은 글자 18sp(전에는 16sp), 큰 제목은 자간 −2% |
+| 아이콘 | 런처: 코발트 바탕에 언덕 너머 길과 웃는 해(적응형 + 단색판 `ic_launcher_monochrome`). 같은 그림을 제목 줄 마크(`ic_mark`)로. 쓰지 않던 템플릿 webp 아이콘 10개 삭제(minSdk 28 은 `mipmap-anydpi` 적응형만 씀). 체크 아이콘(Material `check_circle`) 추가 |
+
+확인(에뮬레이터 2560×1440, debug APK — 이전 패키지의 앱은 에뮬레이터에서 지움):
+- 주간: 홈 → (패널 여정 시뮬) 서울 → 부산 출발 → 정차 화면(사자성어 카드 미리보기·그림 맞히기 `?`) → 사자성어 문제·오답 고르기 → 빨강/초록·나머지 흐림·한자 4칸 훈·음·유래·다음 문제 → 기어 D → 음성 화면(초록 점·아바타·마이크 알약·가족 점수).
+- 야간: `adb shell cmd uimode night yes` → 앱을 다시 켜지 않고 남색 바탕·샌드 글·샌드 주 버튼으로 바뀜 → 2단계 시험 → 쉬어 가기 띠 카드(야간·주간 모두) → 괜찮아요 → 일시정지 화면.
+- 3분할 좁은 창(약 840px): 음성·정차·요약·홈 모두 잘림 없이 한 줄 배치, 제목 줄 칩이 줄어듦. 창을 되돌리고 패널 여정을 자동으로 되돌려 둠.
+- 디버그 패널: 새 색, 슬라이더 빈 트랙이 보라 → 샌드로 고침.
+- release APK(`debuggable` 아님, R8 적용)를 `apk/` 에 바꿔 넣고(당시 이름, 11/8 `돈도아연_놀레오_release.apk` 로 확정) 설치 → 홈 화면이 debug 와 같은 모양으로 그려짐. 나머지 화면은 debug 로 확인(코드 경로는 같음).
+- 확인 못 함: 실차 주간/야간 전환 신호(에뮬레이터 `cmd uimode` 로만), 세로 1창.
+- DoD: `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 오류 0·경고 17 — 개편 중 단색 아이콘을 빼서 2건(`MonochromeLauncherIcon`) 늘었던 것을 단색판을 넣어 되돌림), 테스트 166개(개수 변화 없음).
+
+### 1.14 화면 다시 짜기(가독성) + 옐로 테마 (11/8)
+요청: "① 왼쪽 위 제목은 영어명 Nolleo 만, 부제 없이 ② APK 이름은 DonDoAYeon_Nolleo.apk, md 의 팀명은 Team 을 빼고 돈도아연(DonDoAYeon) ③ 앱 색상이 마음에 안 듦 ④ 디자인도 마음에 안 듦 — 가독성이 없어 보임. 버튼이 너무 많은데 흩뿌려져 있음. UI/UX 를 신경 써서 다시."
+
+| 구성 | 내용 |
+|---|---|
+| 색 고르기 | 4가지 후보(오렌지·그린·블루·옐로)를 새 홈 배치에 입힌 주간·야간 미리보기(HTML)를 만들어 보여 주고 사용자가 **옐로**를 고름 |
+| 색 (`ui/theme/Theme.kt`) | 주간: 바탕 #F3F4F6 · 카드 #FFFFFF · 막대 바탕 #E9EBEF · 글 #16181D · 보조 글 #5B616E · 노랑 #FFC53D(위 글 검정 12:1). 야간: 바탕 #0F1114 · 카드 #1A1D22 · 글 #F1F3F5 · 보조 글 #A7AEB9 · 노랑 #FFD043. 고른 표시(라디오 점)는 낮 검정·밤 노랑, 지금 차례 아바타는 낮 검정 원에 노란 글·밤 노란 원에 검정 글. 안내 카드는 낮 노란 면, 밤 #2B2410 + 노란 테두리. 정답 #1B7F43·오답 #C62828(밤 #4ADE80·#F87171). 모든 글 쌍 4.5:1 이상(계산값은 코드 주석) |
+| 컴포넌트 (`ui/common/Components.kt`) | 새로: `SegmentedControl`(한 줄 선택 막대, 고른 칸이 떠 보임 — 낮 흰색, 밤 #41474F), `SettingRow`(이름 칸 폭 맞춤 + 막대), `ChoiceRow`(라디오 목록 줄). 없앰: `OptionTile`·`MarkTile`(+ `ic_check`·`ic_mark`). `PrimaryButton` 은 노란 알약에 검정 글, 그림자 없음 |
+| 제목 줄 | 영문 `Nolleo` 하나(36sp, 이 글자만 700), 오른쪽 입력 소스는 칩 대신 작은 회색 글. 길게 누르면 디버그 패널 |
+| 홈 | 카드 두 개: 왼쪽 `목적지` 라디오 목록(이름·도착지·예상 시간), 오른쪽 `오늘의 게임`(미리보기 + 운전·함께·게임·간격 선택 막대 네 줄 + 노란 **출발** 하나). 좌석 센서 제안은 `함께` 막대 아래 한 줄 + **N명으로**. 이어서 할 여정은 맨 위 한 줄(새로 시작 · 이어서 하기). 전에는 보기 타일 18개가 섹션마다 흩어져 있었다 |
+| 음성 | 문제·차례 아바타·마이크 상태·마지막 답을 흰 카드 하나에 모음. 문제 글은 44sp 굵게. 쉬어 가기를 묻는 동안 아래 **일시정지**는 테두리 버튼으로(밤에 노란 버튼 두 개가 겹치던 것) |
+| 정차·사자성어 | 사자성어 카드에 노란 **시작하기**(카드 전체도 눌림 — 누를 수 있다는 표시가 약했음). 사자성어를 열면 정차 화면 머리 줄을 숨기고 머리 줄 하나(**← 목록** · 제목·점수·상태 · **다시 듣기**)만 — 전에는 위쪽에 두 줄로 버튼 3개(게임 끝내기·다시 듣기·닫기) |
+| 아이콘 | 런처: 차콜 #16181D 바탕에 노란 언덕 너머 길과 웃는 해(그림은 그대로, 색만). 사자성어 "← 목록"용 Material `arrow_back` 추가 |
+| 이름·파일 | APK `apk/DonDoAYeon_Nolleo.apk`(이전 이름의 APK 는 삭제), 문서의 팀명 `돈도아연(DonDoAYeon)`, `CLAUDE.md` 의 APK 규칙·디자인 시스템 절 갱신 — 같은 날 오후 다시 바꿔 확정(1.15) |
+
+확인(에뮬레이터 2560×1440, debug APK → 마지막에 release APK):
+- 주간: 홈(카드 두 개·선택 막대·출발) → (패널 여정 시뮬) 서울 → 부산 출발 → 정차 화면(시작하기) → 사자성어(머리 줄 하나, 오답 → 빨강/초록·한자 4칸·다음 문제) → 기어 D → 음성 화면(흰 문제 카드) → 2단계 시험 → 노란 안내 카드(쉬어 가기 검정 버튼 · 괜찮아요).
+- 야간: 안내 카드(어두운 호박색 + 노란 테두리), 홈(이어서 하기 줄·선택 막대 — 고른 칸이 처음엔 바탕보다 어두워 보여 `segmentOn` 색을 따로 두어 고침).
+- 이어서 하기 → 기어 D → 패널 "남은 5분으로" → 요약 화면(오늘의 기록·가족 점수·지나온 지역·처음으로).
+- 3분할 좁은 창(약 840px): 홈이 목적지 → 오늘의 게임 순서로 위아래 배치·스크롤, 잘림 없음. 창과 패널 여정(자동)을 되돌려 둠.
+- release APK(당시 이름 `DonDoAYeon_Nolleo.apk`, `debuggable` 아님)를 설치해 홈이 같은 모양인지 확인. 나머지 화면은 debug 로 확인(코드 경로 같음).
+- 확인 못 함: 실차 주간/야간 전환 신호, 세로 1창.
+- DoD: `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 오류 0·경고 17), 테스트 166개(개수 변화 없음).
+
+### 1.15 로고·즉시 눌림 + 정차 중 화면 게임 3종 + 이름 확정 (11/8)
+요청: "① 상단 좌측 Nolleo 왼쪽에 로고, 상단 우측 '차량… Pleos' 설명은 제거 ② 테스트할 때 좌석 센서는 어떻게 해 둔 거야? 왜 3명으로 뜨지 ③ 홈 오른쪽 오늘의 게임에서 버튼을 누르면 회색으로 갔다가 원색으로 돌아오는 게 느림 — 더 빠르게 ④-1 정차 시 사자성어, 전체 화면일 때 좌측 문제·우측 정답 → 가운데 위아래로 ④-2 3분할일 때 정답을 누르면 '다음 문제' 버튼을 가운데로 ⑤ 정차 중 게임에 지역 퀴즈·끝말잇기 추가(주행 내용과 이어서 하는 것 말고) ⑥-1 노래방도 '준비 중이에요' 칸으로 ⑥-2 그림 맞히기 → 틀린 그림 찾기 ⑦ APK 파일명 최종: 돈도아연_놀레오_release.apk ⑧ 팀명 최종: 돈도아연(영어로 쓸 때 DonDoAYeon)."
+
+| 구성 | 내용 |
+|---|---|
+| ① 제목 줄 | 왼쪽에 로고(`ic_logo` — 런처 아이콘과 같은 그림을 48dp 둥근 칸에, `Logo` 컴포넌트) + `Nolleo`. 오른쪽 입력 소스 글(`차량 … · 여정 … · TTS/STT …`)은 지움 — 같은 정보는 디버그 패널 맨 위 칸에 있다. 로고·제목을 함께 길게 누르면 디버그 패널 |
+| ② 좌석 센서 | 앱은 아무것도 고정하지 않았다. 에뮬레이터 SDK 가 동승석 4곳을 늘 착좌로 보내고 Virtual Console 변경이 SDK 까지 오지 않아(1.5), 4명 → 앱 최대 3명으로 줄여 "3명"을 제안. 코드는 그대로 두고 README·FEATURE_GUIDE(§3.3·§14)·DEMO_SCENARIO(①을 "혼자" 고르기로)에 적음 |
+| ③ 누르는 표시 | Material 물결(ripple — 손을 떼도 회색이 수백 ms 동안 천천히 빠짐) 대신 `Modifier.pressable`: 누르는 동안만 `pressed` 색(낮 검정 10%·밤 흰색 12%)을 덮고 떼면 바로 원래 색. 주/보조 버튼·선택 막대·목록 줄·보기 타일·게임 카드 모두 |
+| ④ 게임 화면 배치 | 넓은 창의 좌우 나눔을 없애고 창 크기와 상관없이 가운데 맞춘 위아래: 작은 글 → 문제 → 보기 2열 → 풀이 카드(결과 → 게임별 풀이 → 가운데 **다음 문제**). 넓은 창은 가운데 1100dp 폭 |
+| ⑤ 지역 퀴즈·끝말잇기 (정차) | `domain/games/ScreenGames.kt`: 공통 `ScreenGame`(문제·보기·정답·읽을 말·풀이), `IdiomScreenGame`(사자성어 틀), `RegionScreenQuiz`(지금 시/도 문제 먼저, 반복 없음, 문제 글의 "A일까요, B일까요?" 두 보기 또는 같은 갈래 오답 3개 + 정답, 고르면 힌트 읽기), `WordChainScreenGame`(이어질 말 넷 중 하나 — 맞는 보기 하나, 오답은 그 음절이 끝·가운데에 든 말 먼저, 두음법칙, 정답 낱말에서 이어 가기, 연속 기록). `IdiomQuizController` → 공통 `ScreenQuizController`(종류·로그 태그·게임 공급자만 다름, 읽기·포커스·넘김 규칙 같음, 넘김 최소 시간 사자성어 10초·지역 퀴즈 5초·끝말잇기 4초). `IdiomQuizPanel` → `ScreenQuizPanel`. 열린 게임은 `MainViewModel.openScreenGame`(SavedStateHandle)으로 복원 |
+| ⑥ 준비 중 카드 | 게임 목록: 열 수 있는 카드 3개(사자성어·지역 퀴즈·끝말잇기, 각각 테두리 **시작하기** — 대등한 셋이라 채운 버튼을 쓰지 않음) + 아래 낮은 준비 중 카드 2개(**틀린 그림 찾기** `?`, **노래방** `♪`). 좁은 창은 위아래로 쌓고 스크롤(카드 높이 420dp) |
+| ⑦⑧ 이름 | APK `apk/돈도아연_놀레오_release.apk`(`DonDoAYeon_Nolleo.apk` 는 지움), 문서의 팀명 `돈도아연`, `CLAUDE.md` 의 APK 규칙(영문 표기 DonDoAYeon 포함)·디자인 시스템 절(`pressable`·`Logo`·제목 줄) 갱신 |
+| 테스트 | `ScreenGamesTest` 7개: 지역 퀴즈 두 보기·같은 갈래 네 보기·지금 지역 먼저와 반복 없음·점수와 읽기, 끝말잇기 맞는 보기 하나와 정답에서 이어 가기·연속 기록, 사자성어 틀 |
+
+확인(에뮬레이터 2560×1440, debug APK → 마지막에 release APK):
+- 제목 줄: 로고 + `Nolleo`, 오른쪽 글 없음(주간·야간). 길게 누르면 디버그 패널.
+- 누르는 표시: 누르는 순간 찍은 화면에서 어두운 덧칠, 떼면 바로 원래 색(물결 없음).
+- 정차 중 게임 목록: 카드 3개 + 준비 중 2개(주간·야간). 지역 퀴즈: `지금 지나는 곳 · 서울특별시`, 두 보기 문제, 고르면 힌트 카드와 가운데 **다음 문제**. 끝말잇기: 헷갈리는 오답(끝 음절이 든 말), 두음법칙 안내 줄. 사자성어: 가운데 위아래 배치.
+- 3분할 좁은 창(약 840px): 게임 목록 위아래 쌓기, 풀이 카드의 **다음 문제** 가운데. 창을 되돌려 둠.
+- 게임을 연 채 기어 D → 화면 게임이 닫히고 음성 판으로(`PARKED+DO → VOICE`).
+- release APK(`돈도아연_놀레오_release.apk`, `debuggable` 아님)로 끝말잇기 한 문제. 나머지는 debug 로 확인(코드 경로 같음). 패널 여정은 자동으로, 주간 모드로 되돌려 둠.
+- 확인 못 함: 실차 좌석 착좌, 세로 1창, 지역 퀴즈·끝말잇기 읽기 중 통화·Gleo 포커스 손실(에뮬레이터 재현 불가 — 사자성어와 같은 코드 경로).
+- DoD: `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 오류 0·경고 17), 테스트 173개(+7, `ScreenGamesTest`).
+
 ---
 
 ## 2. 추후 작업할 내용 (우선순위 순)
@@ -228,11 +313,13 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 3. **기획서 접수양식 5번과 README SDK 표 대조** — Vehicle 활용에 "AAOS Car API(기어·속도·주행 규제) + Pleos Vehicle(브레이크·좌석)"로 구체화했으니 기획서 문구도 맞출 것. 졸음 케어 2단계의 SDK 활용도 "`addWaypoint` 경유지 안내" → "NaviHelper TBT 의 경로 위 휴게소·졸음쉼터 + FusedLocation 근접 알림"으로 바뀌었다(11/7, 1.11).
 4. ~~정차 중 초성퀴즈 손보기 -> 사자성어 맞추기도 나쁘지 않을듯? 초성퀴즈 너무 쉬움. 뜻 주고 단어 맞추기가 나을듯 냅둘거면.~~ → 11/7 사자성어로 교체(1.12). 출처·배포 조건 기록과 유래 칸 정리도 끝냄(1.12 후속).
 5. **사자성어 자료의 저작자 표시를 앱 안에도 둘지 결정** — `quiz_idioms.json`(CC BY-SA 4.0)은 APK 에 들어가 함께 배포되므로, 저장소 문서(README·CONTENT_SOURCES)뿐 아니라 앱 화면(예: 사자성어 카드 아래 한 줄 "출처: 국립국어원 표준국어대사전 · CC BY-SA")에 표시하는 것이 안전하다. 훈·음 일부(114자)가 LGPL 2.1 자료(libhangul)에서 왔으므로 CC BY-SA 4.0 으로 함께 배포해도 되는지도 확인.
+6. **앱 이름 변경(놀레오) 따라가기** — 기획서·발표 자료의 앱 이름·부제·화면 캡처를 새 디자인으로 바꾸기, 시연 영상은 새 APK 로 녹화. Pleos App Market/Playground 에 예전 패키지로 등록한 것이 있으면 새 패키지 `com.nolleo.app` 으로 다시 등록해야 한다(등록 여부 확인 못 함). 리포 밖 release 키 파일 이름·별칭은 예전 이름 그대로다 — 바꾸려면 `keytool -changealias` 와 `local.properties` 를 함께 고친다(서명은 같으므로 급하지 않음).
+7. ~~APK 파일 이름 규칙 확인~~ → 11/8 `apk/돈도아연_놀레오_release.apk`(`<팀명>_<앱이름>_release.apk` 형식)로 최종 확정(사용자 결정, 1.15).
 
 ### 2.2 12/3 2차 PT 전 (기능, `docs/PHASE2_NOTES.md` 상세)
 1. **지역 스탬프** 영속화(DataStore) + 홈 진행도
 2. 구간별 일시정지 고도화: `onRouteStateInfo.trafficStatus`(HEAVY), `onCautionPointInfo`, `onCameraAlert` (콜백 자리 `TODO(phase2)`)
-3. 이동 앨범(요약 화면 확장), 그림 맞히기(정차 중 화면 게임 2종째)
+3. 이동 앨범(요약 화면 확장), 정차 중 화면 게임 더하기 — 틀린 그림 찾기·노래방(지금은 준비 중 카드, `PHASE2_NOTES.md` §5)
 4. Gleo Interface(`assets/schema.json`: START_GAME / PAUSE_GAME / SKIP_QUESTION) — 1차에는 파일을 넣지 않음
 5. 샘플 대조에서 나온 제안: `requestTrip` 으로 프리셋 예상 시간을 실제 내비 값으로, Vehicle SDK 리스너를 화면이 보일 때만 등록 (`PHASE2_NOTES.md` §7)
 6. 쉬어 가기 보완 (`PHASE2_NOTES.md` §1): 권한 곳을 지나쳤을 때 재권유, 휴게소 좌표(도로공사 OpenAPI 를 빌드 때) 넣어 근접 알림, 길 안내 없을 때 표 근사에 `onCurrentLocationInfo.heading` 추가
@@ -252,15 +339,16 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - 졸음쉼터 원자료의 방향 표기("A기점 + B종점" → A → B 차로) 해석 확인 — 한국도로공사 문의 또는 실측
 - 휴게소 편의시설은 TBT 이름과 정확히 같을 때만 붙인다 — 실차 내비의 휴게소 표기가 자료(예: "하남만남의광장")와 다를 수 있어 실차 TBT 이름 수집 후 보정
 - 시뮬 여정은 쉬어 가기를 묻는 동안 멈춘다(30배속 보정). 실제 내비 여정에는 해당 없음
-- 사자성어 읽기 중 통화·Gleo 포커스 손실 → 읽기만 멈춤(세션 유지) 흐름을 실기로 검증. 세로 1창에서 사자성어 배치(위아래 + 스크롤) 확인
+- 정차 중 화면 게임(사자성어·지역 퀴즈·끝말잇기) 읽기 중 통화·Gleo 포커스 손실 → 읽기만 멈춤(세션 유지) 흐름을 실기로 검증. 세로 1창에서 게임 목록·게임 화면 배치(위아래 + 스크롤) 확인
+- 좌석 착좌 실차 확인 — 에뮬레이터는 동승석 4곳 착좌로 고정이라 동승자 수 제안이 늘 3명(1.5). 실차에서 빈 자리가 빠지는지, 뒷좌석 가운데 등 좌석 구성이 다른 차에서 capability 가 어떻게 오는지
 
 ---
 
 ## 3. 다시 시작할 때 참고
-- 빌드/검사: `./gradlew lintDebug testDebugUnitTest assembleRelease` → `apk/` 에 복사 (`app/build/outputs/apk/release/app-release.apk` → `apk/Team-DonDoAYeon_길동무_release.apk`)
+- 빌드/검사: `./gradlew lintDebug testDebugUnitTest assembleRelease` → `apk/` 에 복사 (`app/build/outputs/apk/release/app-release.apk` → `apk/돈도아연_놀레오_release.apk`)
 - 에뮬레이터 차량 조작 자동화: `adb forward tcp:8088 tcp:8088` 후
   `curl -X POST "http://127.0.0.1:8088/browser/session?client=cli"` (하트비트, 3초 유효) → `curl -X PUT "http://127.0.0.1:8088/vehicle/gear?gear=Drive"`
-- 로그: `adb logcat -s Gildongmu/ModeArbiter:I Gildongmu/GameSession:I Gildongmu/Coordinator:I Gildongmu/NaviHelper:I Gildongmu/Location:I Gildongmu/Window:I Gildongmu/RestCare:I Gildongmu/IdiomQuiz:I Gildongmu/AudioFocus:I`
+- 로그: `adb logcat -s Nolleo/ModeArbiter:I Nolleo/GameSession:I Nolleo/Coordinator:I Nolleo/NaviHelper:I Nolleo/Location:I Nolleo/Window:I Nolleo/RestCare:I Nolleo/IdiomQuiz:I Nolleo/RegionQuiz:I Nolleo/WordQuiz:I Nolleo/AudioFocus:I`
 - 졸음 케어 2단계 시험: 시뮬 서울 → 전주 출발 → D → 디버그 패널 "2단계 시험" → 대본 응답이 "네" → 기흥휴게소(편의시설) → 시뮬이 닿으면 도착 → 기어 P → D. 실제 내비 + 근접 알림은 `geo fix 127.10 37.40` → 여정 자동 → 서울 → 부산 → 용인졸음쉼터 → `adb emu geo fix 127.138727 37.288616`.
 - 자료 다시 만들기: 졸음쉼터 `node tools/convert_rest_areas.js <CSV> app/src/main/assets/content/rest_areas.json`, 휴게소 `node tools/convert_service_areas.js <serviceAreaAmenities.json> <가족사랑화장실.csv> app/src/main/assets/content/service_areas.json`. 시뮬 경로 목록을 다시 받으려면 debug 빌드로 실제 내비 출발 후 logcat `TBT.restStops=`
 - 기능별 확인 절차 전체: `docs/FEATURE_GUIDE.md`

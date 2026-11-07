@@ -1,0 +1,13 @@
+<resources>
+    <!-- 야간: 어두운 테마 -->
+    <style name="Theme.Nolleo" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/nl_ground</item>
+        <item name="android:colorBackground">@color/nl_ground</item>
+        <item name="android:colorPrimary">@color/nl_accent</item>
+        <item name="android:colorAccent">@color/nl_accent</item>
+        <item name="android:statusBarColor">@color/nl_ground</item>
+        <item name="android:navigationBarColor">@color/nl_ground</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

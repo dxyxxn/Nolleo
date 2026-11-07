@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 앱 안 로고(제목 줄 Nolleo 왼쪽): 런처 아이콘(ic_launcher_background + ic_launcher_foreground)의 가운데 66 단위만 잘라 같은 그림을 그린다 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="66dp"
+    android:height="66dp"
+    android:viewportWidth="66"
+    android:viewportHeight="66">
+    <path
+        android:fillColor="#FF16181D"
+        android:pathData="M0,0h66v66h-66z" />
+    <group
+        android:translateX="-21"
+        android:translateY="-21">
+        <path
+            android:fillColor="#FFFFC53D"
+            android:pathData="M10,66C30,52 76,50 98,62L98,98L10,98Z" />
+        <path
+            android:fillColor="#FF16181D"
+            android:pathData="M38,98C44,82 54,70 56,57.5L59,57.3C61,70 64,84 72,98Z" />
+        <path
+            android:fillColor="#FFFFC53D"
+            android:pathData="M56.7,61h1.2v3h-1.2z M55.6,67.5h1.8v4.5h-1.8z M54,76h2.6v6.5h-2.6z M53.1,87h3.4v8h-3.4z" />
+        <path
+            android:fillColor="#FFFFC53D"
+            android:pathData="M57,36a11,11 0,1 0,22 0a11,11 0,1 0,-22 0z" />
+        <path
+            android:fillColor="#FF16181D"
+            android:pathData="M62.9,34.6a1.7,1.7 0,1 0,3.4 0a1.7,1.7 0,1 0,-3.4 0z M69.7,34.6a1.7,1.7 0,1 0,3.4 0a1.7,1.7 0,1 0,-3.4 0z" />
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FF16181D"
+            android:strokeWidth="2.1"
+            android:strokeLineCap="round"
+            android:pathData="M63.6,39Q68,43.2 72.4,39" />
+    </group>
+</vector>

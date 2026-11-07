@@ -27,9 +27,32 @@ This app is an entry to the **현대자동차그룹 차량용 앱 개발 공모�
     - Keep SDK usage central and consistent with the written plan and the README.
     - Prioritise crash-free, stable demos on the Pleos emulator over breadth.
 - **Repo conventions for submission**:
-    - Put the runnable **release** APK in `apk/` as `<팀명>_<앱이름>_release.apk`.
+    - Put the runnable **release** APK at `apk/돈도아연_놀레오_release.apk` (`<팀명>_<앱이름>_release.apk`; final team decision 2026-11-08). Team name: 돈도아연 (DonDoAYeon when written in English).
     - `README.md` must include: the app name and a one-line intro, how to run it, the test environment and required settings, and the APK location or release link.
     - Never commit secrets.
+
+## Keep the md docs in sync (always apply)
+
+The docs are part of the contest submission: judges and teammates read them, and the user expects them to match the code without being asked. **At the end of every task that changes behaviour, UI text, data/assets, build/toolchain, or records a user decision, update every affected md file in the same turn.** Pure Q&A with no change needs no doc update.
+
+Where things go (the docs are in Korean; write in the same plain style):
+
+| File | Update when… |
+|---|---|
+| `README.md` | app intro, how to run, test environment/settings, APK location, SDK usage table (§4), architecture tree (§5), test count (§6), content licences, docs list (§7) change |
+| `docs/FEATURE_GUIDE.md` | a feature's behaviour changes: what it does, emulator steps, expected screen/voice/log output, log tags (§12), what can't be verified (§13), troubleshooting (§14). Keep the table of contents and anchors valid |
+| `docs/DEMO_SCENARIO.md` | the 3-minute demo flow, on-screen/TTS wording, timing, or pre-recording checklist changes |
+| `docs/WORK_STATUS.md` | always, for any change: a milestone row (commit hash), a numbered section with what changed and why, decisions (§1.4), doc-vs-reality findings (§1.5), emulator verification results and DoD numbers (lint errors/warnings, test count), and remaining work (§2). It is **one file updated in place** — never create per-date files. The user edits it concurrently, so re-read it right before editing |
+| `docs/PHASE2_NOTES.md` | a phase-2 item is implemented (mark it done) or a follow-up idea comes up |
+| `docs/CONTENT_SOURCES.md` | any asset/data file is added, edited or removed: source, licence, transformation steps, counts, data quirks |
+| `docs/README.md` | a doc is added, removed, renamed, or its scope changes |
+| `CLAUDE.md` | build commands, toolchain, conventions or these rules change |
+
+How:
+1. Before finishing, grep the docs for stale wording: removed classes/files, old UI strings, old numbers (counts, timings, test totals), log tags.
+2. Write only what was actually verified; mark anything not verified explicitly (e.g. "확인 못 함") with the reason.
+3. Cross-check numbers and names across files (README vs FEATURE_GUIDE vs WORK_STATUS vs CONTENT_SOURCES) so they agree.
+4. Commit only when the user asks. Doc updates go in the same commit as the code. After committing, fill the commit hash into the WORK_STATUS milestone row with a small follow-up `docs:` commit.
 
 ## Reference docs (read on demand — do NOT `@`-import)
 
@@ -55,7 +78,7 @@ These are large. Importing them with `@` would load them into every session, so 
 
 An Android workspace for building an app on **Pleos** (an Android-based in-vehicle platform) using the Pleos Playground SDKs. It contains two unrelated kinds of Gradle builds:
 
-- **Root project (`./`, module `:app`)** — the app under development: **길동무 (Gildongmu)**, package `com.gildongmu.app`, Jetpack Compose UI, all five Pleos SDKs wired in. See `README.md` (architecture, SDK usage table), `docs/FEATURE_GUIDE.md` (every feature and how to verify it on the emulator — keep it in sync when behaviour changes) and `docs/WORK_STATUS.md` (latest work status and TODOs — a single file that is updated in place, not one file per date).
+- **Root project (`./`, module `:app`)** — the app under development: **놀레오 (Nolleo)** — subtitle "가는 길이 놀이가 되는 가족 게임" — package `com.nolleo.app`, Jetpack Compose UI, all five Pleos SDKs wired in. The app was renamed on 2026-11-07; the old name must not reappear anywhere (code, strings, docs, file names). See `README.md` (architecture, SDK usage table), `docs/FEATURE_GUIDE.md` (every feature and how to verify it on the emulator — keep it in sync when behaviour changes) and `docs/WORK_STATUS.md` (latest work status and TODOs — a single file that is updated in place, not one file per date).
 - **`pleos-example/`** — three self-contained reference apps, each its own git repo with its own Gradle wrapper. They are **not** included in the root build; build them from their own directories. Treat them as reference material for how to call each SDK.
     - `pleos-sample-vehicle-app` — Vehicle SDK (`ai.pleos.playground:Vehicle:2.3.2`): vehicle properties (door, HVAC, seat, window, …). Most detailed README; the typed Door Position flow is the canonical integration reference.
     - `pleos-sample-navi-app` — NaviHelper SDK (`ai.pleos.playground:NaviHelper:3.0.5`): route requests and navigation events, sent via NaviService to the default navigation app. Uses Hilt + kapt.
@@ -70,7 +93,7 @@ Root app:
 ./gradlew assembleDebug
 ./gradlew installDebug
 ./gradlew testDebugUnitTest                                   # JVM unit tests
-./gradlew testDebugUnitTest --tests "com.gildongmu.app.domain.engine.ModeArbiterTest"   # single test class
+./gradlew testDebugUnitTest --tests "com.nolleo.app.domain.engine.ModeArbiterTest"   # single test class
 ./gradlew connectedDebugAndroidTest                           # instrumented, needs device/emulator
 ./gradlew lintDebug
 ```
@@ -158,6 +181,17 @@ Details live in the dev guide; the section is noted for each rule.
     - Glanceable: contrast ≥ 4.5:1, ≤ 3 lines of text, minimum 12sp.
     - No video, animation or auto-scroll while driving.
     - No ads in notifications.
+
+## App design system (always apply to UI work)
+
+Redesigned 2026-11-08 for readability (the team picked the "yellow" palette); summarised in `README.md` §5 "화면 디자인". Keep new UI inside it:
+
+- Use only the tokens in `ui/theme/Theme.kt`: colours via `Nl.colors.*` (never hard-coded `Color(...)` in screens), spacing `Sp`, shapes `Radius`. Day = light grey ground, white cards, near-black ink; night (system night mode) = charcoal ground, white ink. Yellow (`action`) only for the primary button, selection marks and must-see prompt cards; text on yellow is always ink. Every text/ground pair stays ≥ 4.5:1 in both modes.
+- Use the components in `ui/common/Components.kt`: `PrimaryButton` (exactly one filled per view), `SecondaryButton`, `SegmentedControl` + `SettingRow` (pick one of a few options in a single row — prefer this over scattered buttons), `ChoiceRow` (radio list row), `NlCard`, `BandCard` (only for must-see prompts such as drowsiness care), `Chip`, `Avatar`, `Hairline`, `Logo`. Every tappable surface uses `Modifier.pressable` (instant pressed overlay, no Material ripple — the ripple looked slow). Don't add a second button, card or radius style.
+- Group, don't scatter: a screen is a few cards; each screen has one header row with at most one button on each side.
+- One accent colour; success/danger only for idiom answer states. Never violet or lavender (also check Material defaults leaking into components).
+- Type: platform font (Asta Sans) at weights 400 and 600 (700 only for the `Nolleo` wordmark) — on Pleos, 500 maps to Regular and 700 to ExtraBold. Smallest text 18sp, touch targets ≥ 76dp.
+- The title bar is the logo + English wordmark `Nolleo` only (no subtitle, no source/engine text — that lives in the debug panel). Copy: headings are nouns ("목적지", "오늘의 게임"), no exclamation marks in UI labels (spoken TTS lines may keep them).
 - **Security (§11.4)**:
     - No secrets in source; inject them via `local.properties` / `BuildConfig`. Use Keystore + AES-GCM.
     - HTTPS with TLS 1.2+.
