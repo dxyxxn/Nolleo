@@ -178,7 +178,7 @@ GameMode    IDLE(세션 없음) · VOICE(주행/정차/DO) · SCREEN(주차 && !
 ./gradlew lintDebug testDebugUnitTest assembleRelease
 ```
 - 단위 테스트 173개 — 모드 판정·판 짜기·게임 규칙(음성 판·정차 중 화면 게임)·졸음 케어·쉼 장소 고르기·콘텐츠 자산·저장본·내비 처리·창 배치 등
-- 주행 중 CPU 0~0.5%, 메모리 PSS 약 50 MB (에뮬레이터 `top`/`dumpsys meminfo`, 11/6 측정 — 11/7~8 개편 뒤 다시 재지 않음)
+- 사용량(release APK, 에뮬레이터 4코어, 11/8 측정 — 기기 전체 = 100% 기준): 주행 중 음성 게임 CPU 평균 0.2%·최대 0.5%, 정차 중 화면 게임 평균 0.1%·최대 0.3%, 메모리 PSS 44~64 MB, 첫 실행 0.91초. 기준(주행 중 CPU 5% 미만 · 정차 중 25% 이하 · RAM 400 MB 이하 · 실행 10초 이하) 안이다. 음성 합성은 Pleos 플랫폼 서비스가 따로 한다. 상황별 표는 `docs/WORK_STATUS.md` 1.18
 
 ## 7. 문서
 - [`docs/README.md`](docs/README.md) — docs 폴더 안내 (각 문서가 무슨 내용인지)

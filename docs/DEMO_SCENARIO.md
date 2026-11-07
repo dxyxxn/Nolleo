@@ -17,7 +17,12 @@ adb install -r apk/돈도아연_놀레오_release.apk
 adb forward tcp:8088 tcp:8088          # 브라우저: http://127.0.0.1:8088/
 # 4) 로그 창 (선택)
 adb logcat -v time -s Nolleo/ModeArbiter:I Nolleo/GameSession:I Nolleo/Coordinator:I Nolleo/NaviHelper:I Nolleo/RestCare:I Nolleo/AaosCar:I Nolleo/IdiomQuiz:I Nolleo/RegionQuiz:I Nolleo/WordQuiz:I Nolleo/Location:I Nolleo/Window:I
+# 5) 녹화 — 에뮬레이터 자체 녹화(소리 포함, 파일은 PC 에 바로 생김). 경로는 / 로 쓴다
+adb emu screenrecord start --time-limit 240 C:/녹화/nolleo_demo.webm
+adb emu screenrecord stop          # 일찍 끝낼 때
 ```
+
+녹화 방법(11/8 확인): 위 5) 의 에뮬레이터 자체 녹화는 화면 2560×1440(VP9) + **소리(Vorbis)** 를 함께 담아 TTS 음성까지 들어간다. Android Studio 의 Record Screen 과 같은 `adb shell screenrecord` 는 화면만(H.264 mp4, 소리 없음) 담기고 기본 3분까지라(`--time-limit 0` 이면 제한 없음) 소리가 필요하면 쓰지 않는다. 마이크 응답을 쓸 때 사람 목소리는 호스트 마이크로 들어가므로 녹음 여부는 따로 확인해야 한다(확인 못 함).
 
 앱에서 (왼쪽 위 로고·제목 **"Nolleo" 길게 누르기 → DEV 디버그 패널**):
 
