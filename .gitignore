@@ -9,3 +9,6 @@
 .cxx
 local.properties
 pleos-example
+skills-lock.json
+.claude
+.agents

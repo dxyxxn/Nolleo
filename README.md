@@ -177,6 +177,7 @@ GameMode    IDLE(세션 없음) · VOICE(주행/정차/DO) · SCREEN(주차 && !
 - [`docs/DEMO_SCENARIO.md`](docs/DEMO_SCENARIO.md) — 3분 시연 대본
 - [`docs/PHASE2_NOTES.md`](docs/PHASE2_NOTES.md) — 2차(12/3 PT) 설계 메모
 - [`docs/CONTENT_SOURCES.md`](docs/CONTENT_SOURCES.md) — 퀴즈·사전·졸음쉼터·휴게소 자료 출처와 생성 방식
+- [`docs/WORK_STATUS.md`](docs/WORK_STATUS.md) — 작업 현황·결정 사항·남은 일 (한 파일을 계속 갱신)
 
 ## 8. release 서명 키 만들기 (직접 빌드할 때)
 ```bash
