@@ -1,0 +1,27 @@
+# docs 폴더 안내
+
+길동무 문서 모음. 설치·실행·SDK 활용 요약은 저장소 루트의 [`../README.md`](../README.md)에 있다.
+
+## 프로젝트 문서
+
+| 파일 | 내용 | 이럴 때 본다 |
+|---|---|---|
+| [`FEATURE_GUIDE.md`](FEATURE_GUIDE.md) | **기능 사용설명서**. 기능마다 하는 일, 에뮬레이터에서 누를 것, 화면·음성·로그에 나오는 것. 10분 빠른 점검, 정차 중 사자성어, 졸음 케어 시나리오, 디버그 패널 안내, 용어(TBT 등), 문제 해결 | 기능이 실제로 도는지 직접 확인할 때 |
+| [`DEMO_SCENARIO.md`](DEMO_SCENARIO.md) | **3분 시연 대본**. 녹화 전 준비, 시간대별 조작과 보여 줄 장면, 실제 SDK 만으로 찍는 짧은 클립, 녹화 전 체크리스트 | 시연 영상을 찍거나 발표할 때 |
+| [`WORK_STATUS.md`](WORK_STATUS.md) | **작업 현황**(한 파일을 계속 갱신). 마일스톤·커밋별 결과, 실제 SDK vs 시뮬레이션, 결정 사항, 문서와 실제가 달랐던 점, 남은 일(1차 접수 전·2차 PT 전·기술 부채), 다시 시작할 때 참고 | 지금까지 무엇을 했고 다음에 무엇을 할지 볼 때 |
+| [`PHASE2_NOTES.md`](PHASE2_NOTES.md) | **2차(12/3 오프라인 PT) 설계 메모**. 졸음 케어 2단계(구현 완료·남은 검증), 지역 스탬프, 구간별 일시정지 고도화, 이동 앨범, 그림 맞히기, Gleo 음성 명령 등 | 2차 기능을 설계·구현할 때 |
+| [`CONTENT_SOURCES.md`](CONTENT_SOURCES.md) | **콘텐츠·자료 출처**. 퀴즈·끝말잇기 사전 생성 방식, 정차 중 사자성어 자료의 출처·배포 조건(CC BY-SA 4.0)·정리 내역, 공공데이터 졸음쉼터·도로공사 휴게소 편의시설 자료의 출처·이용 조건·변환 방법, 시뮬 경로 목록의 출처 | 콘텐츠를 고치거나 자료를 다시 받을 때, 저작권·이용 조건 확인 |
+| [`GILDONGMU_PROTOTYPE_PROMPT.md`](GILDONGMU_PROTOTYPE_PROMPT.md) | **프로토타입 구현 지시서**(Claude Code 에게 준 원래 작업 지시). 1차 접수 목표, 화면·상태 머신·게임 규칙·완료 기준 | 처음 설계 의도를 확인할 때 |
+
+## Pleos 참고 자료 (`pleos/`)
+
+공식 문서를 모은 큰 파일이라 통째로 읽지 말고 필요한 절만 찾아 본다.
+
+| 파일 | 내용 |
+|---|---|
+| [`pleos/PLEOS_CONNECT_DEV_GUIDE.md`](pleos/PLEOS_CONNECT_DEV_GUIDE.md) | Pleos Connect 개발 가이드 요약(약 110 KB). 플랫폼 정책(주행 규제·오디오 포커스·창·성능), UI 가이드, SDK 사용법, 에뮬레이터, 테스트, 앱 마켓 심사 기준 |
+| [`pleos/PLEOS_CONNECT_API_REFERENCE.md`](pleos/PLEOS_CONNECT_API_REFERENCE.md) | Pleos SDK 5종 API 레퍼런스(약 320 KB). 클래스·메서드 시그니처와 필요한 퍼미션 — 이름으로 검색해서 본다 |
+
+## 문서 관리
+- 앱 동작을 바꾸면 위 프로젝트 문서 중 관련된 것을 같이 고친다(특히 `FEATURE_GUIDE.md`·`WORK_STATUS.md`).
+- 작업 현황은 날짜별로 새 파일을 만들지 않고 `WORK_STATUS.md` 하나를 갱신한다.

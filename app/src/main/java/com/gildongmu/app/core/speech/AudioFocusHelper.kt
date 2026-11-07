@@ -66,8 +66,12 @@ class AudioFocusHelper(context: Context) {
         return granted
     }
 
-    fun abandon() {
-        if (!_hasFocus.value) return
+    /**
+     * @param force 일시 손실(LOSS_TRANSIENT)로 [hasFocus] 가 이미 false 여도 요청을 거둔다 — 다시 GAIN 을 받지 않을 때
+     *  (화면 게임은 손실 뒤 저절로 이어 읽지 않으므로 요청을 남겨 둘 이유가 없다)
+     */
+    fun abandon(force: Boolean = false) {
+        if (!_hasFocus.value && !force) return
         runCatching { audioManager?.abandonAudioFocusRequest(request) }
         AppLog.i(TAG, "abandon focus")
         _hasFocus.value = false

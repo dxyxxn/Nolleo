@@ -38,7 +38,7 @@ fun GildongmuRoot(container: AppContainer, vm: MainViewModel) {
     val summary by coordinator.summary.collectAsStateWithLifecycle()
     val session by coordinator.session.collectAsStateWithLifecycle()
     val debugOpen by vm.debugOpen.collectAsStateWithLifecycle()
-    val chosungOpen by vm.chosungOpen.collectAsStateWithLifecycle()
+    val idiomOpen by vm.idiomOpen.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize().background(GdColors.Background).safeDrawingPadding()) {
         Column(Modifier.fillMaxSize()) {
@@ -46,10 +46,10 @@ fun GildongmuRoot(container: AppContainer, vm: MainViewModel) {
             val body = Modifier.weight(1f)
             when {
                 session == null && summary != null -> SummaryScreen(container, summary!!, body)
-                mode == GameMode.SCREEN -> ScreenGameScreen(container, chosungOpen, vm::setChosungOpen, body)
+                mode == GameMode.SCREEN -> ScreenGameScreen(container, idiomOpen, vm::setIdiomOpen, body)
                 mode == GameMode.VOICE || mode == GameMode.PAUSED -> {
                     // 출발(SCREEN→VOICE)하면 화면 게임을 즉시 닫는다
-                    if (chosungOpen) vm.setChosungOpen(false)
+                    if (idiomOpen) vm.setIdiomOpen(false)
                     VoiceGameScreen(container, body)
                 }
                 else -> HomeScreen(container, body)

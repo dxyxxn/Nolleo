@@ -25,7 +25,6 @@ import com.gildongmu.app.domain.engine.SessionSnapshot
 import com.gildongmu.app.domain.engine.SessionState
 import com.gildongmu.app.domain.engine.SessionSummary
 import com.gildongmu.app.domain.engine.SpeechPort
-import com.gildongmu.app.domain.games.ChosungQuizGame
 import com.gildongmu.app.domain.model.DriveState
 import com.gildongmu.app.domain.model.GameChoice
 import com.gildongmu.app.domain.model.GameMode
@@ -119,10 +118,8 @@ class GameCoordinator(private val c: AppContainer) {
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
-    /** 화면 게임(초성 퀴즈) — 세션 동안 점수를 유지한다 */
-    private var _chosung: ChosungQuizGame? = null
-    val chosungGame: ChosungQuizGame?
-        get() = _chosung ?: c.content.content.value?.chosungItems?.takeIf { it.size >= 4 }?.let { ChosungQuizGame(it).also { g -> _chosung = g } }
+    /** 정차 중 화면 게임(사자성어) — 세션 동안 점수를 유지한다 */
+    val idiomQuiz = IdiomQuizController(c, scope)
 
     private val arrived = MutableStateFlow(false)
     private var sessionJob: Job? = null
@@ -174,6 +171,8 @@ class GameCoordinator(private val c: AppContainer) {
 
     private val speechPort = object : SpeechPort {
         override suspend fun speak(text: String) {
+            // 음성 게임이 말하기 시작하면 화면 게임(사자성어)의 읽기는 먼저 멈추고 포커스를 넘긴다
+            idiomQuiz.stop("음성 게임 발화")
             if (!ensureFocus()) return
             c.speechRouter.speak(text)
         }
@@ -215,6 +214,8 @@ class GameCoordinator(private val c: AppContainer) {
         observeNaviRoute()
         observeTbt()
         observePauseFocusPolicy()
+        // 출발 등으로 화면 게임을 벗어나면 사자성어 읽기를 즉시 멈춘다
+        gameMode.onEach { m -> if (m != GameMode.SCREEN) idiomQuiz.stop("mode=${m.name}") }.launchIn(scope)
         // 시뮬 여정은 주차 중에, 그리고 쉬어 가기를 묻는 동안 멈춘다 — 30배속이라 질문하는 15초에 11 km 를 지나
         // 권한 쉼 장소를 수락 전에 지나쳐 버리기 때문 (실제 내비는 해당 없음)
         combine(driveState, restCare.state) { d, rest -> d != DriveState.PARKED && rest !is RestCareController.State.Offered }
@@ -347,7 +348,7 @@ class GameCoordinator(private val c: AppContainer) {
         _summary.value = null
         _stage1Card.value = null
         restCare.clear()
-        _chosung = null
+        idiomQuiz.reset()
         if (!keepPauses) mode.clearPauses()
         _session.value = session
         mode.sessionActive.value = true
@@ -415,6 +416,7 @@ class GameCoordinator(private val c: AppContainer) {
         mode.sessionActive.value = false
         mode.clearPauses()
         c.tripRepository.endTrip()
+        idiomQuiz.stop("session end")
         c.audioFocus.abandon()
         _stage1Card.value = null
         restCare.clear()
@@ -484,8 +486,13 @@ class GameCoordinator(private val c: AppContainer) {
 
     private fun observeFocus() {
         c.audioFocus.changes.onEach { change ->
-            if (_session.value == null) return@onEach
             val ownTts = c.speechRouter.ttsKind.value == SpeechEngineKind.PLEOS && c.speechRouter.pleosSpeaking.value
+            // 정차 중 화면 게임이 읽는 중: 그 읽기만 멈춘다 (음성 판이 없으니 세션을 일시정지·종료하지 않는다)
+            if (idiomQuiz.holdsFocus) {
+                idiomQuiz.onFocusChange(change, ownTts)
+                return@onEach
+            }
+            if (_session.value == null) return@onEach
             when (change) {
                 FocusChange.LOSS_TRANSIENT -> {
                     if (ownTts) {
@@ -609,6 +616,7 @@ class GameCoordinator(private val c: AppContainer) {
     // ── 생명주기 ────────────────────────────────────────────────
 
     fun onBackground() {
+        idiomQuiz.stop("background")
         val s = _session.value ?: return
         val phase = sessionState.value?.phase
         backgroundInterrupted = mode.voiceRoundActive.value ||

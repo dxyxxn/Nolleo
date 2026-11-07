@@ -52,7 +52,7 @@ class GameSessionTest {
         regions = listOf(RegionInfo("chungbuk", "충청북도", "충북", 36.0, 37.2, 127.2, 128.6, 36.8, 127.7, null, emptyList(), emptyList())),
         regionQuestions = mapOf("chungbuk" to questions),
         generalQuestions = (1..5).map { Question("g-$it", null, 1, "동물", "일반 문제 $it?", listOf("일반$it"), "") },
-        chosungItems = emptyList(),
+        idioms = emptyList(),
     )
     private val dictionary = WordDictionary(
         listOf("기차", "차표", "표지판", "판다", "다리미", "미역", "역사", "사과", "과자", "자동차", "차도", "도토리", "리본", "본관",

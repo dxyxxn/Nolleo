@@ -15,17 +15,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -35,18 +29,15 @@ import com.gildongmu.app.app.AppContainer
 import com.gildongmu.app.app.RestCareController
 import com.gildongmu.app.core.navi.TripUnits
 import com.gildongmu.app.domain.engine.SessionPlanner
-import com.gildongmu.app.domain.games.ChosungQuizGame
 import com.gildongmu.app.ui.common.ChoiceButton
-import com.gildongmu.app.ui.common.MinTouch
-import com.gildongmu.app.ui.common.PrimaryButton
 import com.gildongmu.app.ui.theme.GdColors
 
-/** SCREEN 모드 (기획서 화면안): 카드 2개(초성 퀴즈 / 그림 맞히기 — 후자는 "준비 중"), 하단 "정차 중에만 열려요" */
+/** SCREEN 모드 (기획서 화면안): 카드 2개(사자성어 / 그림 맞히기 — 후자는 "준비 중"), 하단 "정차 중에만 열려요" */
 @Composable
 fun ScreenGameScreen(
     container: AppContainer,
-    chosungOpen: Boolean,
-    onOpenChosung: (Boolean) -> Unit,
+    idiomOpen: Boolean,
+    onOpenIdiom: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val trip by container.tripRepository.snapshot.collectAsStateWithLifecycle()
@@ -71,16 +62,23 @@ fun ScreenGameScreen(
             else -> Unit
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            if (chosungOpen) {
-                BackHandler { onOpenChosung(false) }
-                val game = container.coordinator.chosungGame
-                if (game == null) {
-                    Text("초성 퀴즈 콘텐츠를 불러오지 못했어요.", style = MaterialTheme.typography.titleLarge, color = GdColors.Warn)
+            val quiz = container.coordinator.idiomQuiz
+            if (idiomOpen) {
+                val close = {
+                    quiz.close()
+                    onOpenIdiom(false)
+                }
+                BackHandler(onBack = close)
+                if (!quiz.isAvailable) {
+                    Text("사자성어 콘텐츠를 불러오지 못했어요.", style = MaterialTheme.typography.titleLarge, color = GdColors.Warn)
                 } else {
-                    ChosungQuiz(game, onClose = { onOpenChosung(false) })
+                    IdiomQuizPanel(quiz, onClose = close)
                 }
             } else {
-                GameCards(onOpenChosung = { onOpenChosung(true) })
+                GameCards(onOpenIdiom = {
+                    onOpenIdiom(true)
+                    quiz.open()
+                })
             }
         }
         // 주차 중에는 여정 시간이 흐르지 않으므로 "주행 약 N분 뒤"로 안내한다
@@ -99,11 +97,11 @@ fun ScreenGameScreen(
 }
 
 @Composable
-private fun GameCards(onOpenChosung: () -> Unit) {
+private fun GameCards(onOpenIdiom: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth > maxHeight
         val cards: @Composable (Modifier) -> Unit = { m ->
-            GameCard("초성 퀴즈", "ㅅㄱ → 사과? 초성을 보고 낱말을 골라요", enabled = true, onClick = onOpenChosung, modifier = m)
+            GameCard("사자성어", "뜻을 듣고 넷 중에 골라요 · 한자 풀이와 유래까지", enabled = true, onClick = onOpenIdiom, modifier = m)
             GameCard("그림 맞히기", "준비 중이에요", enabled = false, onClick = {}, modifier = m)
         }
         if (wide) {
@@ -129,62 +127,5 @@ private fun GameCard(title: String, subtitle: String, enabled: Boolean, onClick:
         Text(title, style = MaterialTheme.typography.displayMedium, color = if (enabled) GdColors.Text else GdColors.Disabled)
         Spacer(Modifier.height(12.dp))
         Text(subtitle, style = MaterialTheme.typography.titleMedium, color = if (enabled) GdColors.Muted else GdColors.Disabled, textAlign = TextAlign.Center)
-    }
-}
-
-@Composable
-private fun ChosungQuiz(game: ChosungQuizGame, onClose: () -> Unit) {
-    var question by remember { mutableStateOf(game.next()) }
-    var picked by remember { mutableStateOf<Int?>(null) }
-    var score by remember { mutableIntStateOf(game.score) }
-    val q = question ?: return
-
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("초성 퀴즈 · ${score}점", style = MaterialTheme.typography.titleLarge, color = GdColors.Accent, modifier = Modifier.weight(1f))
-            ChoiceButton("닫기", selected = false, onClick = onClose)
-        }
-        Text(q.chosung, style = MaterialTheme.typography.displayLarge, color = GdColors.Text)
-        Text("힌트: ${q.item.hint}", style = MaterialTheme.typography.titleLarge, color = GdColors.Muted, textAlign = TextAlign.Center)
-        q.choices.chunked(2).forEachIndexed { rowIndex, row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                row.forEachIndexed { colIndex, word ->
-                    val index = rowIndex * 2 + colIndex
-                    val revealed = picked != null
-                    val color = when {
-                        revealed && index == q.answerIndex -> GdColors.Good
-                        revealed && index == picked -> GdColors.Danger
-                        else -> GdColors.Primary
-                    }
-                    PrimaryButton(
-                        word,
-                        onClick = {
-                            if (picked == null) {
-                                picked = index
-                                game.answer(q, index)
-                                score = game.score
-                            }
-                        },
-                        color = color,
-                        modifier = Modifier.weight(1f).heightIn(min = MinTouch + 12.dp),
-                    )
-                }
-            }
-        }
-        picked?.let { p ->
-            Text(
-                if (p == q.answerIndex) "정답! +10점" else "아쉬워요. 정답은 ${q.item.word}",
-                style = MaterialTheme.typography.headlineSmall,
-                color = if (p == q.answerIndex) GdColors.Good else GdColors.Warn,
-            )
-            PrimaryButton("다음 문제", onClick = {
-                question = game.next()
-                picked = null
-            })
-        }
     }
 }

@@ -2,12 +2,17 @@ package com.gildongmu.app.data
 
 import com.gildongmu.app.domain.engine.AnswerMatcher
 import com.gildongmu.app.domain.games.Hangul
+import com.gildongmu.app.domain.games.IdiomQuizGame
+import com.gildongmu.app.domain.games.IdiomSpeech
 import com.gildongmu.app.domain.games.WordDictionary
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import kotlin.random.Random
 
 /** 실제 assets 콘텐츠가 지시서 §6 규칙을 지키는지 검증한다. */
 class ContentAssetsTest {
@@ -17,7 +22,8 @@ class ContentAssetsTest {
     private val regions = ContentParser.parseRegions(asset("content/regions.json"))
     private val regionQuiz = ContentParser.parseRegionQuiz(asset("content/quiz_regions.json"))
     private val general = ContentParser.parseGeneralQuiz(asset("content/quiz_general.json"))
-    private val chosung = ContentParser.parseChosung(asset("content/chosung_quiz.json"))
+    private val idiomsJson = asset("content/quiz_idioms.json")
+    private val idioms = ContentParser.parseIdioms(idiomsJson)
     private val words = ContentParser.parseWords(asset("content/words_ko.txt"))
 
     private fun sentences(text: String) = text.split(Regex("(?<=[.?!])\\s*")).filter { it.isNotBlank() }
@@ -83,9 +89,42 @@ class ContentAssetsTest {
     }
 
     @Test
-    fun chosungItems_areUsable() {
-        assertTrue(chosung.size >= 20)
-        chosung.forEach { assertTrue(it.word.all(Hangul::isSyllable)) }
+    fun idioms_everyItemParsesWithFourCharsAndReadings() {
+        assertTrue("사자성어 100개 이상: ${idioms.size}", idioms.size >= 100)
+        assertEquals("건너뛴 항목 없음", JSONArray(idiomsJson).length(), idioms.size)
+        assertEquals("id 중복 없음", idioms.size, idioms.map { it.id }.toSet().size)
+        assertEquals("정답 중복 없음", idioms.size, idioms.map { it.word }.toSet().size)
+        idioms.forEach { i ->
+            assertTrue(i.word, i.word.all(Hangul::isSyllable))
+            assertEquals("${i.word} 글자 수 = 한자 풀이 수", i.word.length, i.chars.size)
+            i.chars.forEach { ch -> assertTrue("${i.word} 훈·음", ch.hanja.isNotBlank() && ch.hun.isNotBlank() && ch.eum.isNotBlank()) }
+            assertTrue(i.word, i.meaning.isNotBlank())
+            // 뜻풀이 뒷부분("또는 그런 행동.")이 유래 칸에 들어가지 않게 (11/7 정리)
+            i.origin?.let { o -> assertFalse("${i.word} 유래: $o", Regex("^(또는|곧|흔히|주로) ").containsMatchIn(o)) }
+        }
+    }
+
+    @Test
+    fun idioms_ttsLinesHaveNoHanjaOrBookMarks() {
+        val hanja = Regex("[\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF]")
+        idioms.forEach { i ->
+            (listOf(IdiomSpeech.question(i)) + IdiomSpeech.afterAnswer(i, correct = true)).forEach { line ->
+                assertFalse("${i.word}: $line", hanja.containsMatchIn(line))
+                assertFalse("${i.word}: $line", line.any { it in "≪≫<>“”‘’" })
+                assertTrue("${i.word}: 빈 문장", line.isNotBlank())
+            }
+        }
+    }
+
+    @Test
+    fun idioms_everyQuestionGetsFourDistinctChoicesWithoutSameMeaning() {
+        val game = IdiomQuizGame(idioms, Random(7))
+        repeat(idioms.size) {
+            val q = game.next()!!
+            assertEquals(4, q.choices.map { it.word }.toSet().size)
+            assertEquals(q.item, q.answer)
+            q.choices.filter { it != q.item }.forEach { d -> assertTrue("${q.item.word} vs ${d.word}", d.question != q.item.question) }
+        }
     }
 
     @Test

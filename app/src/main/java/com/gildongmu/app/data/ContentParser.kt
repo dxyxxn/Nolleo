@@ -1,6 +1,7 @@
 package com.gildongmu.app.data
 
-import com.gildongmu.app.domain.model.ChosungItem
+import com.gildongmu.app.domain.model.IdiomChar
+import com.gildongmu.app.domain.model.IdiomItem
 import com.gildongmu.app.domain.model.Question
 import com.gildongmu.app.domain.model.RegionInfo
 import com.gildongmu.app.domain.rest.RestArea
@@ -50,18 +51,31 @@ object ContentParser {
     fun parseGeneralQuiz(json: String): List<Question> =
         parseQuestions(JSONObject(json).getJSONArray("questions"), regionCode = null)
 
-    fun parseChosung(json: String): List<ChosungItem> {
-        val arr = JSONObject(json).getJSONArray("items")
+    /**
+     * assets/content/quiz_idioms.json (최상위 배열). 정답·질문이 비었거나 정답이 한글 음절이 아니면 건너뛴다.
+     * hint 는 읽지 않는다 (사지선다라 힌트를 쓰지 않음).
+     */
+    fun parseIdioms(json: String): List<IdiomItem> {
+        val arr = JSONArray(json.removePrefix(BOM))
         return (0 until arr.length()).mapNotNull { i ->
             val o = arr.getJSONObject(i)
-            val word = o.optString("word").trim()
-            if (word.length < 2) return@mapNotNull null
-            ChosungItem(
-                id = o.optString("id", "cho-$i"),
+            val word = o.optJSONArray("answers").toStringList().firstOrNull()?.trim().orEmpty()
+            val question = o.optString("question").trim()
+            if (word.length < 2 || !word.all { it in '가'..'힣' } || question.isEmpty()) return@mapNotNull null
+            val chars = o.optJSONArray("chars")?.let { ca ->
+                (0 until ca.length()).map { j ->
+                    val ch = ca.getJSONObject(j)
+                    IdiomChar(hanja = ch.optString("hanja"), hun = ch.optString("hun"), eum = ch.optString("eum"))
+                }
+            }.orEmpty()
+            IdiomItem(
+                id = o.optString("id", "idiom-$i"),
                 word = word,
-                hint = o.optString("hint"),
-                category = o.optString("category"),
-                difficulty = o.optInt("difficulty", 1),
+                hanja = o.optString("hanja"),
+                question = question,
+                origin = if (o.isNull("origin")) null else o.optString("origin").trim().ifEmpty { null },
+                chars = chars,
+                difficulty = o.optInt("difficulty", 2).coerceIn(1, 3),
             )
         }
     }

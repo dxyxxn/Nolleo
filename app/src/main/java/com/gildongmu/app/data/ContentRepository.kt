@@ -49,8 +49,8 @@ class ContentRepository(context: Context) {
         val general = readOrNull("content/quiz_general.json")
             ?.let { runCatching { ContentParser.parseGeneralQuiz(it) }.onFailure { e -> AppLog.e(TAG, "quiz_general parse", e) }.getOrNull() }
             .orEmpty()
-        val chosung = readOrNull("content/chosung_quiz.json")
-            ?.let { runCatching { ContentParser.parseChosung(it) }.getOrNull() }
+        val idioms = readOrNull("content/quiz_idioms.json")
+            ?.let { runCatching { ContentParser.parseIdioms(it) }.onFailure { e -> AppLog.e(TAG, "quiz_idioms parse", e) }.getOrNull() }
             .orEmpty()
         val words = readOrNull("content/words_ko.txt")?.let { ContentParser.parseWords(it) }.orEmpty()
         _restAreas.value = readOrNull("content/rest_areas.json")
@@ -62,11 +62,11 @@ class ContentRepository(context: Context) {
 
         _resolver.value = RegionResolver(regions)
         _dictionary.value = WordDictionary(words)
-        _content.value = GameContent(regions, regionQuiz, general, chosung)
+        _content.value = GameContent(regions, regionQuiz, general, idioms)
         AppLog.i(
             TAG,
             "content loaded in ${System.currentTimeMillis() - started}ms: regions=${regions.size}, " +
-                "regionQuiz=${regionQuiz.values.sumOf { it.size }}, general=${general.size}, chosung=${chosung.size}, words=${_dictionary.value?.size}, restAreas=${_restAreas.value.size}, serviceAreas=${_serviceAreas.value.size}",
+                "regionQuiz=${regionQuiz.values.sumOf { it.size }}, general=${general.size}, idioms=${idioms.size}, words=${_dictionary.value?.size}, restAreas=${_restAreas.value.size}, serviceAreas=${_serviceAreas.value.size}",
         )
     }
 

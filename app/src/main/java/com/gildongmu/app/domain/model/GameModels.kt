@@ -3,7 +3,8 @@ package com.gildongmu.app.domain.model
 enum class GameKind(val label: String) {
     REGION_QUIZ("지역 퀴즈"),
     WORD_CHAIN("끝말잇기"),
-    CHOSUNG_QUIZ("초성 퀴즈"),
+    /** 정차 중 화면 게임 (음성 판에는 나오지 않는다) */
+    IDIOM_QUIZ("사자성어"),
 }
 
 /** 홈에서 고르는 게임 구성. */

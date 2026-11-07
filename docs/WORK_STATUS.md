@@ -25,13 +25,14 @@
 | 피드백 반영 ② | `67930d6` | 내비에서 시작한 길 안내를 홈에 실시간 반영, 3분할에서 길동무를 맨 오른쪽 창으로 (아래 1.7) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 115개 |
 | 샘플 대조·문서 점검 + 판 간격 선택 | `0dca7d1` | `pleos-example` 샘플과 SDK 사용법 대조 후 보완, 문서 최신화 (아래 1.8) · 홈에서 판 간격 3종 선택, 화면에서 사라지면 일시정지 유지 결정 (아래 1.9) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 120개 |
 | 졸음 케어 2단계 + 경로 위 휴게소·졸음쉼터 안내 | `e8bb846` | 2단계 판단·쉬어 가기 질문, 도착 후 대기·재출발 인사, 내비 0/0 버그 수정, 사용설명서 `docs/FEATURE_GUIDE.md` (아래 1.10) → 같은 날 개정: 내비 TBT 의 경로 위 휴게소·졸음쉼터(구간 거리 누적)에서 고르기, 휴게소 편의시설 247곳, `addWaypoint` 제거, 서거나 주차해야 도착 (아래 1.11) | 에뮬레이터 debug·release 빌드로 확인, DoD 통과, 테스트 152개 |
+| 정차 중 화면 게임 → 사자성어 | (커밋 전) | 초성 퀴즈를 사자성어 4지선다로 교체: 뜻 TTS → 고르기 → 한자 훈·음 풀이 + 정답·유래 TTS → 자동으로 다음 문제, 읽는 동안만 오디오 포커스 (아래 1.12) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 166개 |
 
 M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로 묶었다.
 
 ### 1.2 에뮬레이터에서 확인한 흐름 (DoD)
 - 앱 실행: debug 2.5초 / release 0.9초 (기준 ≤ 10초)
 - 기어 P → D: `requiresDO=true, active=80` 수신 → 즉시 VOICE, 1.5초 뒤 DRIVING 확정 / D → P: 진행 중 차례만 끝내고 "차가 멈췄네요…" → SCREEN
-- 여정 설정 → 음성 퀴즈 한 판(대본 응답, 실제 Pleos TTS) → 끝말잇기 한 판 → sleepy 대본으로 Stage1 카드("잠깐 쉬어 갈까요?") + 난이도 상한 2 → 시뮬 TBT 300m 자동 일시정지·재개 → 정차 중 초성 퀴즈 → "남은 5분" → 도착 요약: **크래시·멈춤 없음**
+- 여정 설정 → 음성 퀴즈 한 판(대본 응답, 실제 Pleos TTS) → 끝말잇기 한 판 → sleepy 대본으로 Stage1 카드("잠깐 쉬어 갈까요?") + 난이도 상한 2 → 시뮬 TBT 300m 자동 일시정지·재개 → 정차 중 초성 퀴즈(11/7 사자성어로 교체, 1.12) → "남은 5분" → 도착 요약: **크래시·멈춤 없음**
 - 백그라운드(다른 앱이 창을 차지) → 즉시 중단·포커스 반납·상태 저장 → 복귀 시 "잠시 멈췄어요 + 계속" → 같은 문제부터 재출제
 - Back 키 → `moveTaskToBack` (액티비티 종료·SDK 해제 없음)
 - 창 분할(⋮ 핸들) → 세로 1창 레이아웃, 가로 2창 레이아웃 모두 잘림 없음
@@ -51,7 +52,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 | NaviHelper addWaypoint | 실제 SDK로 시험(11/7) 후 **쓰지 않기로** — 경유지는 들어가고 내비가 재탐색하지만, POI ID 없는 좌표라 고속도로 옆 일반 도로에 붙어 IC 로 나갔다 들어오는 우회 경로가 됨(아래 1.11) |
 | FusedLocation | 실제 SDK로 검증 — 기본 좌표로는 국내 지역이 안 나와 내비 주소/시뮬로 폴백, `adb emu geo fix 126.9780 37.5665` 를 넣으면 `region=seoul via FusedLocation` (11/7 확인) |
 | FusedLocation addProximityAlert | 실제 SDK로 검증(11/7) — 등록 → `alertId`, `geo fix` 로 쉼터 좌표에 넣으면 ENTER 콜백(`rest stop arrived (근접 알림 ENTER)`) |
-| Pleos TTS | 실제 SDK로 검증 (onDone, 포커스 스택 확인) |
+| Pleos TTS | 실제 SDK로 검증 (onDone, 포커스 스택 확인). 정차 중 사자성어 읽기도 같은 엔진 — 읽을 때마다 포커스 요청·다 읽으면 반납(11/7) |
 | Pleos STT | 초기화·청취 실제. 에뮬레이터 Microphone 을 호스트 입력으로 켜고 응답 입력 "마이크"로 실제 인식 확인(사용자, 11/7). 마이크 없이 시연할 때는 대본 응답 |
 | Android TTS/STT 폴백 | 이 에뮬레이터에 한국어 TTS 엔진 없음 → 자동으로 건너뜀(코드 경로만 존재) |
 | `driving_regulation on/off` 셸 | 이 사용자 빌드에 `hmg_car_service` 없음 → 기어 D 로 대체 검증 |
@@ -78,6 +79,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - 졸음 케어 2단계(11/7, 사용자 결정 반영): **경로 정보가 있으면 경로 위 휴게소·졸음쉼터에서만 고른다**(가장 가까운 곳, 휴게소가 5 km 안쪽으로만 더 멀면 휴게소). **경유지(`addWaypoint`)는 넣지 않는다** — 좌표 경유지가 우회 경로를 만들었고, 경로 위라 필요 없다. 길 안내가 없을 때만 공공데이터 졸음쉼터 표(근사, "A기점 + B종점" 은 A → B 차로로 해석). 도착은 근처에서 서거나 주차해야(지나가는 것과 구별). 도착 안내 뒤에는 다시 출발할 때까지 문제를 내지 않는다(`PauseReason.REST_AREA`). 질문 문구는 "졸음"을 단정하지 않고 "반응이 계속 느려졌어요".
 - 디버그 패널은 release 에도 그대로 둔다(11/7 사용자 결정 — 시연·심사용). 앱 마켓 제출본에서는 빼거나 차량 칸(시뮬 전환·시뮬 DO 끔 — 주행 규제 우회 가능)을 숨길 것.
 - 쉼터 이름·거리·진행 방향·좌표도 차의 위치를 짐작하게 하므로 `AppLog.sensitive`(release 에서 `<redacted>`)로만 남긴다. 에뮬레이터 시험용 `geo fix` 좌표는 디버그 패널 화면("쉬어 가기 상태")에서 본다.
+- 정차 중 화면 게임은 **사자성어**(11/7 사용자 결정 — 초성 퀴즈는 너무 쉬움). 힌트 없음, 뜻·정답·유래를 TTS 로 읽고 자동으로 다음 문제 — 고른 때부터 적어도 10초(유래가 길면 다 읽고 2.5초 뒤, 11/7 사용자 요청). 화면 게임의 소리는 읽는 동안만 포커스를 잡고, 출발·닫기·백그라운드·세션 종료·음성 게임 발화·포커스 손실이면 즉시 멈추며 **저절로 다시 읽지 않는다**(자동 재생 금지). SCREEN 모드의 포커스 손실은 세션을 일시정지·종료하지 않고 읽기만 멈춘다(음성 판이 없으므로). 사자성어 점수는 요약 화면에 넣지 않았다(세션 안에서만 유지).
 
 ### 1.5 문서·자료와 실제가 달랐던 점 (기획서/문서 수정 참고)
 - API 레퍼런스의 `VehicleException.errorCode` → 배포된 Vehicle 2.3.2 AAR 에서는 클래스가 난독화(`callback.exception.a`)되고 `ErrorCode` 가 runtime 스코프라 컴파일 시 사용 불가 → 메시지 기반 재시도로 대체.
@@ -188,6 +190,34 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - 확인 못 함: 차가 움직이며 근처를 **지나가기만** 할 때 도착이 아닌 것(에뮬레이터 차가 움직이지 않음 — 코드 규칙).
 - DoD 통과(lint 오류 0·경고 17), 테스트 152개(+7: TBT 누적·지나친 곳 빼기, 휴게소 우선·1 km·80 km, 편의시설 방향, 졸음쉼터 좌표 방향, 경로 정보 유무, 문구, 휴게소 자료, 시뮬 프리셋).
 
+### 1.12 정차 중 화면 게임: 초성 퀴즈 → 사자성어 (11/7)
+요청: "초성 게임 대신 사자성어를 공부하는 게임으로. 자료는 `assets/content/quiz_idioms.json`(직접 만듦). question 을 TTS 와 함께 주고 사지선다, hint 는 쓰지 않음. 고르면 정답을 알려 주며 answers 를 TTS 로 읽고, 각 글자가 무슨 한자인지 chars 를 한글로 표시. origin 이 null 이 아니면 origin 도 읽고 다음 문제로."
+
+| 구성 | 내용 |
+|---|---|
+| 자료 | `quiz_idioms.json` 1,014개(유래 231 → 뜻풀이 조각 정리 뒤 210, 아래 후속). `ContentParser.parseIdioms` → `IdiomItem`(id·정답·한자·질문·유래·`IdiomChar`(한자·훈·음)·난이도). `hint`·`category`·`grade`·`src` 는 읽지 않음. 출처·자료에서 본 점은 `CONTENT_SOURCES.md` |
+| 게임 (`IdiomQuizGame`) | 한 바퀴를 다 돌 때까지 반복 없음, 오답 보기 3개는 뜻(질문)이 같은 사자성어(40개가 다른 항목과 같은 뜻) 빼고 같은 난이도 먼저, 맞히면 10점 |
+| 읽기 (`IdiomSpeech`) | 문제 = 질문 원문, 고른 뒤 "정답! ○○○○." / "아쉬워요. 정답은 ○○○○." → 유래. 소리로는 한자 괄호·≪≫<>·따옴표를 빼고 `·` 는 쉼표(화면은 원문) |
+| 흐름 (`app/IdiomQuizController`) | 카드 → 문제 읽기 → 고르기(읽는 중에도 가능, 읽던 것은 끊음) → 정답·유래 읽기 → 다음 문제 읽기(고른 때부터 적어도 10초, 다 읽고 적어도 2.5초 — `REVEAL_MIN_MS`·`NEXT_DELAY_MS`). **다시 듣기**·**다음 문제**·**닫기**. 닫았다 다시 열면 풀던 문제를 다시 읽음, 화면만 복원된 경우(프로세스 재생성)는 소리 없이 문제만 준비 |
+| 오디오 | 읽을 때마다 `GAIN_TRANSIENT_MAY_DUCK` 요청 → 다 읽으면 반납. 모드가 SCREEN 이 아니게 되면·백그라운드·세션 종료·닫기에서 즉시 멈춤. 음성 게임의 `SpeechPort.speak` 가 먼저 사자성어 읽기를 멈추고 포커스를 넘겨받는다(출발 직후 겹침 방지). 사자성어가 포커스를 쥔 동안의 손실은 `IdiomQuizController.onFocusChange` 가 받아 읽기만 멈추고 `소리가 멈췄어요` 표시(자기 Pleos TTS 로 인한 손실은 무시). `AudioFocusHelper.abandon(force)` 추가 — 일시 손실로 `hasFocus` 가 false 여도 요청을 거둔다 |
+| 화면 (`IdiomQuizPanel`) | 가로로 넓은 창(≥1000dp)은 왼쪽 문제·보기 / 오른쪽 결과·한자 4칸(한자 + "훈 음")·유래·다음 문제, 좁은 창은 위아래 + 스크롤. 고른 뒤 정답 초록·고른 오답 빨강·나머지 흐리게 |
+| 지운 것 | `ChosungQuizGame`, `ChosungItem`, `parseChosung`, `assets/content/chosung_quiz.json`, `GameKind.CHOSUNG_QUIZ`(→ `IDIOM_QUIZ`, 음성 판·저장본에 쓰이지 않음), `MainViewModel` 키 `chosung_open`(→ `idiom_open`). `Hangul.chosungOf` 는 한글 유틸로 남김(지금은 `HangulTest` 에서만 씀 — 필요 없으면 지워도 됨) |
+
+확인(release APK, 에뮬레이터, 시뮬 서울 → 전주):
+- 출발(P) → 사자성어 카드 → `IdiomQuiz: open` + 포커스 GRANTED, 문제 읽기 12초 뒤 `abandon focus`. 오답(오거지서) → 빨강/초록, 滄海遺珠 `큰바다 창 · 바다 해 · 남길 유 · 구슬 주`, 유래 `≪당서≫에 나오는 말이다.` → 정답·유래 읽기 4초 → 2.5초 뒤 다음 문제(파안대소) 읽기.
+- 정답 → `정답! +10점`, 破顔大笑 `깨뜨릴 파 · 낯 안 · 큰 대 · 웃음 소` → 다음 문제 기다리는 중 기어 D → `IdiomQuiz: stop (mode=VOICE)` 가 음성 판 시작(`round 1/4 start`)보다 먼저, 이어서 음성 판이 포커스를 새로 받음.
+- 다시 P(판 마무리 뒤 SCREEN) → 카드 → 점수 10점 유지, 새 문제 읽기. 읽는 중 다른 앱이 창을 덮음 → `stop (background)` + `abandon focus` → 돌아오면 같은 문제, 읽지 않음(`2문제 중 1개 맞혔어요`).
+- 창 크기 변경(액티비티 재생성) 뒤에도 문제·점수 유지, 크래시 없음.
+- 확인 못 함: 통화·Gleo 포커스 손실(에뮬레이터에서 재현 불가), 세로 1창 배치(`wm size` 로는 Pleos 화면이 다시 배치되지 않음).
+- DoD 통과(lint 오류 0·경고 17), 테스트 166개(+14: 사자성어 게임 7 — 보기 4개·반복 없음·같은 뜻 제외·같은 난이도·점수·4개 미만·뜻 분리, 읽기용 문장 5, 자료 검증 3 − 초성 1).
+
+**후속 (11/7, 사용자 요청)**
+1. 정답 화면이 너무 빨리 넘어감(유래가 없으면 정답만 읽고 2.5초) → 고른 때부터 **적어도 10초** 보여 준다(`REVEAL_MIN_MS`). 유래가 길어 10초를 넘기면 다 읽고 2.5초 뒤. "다시 듣기"로 정답을 다시 읽을 때도 같은 규칙.
+2. 유래 칸의 뜻풀이 조각 23개 정리: 21개 `origin` → null, 창상지변(832)·호시탐탐(982)은 조각 뒤에 진짜 유래가 있어 조각만 뗐다. 유래 있는 문항 231 → 210. `ContentAssetsTest` 에 "유래가 '또는·곧·흔히·주로'로 시작하지 않음" 검사 추가.
+3. 자료 출처·배포 조건(국립국어원 《표준국어대사전》 CC BY-SA 2.0 KR → k1-db-idioms CC BY-SA 4.0, 훈·음은 한국어문회 급수 한자·libhangul(LGPL 2.1)·Wiktionary·팀 보충, 파일은 CC BY-SA 4.0)을 `CONTENT_SOURCES.md` 와 README "콘텐츠 라이선스"에 적음.
+
+확인(release APK, 에뮬레이터): 유래 없는 문제(일구지학)에서 고른 시각 21:31:21.761 → "정답! 일구지학." 1.5초 → 다음 문제 읽기 시작 21:31:31.764(**10.0초**). DoD 통과(lint 오류 0·경고 17), 테스트 166개(자료 검사에 유래 조각 검사를 더함 — 개수 변화 없음).
+
 ---
 
 ## 2. 추후 작업할 내용 (우선순위 순)
@@ -196,7 +226,8 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 1. **시연 영상 녹화** — `docs/DEMO_SCENARIO.md` 대본(3분). 녹화 전 체크리스트(권한·포트 포워딩·데모 모드·대본 선택·볼륨) 확인. 녹화 후 README 상단 "시연 영상" 링크 채우기.
 2. **콘텐츠 사람 검수** — 지역 퀴즈 170문항·일반 48문항을 팀원이 한 번 더 확인(AI 생성 + 1회 검수 상태).
 3. **기획서 접수양식 5번과 README SDK 표 대조** — Vehicle 활용에 "AAOS Car API(기어·속도·주행 규제) + Pleos Vehicle(브레이크·좌석)"로 구체화했으니 기획서 문구도 맞출 것. 졸음 케어 2단계의 SDK 활용도 "`addWaypoint` 경유지 안내" → "NaviHelper TBT 의 경로 위 휴게소·졸음쉼터 + FusedLocation 근접 알림"으로 바뀌었다(11/7, 1.11).
-4. 정차 중 초성퀴즈 손보기 -> 사자성어 맞추기도 나쁘지 않을듯? 초성퀴즈 너무 쉬움. 뜻 주고 단어 맞추기가 나을듯 냅둘거면.
+4. ~~정차 중 초성퀴즈 손보기 -> 사자성어 맞추기도 나쁘지 않을듯? 초성퀴즈 너무 쉬움. 뜻 주고 단어 맞추기가 나을듯 냅둘거면.~~ → 11/7 사자성어로 교체(1.12). 출처·배포 조건 기록과 유래 칸 정리도 끝냄(1.12 후속).
+5. **사자성어 자료의 저작자 표시를 앱 안에도 둘지 결정** — `quiz_idioms.json`(CC BY-SA 4.0)은 APK 에 들어가 함께 배포되므로, 저장소 문서(README·CONTENT_SOURCES)뿐 아니라 앱 화면(예: 사자성어 카드 아래 한 줄 "출처: 국립국어원 표준국어대사전 · CC BY-SA")에 표시하는 것이 안전하다. 훈·음 일부(114자)가 LGPL 2.1 자료(libhangul)에서 왔으므로 CC BY-SA 4.0 으로 함께 배포해도 되는지도 확인.
 
 ### 2.2 12/3 2차 PT 전 (기능, `docs/PHASE2_NOTES.md` 상세)
 1. **지역 스탬프** 영속화(DataStore) + 홈 진행도
@@ -221,6 +252,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - 졸음쉼터 원자료의 방향 표기("A기점 + B종점" → A → B 차로) 해석 확인 — 한국도로공사 문의 또는 실측
 - 휴게소 편의시설은 TBT 이름과 정확히 같을 때만 붙인다 — 실차 내비의 휴게소 표기가 자료(예: "하남만남의광장")와 다를 수 있어 실차 TBT 이름 수집 후 보정
 - 시뮬 여정은 쉬어 가기를 묻는 동안 멈춘다(30배속 보정). 실제 내비 여정에는 해당 없음
+- 사자성어 읽기 중 통화·Gleo 포커스 손실 → 읽기만 멈춤(세션 유지) 흐름을 실기로 검증. 세로 1창에서 사자성어 배치(위아래 + 스크롤) 확인
 
 ---
 
@@ -228,7 +260,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - 빌드/검사: `./gradlew lintDebug testDebugUnitTest assembleRelease` → `apk/` 에 복사 (`app/build/outputs/apk/release/app-release.apk` → `apk/Team-DonDoAYeon_길동무_release.apk`)
 - 에뮬레이터 차량 조작 자동화: `adb forward tcp:8088 tcp:8088` 후
   `curl -X POST "http://127.0.0.1:8088/browser/session?client=cli"` (하트비트, 3초 유효) → `curl -X PUT "http://127.0.0.1:8088/vehicle/gear?gear=Drive"`
-- 로그: `adb logcat -s Gildongmu/ModeArbiter:I Gildongmu/GameSession:I Gildongmu/Coordinator:I Gildongmu/NaviHelper:I Gildongmu/Location:I Gildongmu/Window:I Gildongmu/RestCare:I`
+- 로그: `adb logcat -s Gildongmu/ModeArbiter:I Gildongmu/GameSession:I Gildongmu/Coordinator:I Gildongmu/NaviHelper:I Gildongmu/Location:I Gildongmu/Window:I Gildongmu/RestCare:I Gildongmu/IdiomQuiz:I Gildongmu/AudioFocus:I`
 - 졸음 케어 2단계 시험: 시뮬 서울 → 전주 출발 → D → 디버그 패널 "2단계 시험" → 대본 응답이 "네" → 기흥휴게소(편의시설) → 시뮬이 닿으면 도착 → 기어 P → D. 실제 내비 + 근접 알림은 `geo fix 127.10 37.40` → 여정 자동 → 서울 → 부산 → 용인졸음쉼터 → `adb emu geo fix 127.138727 37.288616`.
 - 자료 다시 만들기: 졸음쉼터 `node tools/convert_rest_areas.js <CSV> app/src/main/assets/content/rest_areas.json`, 휴게소 `node tools/convert_service_areas.js <serviceAreaAmenities.json> <가족사랑화장실.csv> app/src/main/assets/content/service_areas.json`. 시뮬 경로 목록을 다시 받으려면 debug 빌드로 실제 내비 출발 후 logcat `TBT.restStops=`
 - 기능별 확인 절차 전체: `docs/FEATURE_GUIDE.md`

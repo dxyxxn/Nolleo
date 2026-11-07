@@ -2,7 +2,7 @@
 
 **가는 길이 놀이가 되는 차량용 가족 레크리에이션 서비스**
 
-차가 이미 알고 있는 **주행 상태 · 남은 시간 · 현재 위치**를 게임에 연결합니다. 주행 중에는 음성으로, 정차 중에는 화면으로 즐기고, 게임 응답에서 운전자의 반응 저하를 살펴 가볍게 말을 걸어 줍니다. 반응이 계속 느려지면 내비가 알려 준 **경로 위 휴게소·졸음쉼터** 중 가까운 곳을 수면실·수유실·가족사랑 화장실 정보와 함께 권하고, 도착하면 쉬었다 가도록 게임을 멈춥니다.
+차가 이미 알고 있는 **주행 상태 · 남은 시간 · 현재 위치**를 게임에 연결합니다. 주행 중에는 음성으로 퀴즈·끝말잇기를, 정차 중에는 화면으로 사자성어(뜻을 듣고 4지선다, 한자 풀이와 유래까지)를 즐기고, 게임 응답에서 운전자의 반응 저하를 살펴 가볍게 말을 걸어 줍니다. 반응이 계속 느려지면 내비가 알려 준 **경로 위 휴게소·졸음쉼터** 중 가까운 곳을 수면실·수유실·가족사랑 화장실 정보와 함께 권하고, 도착하면 쉬었다 가도록 게임을 멈춥니다.
 
 기능별 설명과 에뮬레이터에서 하나씩 확인하는 방법은 [`docs/FEATURE_GUIDE.md`](docs/FEATURE_GUIDE.md)(사용설명서)에 있습니다.
 
@@ -53,7 +53,8 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 2. 홈에서 목적지(프리셋 또는 "내비 목적지") · 운전자 · 동승자 수 · 게임을 고르고 **출발**
    - 길동무를 켜 둔 채 **내비 앱에서 길 안내를 시작**해도 홈에 "내비 목적지: ○○ · 남은 시간 …" 카드가 바로 생기고 자동으로 선택됩니다(디버그 패널 여정이 **시뮬**이면 카드만 보이고 자동 선택하지 않음 — 시연용 시뮬 여정 보호). 안내를 끝내면 카드가 사라지고 프리셋으로 돌아갑니다. 목적지·경유지·경로 옵션을 바꾸거나 재탐색하면 남은 시간도 바로 다시 받습니다.
    - **3분할**(왼쪽 Driving view + 앱 2개): 화면 오른쪽 끝 창 막대(⋮)를 왼쪽으로 끌면 내비와 나란히 놓입니다. 길동무가 운전석 쪽 창에 들어가면 스스로 **맨 오른쪽(조수석 쪽)** 으로 옮겨 Driving view | 내비 | 길동무 가 됩니다. 사용자가 창 막대를 탭해 직접 바꾼 위치는 그대로 둡니다.
-3. Virtual Console 에서 기어 **D** → 음성 게임 시작 / 기어 **P** → 판을 마무리하고 화면 게임(초성 퀴즈)
+3. Virtual Console 에서 기어 **D** → 음성 게임 시작 / 기어 **P** → 판을 마무리하고 화면 게임(사자성어)
+   - **사자성어**(정차 중 화면 게임): 카드를 누르면 뜻을 화면에 보여 주며 읽어 주고, 보기 4개 중에서 고릅니다(힌트 없음). 고르면 정답 사자성어의 한자 4글자와 글자마다 훈·음(예: 家 `집 가`)을 보여 주고 "정답! 가가호호." 또는 "아쉬워요. 정답은 가가호호."를 읽은 뒤, 유래가 있으면 유래까지 읽고 다음 문제로 넘어갑니다(한자 풀이는 고른 때부터 적어도 10초 보여 줌, 1,014문제, 한 바퀴 돌 때까지 반복 없음). 읽는 동안만 오디오 포커스를 잡고, 출발·닫기·다른 앱 전환·통화/Gleo 에서는 즉시 멈추며 저절로 다시 읽지 않습니다.
 4. 판은 여정 전체에 나눠 둡니다. 홈의 **"얼마나 자주 할까요?"** 에서 간격을 고릅니다 — **여유 있게**(기본, 약 45분마다: 4시간 10분 → 5판, 판 사이 약 39분) · **자주**(약 20분마다: 12판, 판 사이 약 10분) · **쉬지 않고**(판 사이 2분: 20판). 고른 간격은 다음 실행 때도 유지되고, 미리보기에 "판 사이 약 N분 쉬어요"가 나옵니다. 판 사이 **쉬는 시간**에는 말을 걸지 않고 "다음 판은 약 N분 뒤에 시작해요"를 보여 줍니다. 바로 하려면 **지금 시작**.
    - 길동무가 화면에서 사라지면(내비가 앱 영역 전체를 덮는 등) 게임은 **일시정지**합니다. 다시 보이면 "계속"으로 같은 문제부터 이어 갑니다(DEV_GUIDE §5.4 백그라운드 정책에 맞춘 결정).
 5. **졸음 케어**(보조 기능 — 졸음을 단정하지 않음): 운전자 답이 평소보다 느려지면 **1단계** "운전 오래 하셨죠? 다음 문제는 조금 쉬운 걸로…"(난이도 −1). 15분 안에 1단계가 다시 걸리거나 느린 답과 정답률 50% 미만이 겹치면 **2단계** — 내비 길 안내 목록(TBT)에 있는 **경로 위 휴게소·졸음쉼터** 중 가장 가까운 곳(휴게소가 5 km 안쪽으로만 더 멀면 휴게소)을 골라 "아빠, 반응이 계속 느려졌어요. 가는 길에 있는 기흥휴게소가 6킬로미터 앞이에요. 수유실과 가족사랑 화장실이 있어요. 거기서 잠깐 쉬어 갈까요?"라고 묻습니다. "네"(음성) 또는 화면 **쉬어 가기**를 누르면 도착할 때까지 게임은 쉽니다(경로 위라 경유지를 넣지 않음 — 내비가 이미 지나가는 곳). 근처에서 차를 세우거나 주차하면 도착 — "도착했어요. 차를 세우고 충분히 쉬었다 가요." 뒤 **쉼터에서 쉬는 중**으로 멈춰 있다가, 다시 출발하면 "잘 쉬셨나요? 다시 출발해요!"와 함께 이어 갑니다. 길 안내가 없을 때만 공공데이터 졸음쉼터 253곳 중 진행 방향 앞쪽 가장 가까운 곳을 고릅니다.
@@ -115,9 +116,9 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 | **NaviHelper** | 남은 시간·경로로 게임 길이 조절, 내비에서 시작한 길 안내를 홈에 실시간 반영, 안내 시점(TBT)에 맞춰 일시정지, 졸음 케어 2단계: **TBT 목록의 경로 위 휴게소·졸음쉼터**(`TURN_ENTER_SERVICEAREA`·`TURN_RESTAREA`, 구간 거리 누적)에서 쉬어 갈 곳 고르기 · 경로가 바뀌면 다시 조회(`getTBTInfo`) | `core/navi/NaviHelperTripSource.kt` · `core/navi/TripRepository.kt` · `domain/engine/SessionPlanner.kt` · `app/GameCoordinator.kt#observeTbt` · `domain/rest/RestStop.kt` |
 | **FusedLocation** | 현재 위치로 지역 퀴즈 선택, 지나온 지역 기록, 졸음 케어 2단계: 진행 방향으로 상·하행 가르기(휴게소 편의시설·졸음쉼터 좌표), 쉼터 **도착 감지**(`addProximityAlert` 반경 300 m ENTER + 서거나 주차), 길 안내가 없을 때 앞쪽 졸음쉼터 탐색 | `core/location/FusedLocationSource.kt` · `core/location/RegionResolver.kt` · `domain/rest/RestStop.kt` · `app/RestCareController.kt` |
 | **SpeechToText** | 운전자·동승자의 답변 인식, 응답에 걸린 시간 측정, 쉬어 가기 질문의 "네/아니요" | `core/speech/PleosSpeechEngine.kt#listen` · `domain/engine/AnswerCollector.kt` · `domain/engine/YesNo.kt` |
-| **TextToSpeech** | 문제 출제, 결과 안내, 반응 저하 시 말 걸기, 휴게소·졸음쉼터 권유(편의시설 포함)·도착·다시 출발 안내 | `core/speech/PleosSpeechEngine.kt#speak` · `domain/engine/GameSession.kt` |
+| **TextToSpeech** | 문제 출제, 결과 안내, 반응 저하 시 말 걸기, 휴게소·졸음쉼터 권유(편의시설 포함)·도착·다시 출발 안내, 정차 중 사자성어의 뜻·정답·유래 읽기 | `core/speech/PleosSpeechEngine.kt#speak` · `domain/engine/GameSession.kt` · `app/IdiomQuizController.kt` · `domain/games/IdiomSpeech.kt` |
 
-매니페스트 퍼미션은 실제로 호출하는 API 의 것만 선언했습니다: `pleos.car.permission.CAR_DRIVE, CAR_SEATS, NAVI_ROUTE, NAVI_ROUTE_SEARCH, TTS_SERVICE, STT_SERVICE, FUSED_LOCATION`, `android.car.permission.CAR_POWERTRAIN, CAR_SPEED`, `android.permission.RECORD_AUDIO`(폴백). 졸음 케어 2단계의 TBT 목록(`getTBTInfo`)은 `NAVI_ROUTE`, 근접 알림(`addProximityAlert`)은 `FUSED_LOCATION` 으로 동작해 퍼미션을 새로 늘리지 않았습니다. `INTERNET`·`*_BINDING` 은 Pleos SDK AAR 이 병합하는 것으로, 앱 자체의 네트워크 호출은 없습니다(퀴즈·사전·졸음쉼터·휴게소 자료 모두 assets).
+매니페스트 퍼미션은 실제로 호출하는 API 의 것만 선언했습니다: `pleos.car.permission.CAR_DRIVE, CAR_SEATS, NAVI_ROUTE, NAVI_ROUTE_SEARCH, TTS_SERVICE, STT_SERVICE, FUSED_LOCATION`, `android.car.permission.CAR_POWERTRAIN, CAR_SPEED`, `android.permission.RECORD_AUDIO`(폴백). 졸음 케어 2단계의 TBT 목록(`getTBTInfo`)은 `NAVI_ROUTE`, 근접 알림(`addProximityAlert`)은 `FUSED_LOCATION` 으로 동작해 퍼미션을 새로 늘리지 않았습니다. `INTERNET`·`*_BINDING` 은 Pleos SDK AAR 이 병합하는 것으로, 앱 자체의 네트워크 호출은 없습니다(퀴즈·사자성어·사전·졸음쉼터·휴게소 자료 모두 assets).
 
 ---
 
@@ -125,7 +126,7 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 
 ```
 com.gildongmu.app
-├─ app/        GildongmuApp · AppContainer(수동 DI) · MainActivity(단일 액티비티) · GameCoordinator · RestCareController(쉬어 가기) · WindowPlacement(3분할 창 위치)
+├─ app/        GildongmuApp · AppContainer(수동 DI) · MainActivity(단일 액티비티) · GameCoordinator · RestCareController(쉬어 가기) · IdiomQuizController(정차 중 사자성어 읽기·포커스) · WindowPlacement(3분할 창 위치)
 ├─ core/
 │  ├─ car/       CarStateSource · AaosCarStateSource · VehicleSdkClient · SimulatedCarStateSource · CarStateRepository
 │  ├─ navi/      TripSource · NaviHelperTripSource · SimulatedTripSource · TripRepository · TripUnits · DestinationPreset
@@ -135,7 +136,7 @@ com.gildongmu.app
 ├─ domain/
 │  ├─ model/     DriveState · UxState · GameMode · PauseReason · TripContext · SessionPlan · Player · Question · GeoMath …
 │  ├─ engine/    DriveStateDeriver · ModeArbiter · ModeController · SessionPlanner · GameSession · AnswerMatcher · AnswerCollector · YesNo
-│  ├─ games/     VoiceGame · RegionQuizGame · WordChainGame · ChosungQuizGame · WordDictionary · Hangul
+│  ├─ games/     VoiceGame · RegionQuizGame · WordChainGame · IdiomQuizGame · IdiomSpeech(읽기용 문장) · WordDictionary · Hangul
 │  ├─ drowsy/    DrowsinessMonitor (1단계 말 걸기 · 2단계 쉬어 가기)
 │  └─ rest/      RouteRestStops(TBT → 경로 위 쉼 장소) · RestStopFinder(고르기·상하행 맞추기) · RestArea · ServiceAreaInfo · MotionHeading
 ├─ data/       ContentRepository(assets) · ContentParser · AppPreferences(DataStore) · SnapshotCodec
@@ -169,14 +170,18 @@ GameMode    IDLE(세션 없음) · VOICE(주행/정차/DO) · SCREEN(주차 && !
 ```bash
 ./gradlew lintDebug testDebugUnitTest assembleRelease
 ```
-- 단위 테스트 152개 (ModeArbiter·DriveStateDeriver·SessionPlanner(판 간격 3종 포함)·AnswerMatcher·두음법칙·끝말잇기·지역 판정·콘텐츠 자산 검증(졸음쉼터·휴게소 자료 포함)·졸음 모니터(1·2단계)·TBT 누적 거리·쉼 장소 고르기(휴게소 우선·상하행)·시뮬 경로 쉼 장소·네/아니요 판정·저장본 코덱·GameSession 통합(쉬어 가기 질문·도착 후 대기·다시 출발 인사)·내비 재조회 조건·내비 0/0 값 무시·홈 내비 목적지 선택·3분할 창 위치)
+- 단위 테스트 166개 (ModeArbiter·DriveStateDeriver·SessionPlanner(판 간격 3종 포함)·AnswerMatcher·두음법칙·끝말잇기·사자성어(보기 4개·한 바퀴 반복 없음·같은 뜻 보기 제외·읽기용 문장 다듬기)·지역 판정·콘텐츠 자산 검증(사자성어·졸음쉼터·휴게소 자료 포함)·졸음 모니터(1·2단계)·TBT 누적 거리·쉼 장소 고르기(휴게소 우선·상하행)·시뮬 경로 쉼 장소·네/아니요 판정·저장본 코덱·GameSession 통합(쉬어 가기 질문·도착 후 대기·다시 출발 인사)·내비 재조회 조건·내비 0/0 값 무시·홈 내비 목적지 선택·3분할 창 위치)
 - 주행 중 CPU 0~0.5%, 메모리 PSS 약 50 MB (에뮬레이터 `top`/`dumpsys meminfo` 측정)
 
 ## 7. 문서
+- [`docs/README.md`](docs/README.md) — docs 폴더 안내 (각 문서가 무슨 내용인지)
 - [`docs/FEATURE_GUIDE.md`](docs/FEATURE_GUIDE.md) — 기능 사용설명서 (기능별로 에뮬레이터에서 확인하는 방법)
 - [`docs/DEMO_SCENARIO.md`](docs/DEMO_SCENARIO.md) — 3분 시연 대본
 - [`docs/PHASE2_NOTES.md`](docs/PHASE2_NOTES.md) — 2차(12/3 PT) 설계 메모
-- [`docs/CONTENT_SOURCES.md`](docs/CONTENT_SOURCES.md) — 퀴즈·사전·졸음쉼터·휴게소 자료 출처와 생성 방식
+- [`docs/CONTENT_SOURCES.md`](docs/CONTENT_SOURCES.md) — 퀴즈·사자성어·사전·졸음쉼터·휴게소 자료 출처와 생성 방식
+
+### 콘텐츠 라이선스
+`app/src/main/assets/content/quiz_idioms.json`(사자성어 1,014문항)은 앱 소스 코드와 별개로 **CC BY-SA 4.0** 으로 배포합니다. 뜻풀이·유래 출처는 국립국어원 《표준국어대사전》(CC BY-SA 2.0 KR, https://stdict.korean.go.kr)이고, k1tech-ai-kr/k1-db-idioms(CC BY-SA 4.0)를 거쳐 가공했습니다. 한자 훈·음은 한국어문회 급수 한자(rycont/hanja-grade-dataset), libhangul 한자 사전(LGPL 2.1), Wiktionary(CC BY-SA 4.0), 팀 보충에서 가져왔습니다. 변경 사항과 자세한 출처는 [`docs/CONTENT_SOURCES.md`](docs/CONTENT_SOURCES.md)에 있습니다.
 - [`docs/WORK_STATUS.md`](docs/WORK_STATUS.md) — 작업 현황·결정 사항·남은 일 (한 파일을 계속 갱신)
 
 ## 8. release 서명 키 만들기 (직접 빌드할 때)
