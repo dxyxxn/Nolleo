@@ -75,3 +75,10 @@
   - Pleos 디자인 에셋(Figma)의 시스템 색 토큰과 우리 팔레트를 대조한다.
 - 서버 TTS/STT(HYBRID) 품질 비교: `local.properties`에 Client ID/Secret만 넣으면 전환된다.
 - 앱 안에서 버전을 확인해 `market://detail?package=com.nolleo.app`로 안내한다(DEV_GUIDE §11.2).
+
+## 8. 구조 리팩토링 후보 (2차 PT 뒤 다시 판단)
+11/8 검토 문서(로컬 `docs/REFACTORING_REVIEW.md`, 저장소에는 없음)에서 **하지 않기로 한** 큰 재구성이다. 결함은 1.21(WORK_STATUS)에서 작게 고쳤고, 아래는 사용자에게 보이는 이득 없이 시연 흐름 전체를 건드려 미뤘다. 2차 기능을 넣으며 그 영역이 커질 때 다시 본다.
+- `GameCoordinator`·`AppContainer` 분해 — 홈·시작·저장·포커스·TBT·휴식·설정·디버그를 한 곳이 조정하고, 화면·컨트롤러가 컨테이너 전체를 받는다. 그래서 Coordinator·컨트롤러는 단위 테스트가 없다(판단 부분만 작은 함수로 빼서 시험 중).
+- `GameSession` 분해(차례 실행 `TurnRunner` 와 세션 진행 나누기).
+- 세션 상태 기계(Idle/Starting/Running/Stopping)·구독 소유권 재배치, 음성 요청의 `Completed/Cancelled/Failed` 결과 타입(서버 TTS/STT 를 붙일 때), 쉬어 가기 상태 기계를 순수 로직/효과로 나누기, 길 안내 일시정지 정책 추출(구간별 신호 §3 과 함께), 화면 `UiState`/presenter, 위치 입력 타입·저장소 인터페이스, 사전 로딩 상태 기계(사전을 내려받게 바뀔 때), 게임별 타입 저장 모델(화면 게임 복원 등 저장 범위가 커질 때).
+- 문구를 `strings.xml` 로 옮기기(다국어를 할 때), 디버그 패널을 디자인 규칙에 맞추기(사용자 기능으로 바꿀 때).
