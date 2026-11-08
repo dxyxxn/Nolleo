@@ -16,7 +16,7 @@ adb install -r apk/돈도아연_놀레오_release.apk
 # 3) Virtual Console
 adb forward tcp:8088 tcp:8088          # 브라우저: http://127.0.0.1:8088/
 # 4) 로그 창 (선택)
-adb logcat -v time -s Nolleo/ModeArbiter:I Nolleo/GameSession:I Nolleo/Coordinator:I Nolleo/NaviHelper:I Nolleo/RestCare:I Nolleo/AaosCar:I Nolleo/IdiomQuiz:I Nolleo/RegionQuiz:I Nolleo/WordQuiz:I Nolleo/Location:I Nolleo/Window:I
+adb logcat -v time -s Nolleo/ModeArbiter:I Nolleo/GameSession:I Nolleo/Coordinator:I Nolleo/NaviHelper:I Nolleo/RestCare:I Nolleo/AaosCar:I Nolleo/IdiomQuiz:I Nolleo/RegionQuiz:I Nolleo/WordChain:I Nolleo/Location:I Nolleo/Window:I
 # 5) 녹화 — 에뮬레이터 자체 녹화(소리 포함, 파일은 PC 에 바로 생김). 경로는 / 로 쓴다
 adb emu screenrecord start --time-limit 240 C:/녹화/nolleo_demo.webm
 adb emu screenrecord stop          # 일찍 끝낼 때
@@ -72,7 +72,7 @@ Virtual Console 은 **Motion > Gear Selection = P** 로 시작. 첫 실행이면
 | 목적지 없이 | 홈 `목적지 없이`의 **30분** 칸 → 출발 → Gear = D → 디버그 패널 **남은 5분으로** | 미리보기 `30분 → 1판 (판당 약 6분)`, 상단 `남은 시간 29분`, 요약 `시간이 다 됐어요 · 목적지 없이 30분` (11/8 확인) |
 | 경로 위 휴게소·졸음쉼터 (실제 내비 TBT) + 근접 알림 | `adb emu geo fix 127.10 37.40` → 디버그 패널 여정 = **자동** → 최근 목적지 **부산역** 출발 → 놀레오로 돌아와 Gear D → 디버그 패널 **2단계 시험** | 디버그 패널 "경로 위: 용인졸음쉼터 18.1km, 용인휴게소 28.5km, 덕평휴게소 41.2km …"(TBT 구간 거리 누적) → 질문 "가는 길에 있는 용인졸음쉼터가 18킬로미터 앞이에요. 거기서 잠깐 쉬어 갈까요?" → 네 → `proximity alert registered` (내비 경로는 그대로) → `adb emu geo fix 127.138727 37.288616` → `rest stop arrived (위치가 쉼터 0m 안)` |
 | 실제 위치로 지역 판정 | `adb emu geo fix 126.9780 37.5665` (서울 시청, 경도 먼저) → 디버그 패널 위치 소스 확인 | 로그 `Nolleo/Location: region=seoul via FusedLocation` — 내비 주소 폴백(경기) 대신 실제 FusedLocation 값으로 지역 퀴즈 지역이 정해짐. 시뮬 여정 중에는 시뮬 경로가 우선 |
-| 정차 중 지역 퀴즈 · 끝말잇기 | 출발 후 Gear = P → 게임 목록에서 **지역 퀴즈** / **끝말잇기** 의 **시작하기** | 지역 퀴즈: `지금 지나는 곳 · ○○` 문제와 보기, 고르면 힌트까지 읽음(시/도는 FusedLocation·시뮬 위치). 끝말잇기: `'고래' 다음에 이어질 말은?` 보기 4개 중 하나만 이어짐, 고르면 `고래 → 내복` + 두음법칙 안내. 둘 다 음성 판 점수와 따로 |
+| 정차 중 지역 퀴즈 · 끝말잇기 | 출발 후 Gear = P → 게임 목록에서 **지역 퀴즈** / **끝말잇기** 의 **시작하기** | 지역 퀴즈: `지금 지나는 곳 · ○○` 문제와 보기, 고르면 힌트까지 읽음(시/도는 FusedLocation·시뮬 위치). 끝말잇기: "끝말잇기를 시작할게요! 제가 먼저 할게요." → 놀레오·가족이 차례로 **말로** 잇고(대본 normal 이면 저절로 답함) 가운데에 `'차'로 시작하는 말` · 남은 초 `8 초 안에 말해요`. 둘 다 음성 판 점수와 따로 |
 | 주행 규제 | 세션 없이 Gear = D | 홈이 "주행 중에는 여정 설정을 할 수 없어요"로 바뀜 (`NO_SETUP` 비트) |
 | 3분할(내비와 나란히) | 놀레오가 앱 영역 전체일 때 화면 오른쪽 끝 **⋮** 창 막대를 가운데로 끌기 | 놀레오가 왼쪽 창으로 줄어든 직후 스스로 **맨 오른쪽**으로 이동 → Driving view \| 내비 \| 놀레오 (로그 `Nolleo/Window: 3분할 …`). 좁은 창 레이아웃도 잘리지 않음. 가운데 막대를 탭해 직접 자리를 바꾸면 그대로 둔다 |
 | 백그라운드 | 하단 독의 내비 아이콘 → 다시 놀레오 아이콘 | 발화가 끊겼으면 "잠시 멈췄어요 + 계속", 계속을 누르면 같은 문제부터 |
