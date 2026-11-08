@@ -237,7 +237,7 @@ private fun GameCard(
     val c = Nl.colors
     NlCard(modifier, spacing = Sp.l) {
         Text("오늘의 게임", style = MaterialTheme.typography.titleMedium, color = c.ink)
-        PlanSummary(preview, demo)
+        PlanSummary(preview, demo, choice)
         Hairline()
         val drivers = coordinator.drivers
         SettingRow("운전") {
@@ -291,9 +291,12 @@ private fun GameCard(
     }
 }
 
-/** 미리보기: "4시간 10분 → 5판 (판당 약 10분)" 크게, 판 구성과 쉬는 시간은 한 줄씩 */
+/**
+ * 미리보기: "4시간 10분 → 5판 (판당 약 10분)" 크게, 판 구성과 쉬는 시간은 한 줄씩.
+ * 랜덤이면 판 구성을 보이지 않는다 — 무엇이 나올지 모르고 시작하는 재미(11/8 사용자 요청). 판이 시작될 때 알린다.
+ */
 @Composable
-private fun ColumnScope.PlanSummary(preview: PlanPreview?, demo: Boolean) {
+private fun ColumnScope.PlanSummary(preview: PlanPreview?, demo: Boolean, choice: GameChoice) {
     val c = Nl.colors
     if (preview == null) {
         // 최근 목적지의 예상 시간(내비 requestTrip)을 아직 받지 못함
@@ -301,10 +304,17 @@ private fun ColumnScope.PlanSummary(preview: PlanPreview?, demo: Boolean) {
         return
     }
     Text(preview.text, style = MaterialTheme.typography.headlineMedium, color = c.ink)
-    val rounds = preview.plan.rounds.take(6).joinToString(" · ") { "${it.index + 1}판 ${it.game.label}" } +
-        if (preview.plan.roundCount > 6) " …" else ""
+    val rounds = if (choice == GameChoice.RANDOM) {
+        RANDOM_PREVIEW
+    } else {
+        preview.plan.rounds.take(6).joinToString(" · ") { "${it.index + 1}판 ${it.game.label}" } +
+            if (preview.plan.roundCount > 6) " …" else ""
+    }
     Text(rounds, style = MaterialTheme.typography.bodyMedium, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
     val rest = SessionPlanner.restBetweenRoundsSec(preview.plan)?.let { "판 사이 약 ${TripUnits.formatDuration(it)} 쉬어요" }
     val line = listOfNotNull(rest, if (demo) "데모 모드: 판당 ${preview.plan.rounds.first().questionCount}문제" else null).joinToString(" · ")
     if (line.isNotEmpty()) Text(line, style = MaterialTheme.typography.bodyMedium, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }
+
+/** 랜덤일 때 판 구성 대신 보이는 줄 */
+private const val RANDOM_PREVIEW = "판마다 무엇이 나올지는 시작해야 알아요"
