@@ -36,7 +36,7 @@
 | 검토 문서 기반 리팩토링 | `512c158` · `5abc889` · `8291369` · `72af726` · 문서 `b7eefcd` (브랜치 `refactor/review-fixes` → 11/8 main 에 합침) | 검토 문서 23개 항목 — 화면 게임 음성 끊김, 오디오 포커스(영구 손실은 일시정지), 설정 변경 범위, 끝말잇기 "요" 낱말·첫 낱말, 쉬어 가기 질문 일시정지·근접 알림, 저장본 v2, 세션 수명주기, 졸음 지표, 음성 엔진 회복, 주행 중 요약·화면 규칙, 실제 내비 여정 결함, 쓰이지 않는 코드·중복 정리 (아래 1.21) | 에뮬레이터 release 빌드로 확인(1.21), DoD 통과, 테스트 207개 |
 | 홈 목적지 개편 | `1ac9e8a` · `4843213` · 문서 `93e2b9a` (브랜치 `feature/home-destinations` → 11/8 main 에 합침) | 홈 목적지를 현재 경로 · 내비 최근 목적지(예상 시간, 출발할 때 길 안내) · 목적지 없이(30분~2시간 시간 여정)로, 프리셋은 시연용 시뮬 경로로 디버그 패널에, 저장본 v3 (아래 1.22) | 에뮬레이터 release 빌드로 확인(1.22), DoD 통과, 테스트 214개 |
 | 출발 뒤 놀레오 다시 앞으로 | `cef0405` (브랜치 `feature/home-destinations` → 11/8 main 에 합침) | 최근 목적지로 출발해 내비가 앱 영역 전체를 덮으면 길 안내가 시작될 때 놀레오가 다시 앞으로. 앱이 3분할을 만들 수 없음을 확인(세로 요청은 레터박스, launch bounds 무시) (아래 1.23) | 에뮬레이터 release 빌드로 확인(1.23), DoD 통과, 테스트 214개 |
-| 랜덤 · 정차 끝말잇기 말로 · 남은 초 · 글자 크기 | `7147d29` · `62b7406` · `8060d70` · 문서 (해시 기록 예정) (브랜치 `feature/game-updates`) | 게임 선택에 랜덤(같은 게임 세 판 연속 없음), 글자 1~4sp 키움, 정차 중 끝말잇기를 음성 판처럼 말로 잇기, 끝말잇기 듣는 동안 남은 초를 화면 가운데에 (아래 1.24) | 에뮬레이터 release 빌드로 확인(1.24, 넓은 창·3분할), DoD 통과, 테스트 219개 |
+| 랜덤 · 정차 끝말잇기 말로 · 남은 초 · 글자 크기 | `7147d29` · `62b7406` · `8060d70` · 문서 `12f2780` (브랜치 `feature/game-updates`) | 게임 선택에 랜덤(같은 게임 세 판 연속 없음), 글자 1~4sp 키움, 정차 중 끝말잇기를 음성 판처럼 말로 잇기, 끝말잇기 듣는 동안 남은 초를 화면 가운데에 (아래 1.24) | 에뮬레이터 release 빌드로 확인(1.24, 넓은 창·3분할), DoD 통과, 테스트 219개 |
 
 M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로 묶었다.
 
@@ -511,7 +511,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
   - `7147d29` 게임 선택 랜덤
   - `62b7406` 글자 크기
   - `8060d70` 정차 끝말잇기 말로 잇기 + 남은 초
-  - 문서 (해시 기록 예정)
+  - `12f2780` 문서
 - **랜덤**(FEATURE_GUIDE §3.4): `GameChoice.RANDOM`, `SessionPlanner.randomGames(seed, n)` — `Random(seed)` 로 판마다 고르되 앞 두 판이 같으면 다른 게임. 씨앗은 `HomeState.gameSeed`(앱을 켤 때·랜덤을 누를 때 새로) → `SessionPlan.gameSeed` → 저장본 `gameSeed`(없으면 0 — 저장본 버전은 v3 그대로). 판 다시 짜기·보너스 판도 같은 씨앗을 쓴다.
 - **글자 크기**(`ui/theme/Theme.kt`): displayLarge 72 → 76 … titleLarge 28 → 30 … labelSmall 18 → 19sp(줄 높이도 함께). 디버그 패널의 16sp 는 그대로.
 - **정차 끝말잇기**(FEATURE_GUIDE §7.3): `domain/engine/WordChainPlay`(한 판 진행 — 판 길이·졸음 지표 없음, 잇달아 무응답이면 끝, 취소 뒤 다시 부르면 같은 차례) + `app/ScreenWordChainController`(포커스·멈춤·이어 하기, 참가자는 지금 세션) + `ui/screen/WordChainPanel`. 코디네이터의 멈춤·초기화·포커스 전달은 공통 `ScreenGameController` 하나로. 사지선다 `WordChainScreenGame`·`WordDictionary.lookAlikes`·그 테스트 2개는 지웠다. 로그 태그 `WordQuiz` → `WordChain`, 들은 말은 `AppLog.sensitive` 로만.
