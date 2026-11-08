@@ -37,7 +37,7 @@
 | 홈 목적지 개편 | `1ac9e8a` · `4843213` · 문서 `93e2b9a` (브랜치 `feature/home-destinations` → 11/8 main 에 합침) | 홈 목적지를 현재 경로 · 내비 최근 목적지(예상 시간, 출발할 때 길 안내) · 목적지 없이(30분~2시간 시간 여정)로, 프리셋은 시연용 시뮬 경로로 디버그 패널에, 저장본 v3 (아래 1.22) | 에뮬레이터 release 빌드로 확인(1.22), DoD 통과, 테스트 214개 |
 | 출발 뒤 놀레오 다시 앞으로 | `cef0405` (브랜치 `feature/home-destinations` → 11/8 main 에 합침) | 최근 목적지로 출발해 내비가 앱 영역 전체를 덮으면 길 안내가 시작될 때 놀레오가 다시 앞으로. 앱이 3분할을 만들 수 없음을 확인(세로 요청은 레터박스, launch bounds 무시) (아래 1.23) | 에뮬레이터 release 빌드로 확인(1.23), DoD 통과, 테스트 214개 |
 | 랜덤 · 정차 끝말잇기 말로 · 남은 초 · 글자 크기 | `7147d29` · `62b7406` · `8060d70` · 문서 `12f2780` (브랜치 `feature/game-updates`) | 게임 선택에 랜덤(같은 게임 세 판 연속 없음), 글자 1~4sp 키움, 정차 중 끝말잇기를 음성 판처럼 말로 잇기, 끝말잇기 듣는 동안 남은 초를 화면 가운데에 (아래 1.24) | 에뮬레이터 release 빌드로 확인(1.24, 넓은 창·3분할), DoD 통과, 테스트 219개 |
-| 랜덤 미리보기 숨김 · 주행 중 낱말 줄 · 글자 더 크게 | `0975ef9` · `da73482` · `01f36e1` · 문서 (해시 기록 예정) (브랜치 `feature/game-updates`) | 랜덤이면 홈 미리보기에 판 구성을 보이지 않음, 주행 중 끝말잇기에도 이어진 낱말 줄(정차 중과 같은 모양), 글자를 한 번 더 키우고 홈은 한 단계 더 크게 (아래 1.25) | 에뮬레이터 release 빌드로 확인(1.25, 넓은 창·3분할), DoD 통과, 테스트 220개 |
+| 랜덤 미리보기 숨김 · 주행 중 낱말 줄 · 글자 더 크게 | `0975ef9` · `da73482` · `01f36e1` · 문서 `c8fb290` (브랜치 `feature/game-updates`) | 랜덤이면 홈 미리보기에 판 구성을 보이지 않음, 주행 중 끝말잇기에도 이어진 낱말 줄(정차 중과 같은 모양), 글자를 한 번 더 키우고 홈은 한 단계 더 크게 (아래 1.25) | 에뮬레이터 release 빌드로 확인(1.25, 넓은 창·3분할), DoD 통과, 테스트 220개 |
 
 M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로 묶었다.
 
@@ -539,7 +539,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
   - `0975ef9` 랜덤 미리보기 숨김
   - `da73482` 주행 중 끝말잇기 낱말 줄
   - `01f36e1` 글자 크기
-  - 문서 (해시 기록 예정)
+  - `c8fb290` 문서
 - **랜덤 미리보기**(FEATURE_GUIDE §3.4): 홈 `PlanSummary` 가 랜덤이면 판 구성 줄 대신 `판마다 무엇이 나올지는 시작해야 알아요`. 순서 자체는 그대로 정해져 있다(다시 짜기·이어서 하기에 같은 순서). 음성 화면 칩·판 시작 발화는 지금 판의 게임만 알린다(다음 판은 알리지 않음 — 원래 그랬음).
 - **주행 중 낱말 줄**(FEATURE_GUIDE §5.2): `SessionState.chainWords`(GameSession 이 화면 글과 같은 때 `WordChainGame.words` 로 채우고 판이 끝나면 비움) → 음성 화면 `CenterBlock` 맨 위 `WordChainRow`. `WordChainRow` 는 정차 끝말잇기의 낱말 줄을 공통 컴포넌트로 옮긴 것 — 마지막 4개, 지금 이을 말은 테두리 칸(흰 카드 위에서도 보이게), 창이 좁으면 맞춤 `Layout` 이 앞 낱말부터 빼서 한 줄에 들어가는 만큼만. 끝말잇기 화면 글은 `'차'로 시작하는 말`만(전에는 `자동차 → '차'로 시작하는 말` · `놀레오: 자동차` 줄).
 - **글자 크기**(`ui/theme/Theme.kt`·`Components.kt`·`HomeScreen.kt`): 스타일 14개 2~8sp — displayLarge 76 → 84 … titleLarge 30 → 33 … bodyLarge 26 → 28 … labelSmall 19 → 21sp. 홈: 카드 제목 titleMedium → titleLarge, 목록 줄 제목 titleSmall → titleLarge·설명 labelSmall → bodyLarge·오른쪽 값 → bodyLarge(라디오 28 → 32dp), 설정 줄 이름 → titleMedium(이름 칸 88 → 96dp), 선택 막대 글 titleSmall/bodyMedium → titleMedium/bodyLarge, 미리보기 headlineMedium → headlineLarge, 판 구성·안내 줄 → bodyLarge. 결과: 홈 목록 제목 23 → 33sp, 설명 19 → 28sp.
