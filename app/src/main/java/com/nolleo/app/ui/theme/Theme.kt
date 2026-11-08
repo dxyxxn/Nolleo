@@ -161,26 +161,27 @@ object Nl {
 }
 
 // 플랫폼 기본 글꼴(Asta Sans)을 그대로 쓴다 — 400 Regular, 600 Bold 두 굵기만 (500 은 플랫폼에서 Regular 로 매핑됨).
-// 가장 작은 글자는 19sp (DEV_GUIDE §6.5: 12sp 이상·실제 18px 이상). 주행 화면 본문은 30sp 이상.
-// 11/8 사용자 요청("전반적으로 폰트가 작다, 아주 살짝만")으로 모든 크기를 1~4sp(약 5~8%) 키웠다.
+// 가장 작은 글자는 21sp (DEV_GUIDE §6.5: 12sp 이상·실제 18px 이상). 주행 화면 본문은 33sp 이상.
+// 11/8 사용자 요청으로 두 번 키웠다 — "아주 살짝만"(1~4sp) 뒤 "더 키워 보자, 특히 홈"(다시 2~8sp, 약 8~11%).
+// 에뮬레이터 화면은 160dpi(1dp = 1px)라 2560px 화면에서 글이 작아 보였다. 홈은 줄마다 한 단계 큰 스타일을 쓴다.
 private val Regular = FontWeight.Normal
 private val Strong = FontWeight.SemiBold
 
 private val typography = Typography(
-    displayLarge = TextStyle(fontSize = 76.sp, fontWeight = Strong, lineHeight = 88.sp, letterSpacing = (-0.02).em),
-    displayMedium = TextStyle(fontSize = 60.sp, fontWeight = Regular, lineHeight = 70.sp, letterSpacing = (-0.02).em),
-    headlineLarge = TextStyle(fontSize = 46.sp, fontWeight = Strong, lineHeight = 60.sp, letterSpacing = (-0.02).em),
-    headlineMedium = TextStyle(fontSize = 38.sp, fontWeight = Strong, lineHeight = 48.sp, letterSpacing = (-0.02).em),
-    headlineSmall = TextStyle(fontSize = 32.sp, fontWeight = Regular, lineHeight = 42.sp, letterSpacing = (-0.01).em),
-    titleLarge = TextStyle(fontSize = 30.sp, fontWeight = Strong, lineHeight = 38.sp, letterSpacing = (-0.01).em),
-    titleMedium = TextStyle(fontSize = 26.sp, fontWeight = Strong, lineHeight = 34.sp, letterSpacing = (-0.01).em),
-    titleSmall = TextStyle(fontSize = 23.sp, fontWeight = Strong, lineHeight = 31.sp),
-    bodyLarge = TextStyle(fontSize = 26.sp, fontWeight = Regular, lineHeight = 36.sp),
-    bodyMedium = TextStyle(fontSize = 22.sp, fontWeight = Regular, lineHeight = 31.sp),
-    bodySmall = TextStyle(fontSize = 20.sp, fontWeight = Regular, lineHeight = 27.sp),
-    labelLarge = TextStyle(fontSize = 26.sp, fontWeight = Strong, lineHeight = 32.sp),
-    labelMedium = TextStyle(fontSize = 21.sp, fontWeight = Strong, lineHeight = 27.sp),
-    labelSmall = TextStyle(fontSize = 19.sp, fontWeight = Regular, lineHeight = 25.sp),
+    displayLarge = TextStyle(fontSize = 84.sp, fontWeight = Strong, lineHeight = 96.sp, letterSpacing = (-0.02).em),
+    displayMedium = TextStyle(fontSize = 66.sp, fontWeight = Regular, lineHeight = 76.sp, letterSpacing = (-0.02).em),
+    headlineLarge = TextStyle(fontSize = 50.sp, fontWeight = Strong, lineHeight = 64.sp, letterSpacing = (-0.02).em),
+    headlineMedium = TextStyle(fontSize = 42.sp, fontWeight = Strong, lineHeight = 52.sp, letterSpacing = (-0.02).em),
+    headlineSmall = TextStyle(fontSize = 35.sp, fontWeight = Regular, lineHeight = 46.sp, letterSpacing = (-0.01).em),
+    titleLarge = TextStyle(fontSize = 33.sp, fontWeight = Strong, lineHeight = 42.sp, letterSpacing = (-0.01).em),
+    titleMedium = TextStyle(fontSize = 29.sp, fontWeight = Strong, lineHeight = 38.sp, letterSpacing = (-0.01).em),
+    titleSmall = TextStyle(fontSize = 26.sp, fontWeight = Strong, lineHeight = 34.sp),
+    bodyLarge = TextStyle(fontSize = 28.sp, fontWeight = Regular, lineHeight = 39.sp),
+    bodyMedium = TextStyle(fontSize = 24.sp, fontWeight = Regular, lineHeight = 34.sp),
+    bodySmall = TextStyle(fontSize = 22.sp, fontWeight = Regular, lineHeight = 30.sp),
+    labelLarge = TextStyle(fontSize = 28.sp, fontWeight = Strong, lineHeight = 34.sp),
+    labelMedium = TextStyle(fontSize = 23.sp, fontWeight = Strong, lineHeight = 30.sp),
+    labelSmall = TextStyle(fontSize = 21.sp, fontWeight = Regular, lineHeight = 28.sp),
 )
 
 @Composable

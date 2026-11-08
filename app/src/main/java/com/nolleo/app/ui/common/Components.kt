@@ -173,7 +173,7 @@ fun <T> SegmentedControl(
             ) {
                 Text(
                     label(option),
-                    style = if (on) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyMedium,
+                    style = if (on) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
                     color = if (on) c.ink else c.muted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -185,7 +185,7 @@ fun <T> SegmentedControl(
 }
 
 /** [SettingRow] 의 이름 칸 폭 — 설정 줄 아래에 붙는 줄도 이 폭만큼 들여 맞춘다 */
-val SettingLabelWidth = 88.dp
+val SettingLabelWidth = 96.dp
 
 /** 이 폭보다 넓은 가로 창이면 카드를 나란히 놓는다 */
 val WideLayoutMinWidth = 1000.dp
@@ -197,7 +197,7 @@ fun BoxWithConstraintsScope.isWideLayout(): Boolean = maxWidth > WideLayoutMinWi
 @Composable
 fun SettingRow(label: String, modifier: Modifier = Modifier, labelWidth: Dp = SettingLabelWidth, content: @Composable () -> Unit) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, color = Nl.colors.muted, modifier = Modifier.width(labelWidth), maxLines = 1)
+        Text(label, style = MaterialTheme.typography.titleMedium, color = Nl.colors.muted, modifier = Modifier.width(labelWidth), maxLines = 1)
         Box(Modifier.weight(1f)) { content() }
     }
 }
@@ -225,16 +225,16 @@ fun ChoiceRow(
         horizontalArrangement = Arrangement.spacedBy(Sp.l),
     ) {
         Box(
-            Modifier.size(28.dp).border(if (selected) 9.dp else 2.dp, if (selected) c.indicator else c.faint, CircleShape),
+            Modifier.size(32.dp).border(if (selected) 10.dp else 2.dp, if (selected) c.indicator else c.faint, CircleShape),
         )
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleSmall, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, style = MaterialTheme.typography.titleLarge, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (subtitle != null) {
-                Text(subtitle, style = MaterialTheme.typography.labelSmall, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, style = MaterialTheme.typography.bodyLarge, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         if (trailing != null) {
-            Text(trailing, style = MaterialTheme.typography.bodyMedium, color = if (selected) c.ink else c.muted, maxLines = 1)
+            Text(trailing, style = MaterialTheme.typography.bodyLarge, color = if (selected) c.ink else c.muted, maxLines = 1)
         }
     }
 }
