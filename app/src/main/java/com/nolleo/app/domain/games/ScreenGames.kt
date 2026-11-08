@@ -250,7 +250,7 @@ class WordChainScreenGame(
 
     override fun afterAnswer(question: ScreenQuestion, correct: Boolean): List<String> {
         val word = question.answer
-        return listOf(if (correct) "딩동댕! '$word'." else "아쉬워요. 이어지는 말은 '$word'${if (Hangul.hasBatchim(word.last())) "이에요" else "예요"}.")
+        return listOf(if (correct) "딩동댕! '$word'." else "아쉬워요. 이어지는 말은 ${Hangul.ieyo("'$word'")}.")
     }
 
     companion object {

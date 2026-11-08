@@ -244,7 +244,7 @@ class GameSession(
         val t0 = clock.elapsedMs()
         _state.update { it.copy(phase = SessionPhase.LISTENING, mic = MicState.LISTENING) }
         val heard = flow {
-            val r = AnswerCollector.collect(speech.listen(AnswerCollector.FIRST_SPEECH_TIMEOUT_MS, YES_NO_HINT), t0, clock)
+            val r = AnswerCollector.collect(speech.listen(YES_NO_HINT), t0, clock)
             r.text?.let { callbacks.logSensitive("heard(쉼터 안내)", it) }
             emit(YesNo.parse(r.text))
         }
@@ -616,7 +616,7 @@ class GameSession(
     private suspend fun listenNow(turn: Turn): AnswerResult {
         val t0 = clock.elapsedMs()
         _state.update { it.copy(phase = SessionPhase.LISTENING, mic = MicState.LISTENING) }
-        val events = speech.listen(AnswerCollector.FIRST_SPEECH_TIMEOUT_MS, turn.hint).onEach { e ->
+        val events = speech.listen(turn.hint).onEach { e ->
             if (e is SttEvent.Partial) _state.update { it.copy(partial = e.text) }
         }
         val result = AnswerCollector.collect(events, t0, clock)

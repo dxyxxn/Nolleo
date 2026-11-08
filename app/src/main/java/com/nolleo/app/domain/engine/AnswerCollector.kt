@@ -58,7 +58,6 @@ object AnswerCollector {
                             }
                             cancel()
                         }
-                        SttEvent.Timeout -> cancel()
                         is SttEvent.Error -> {
                             error = event.reason
                             fatal = event.fatal

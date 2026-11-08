@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -177,9 +178,18 @@ fun <T> SegmentedControl(
     }
 }
 
+/** [SettingRow] 의 이름 칸 폭 — 설정 줄 아래에 붙는 줄도 이 폭만큼 들여 맞춘다 */
+val SettingLabelWidth = 88.dp
+
+/** 이 폭보다 넓은 가로 창이면 카드를 나란히 놓는다 */
+val WideLayoutMinWidth = 1000.dp
+
+/** 넓은 가로 창인가 — 홈·음성·화면 게임·요약이 같은 기준으로 카드를 나란히/세로로 놓는다 */
+fun BoxWithConstraintsScope.isWideLayout(): Boolean = maxWidth > WideLayoutMinWidth && maxWidth > maxHeight
+
 /** 설정 한 줄: 왼쪽에 짧은 이름, 오른쪽에 선택 막대. 이름 칸 폭을 맞춰 줄이 가지런히 보이게 한다 */
 @Composable
-fun SettingRow(label: String, modifier: Modifier = Modifier, labelWidth: Dp = 88.dp, content: @Composable () -> Unit) {
+fun SettingRow(label: String, modifier: Modifier = Modifier, labelWidth: Dp = SettingLabelWidth, content: @Composable () -> Unit) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = MaterialTheme.typography.bodyLarge, color = Nl.colors.muted, modifier = Modifier.width(labelWidth), maxLines = 1)
         Box(Modifier.weight(1f)) { content() }
@@ -233,7 +243,7 @@ fun Chip(text: String, modifier: Modifier = Modifier) {
         color = c.muted,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = modifier.background(c.sunk, Radius.pill).padding(horizontal = Sp.l, vertical = 6.dp),
+        modifier = modifier.background(c.sunk, Radius.pill).padding(horizontal = Sp.l, vertical = Sp.s),
     )
 }
 

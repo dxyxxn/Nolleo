@@ -1,11 +1,8 @@
 package com.nolleo.app.core.location
 
+import com.nolleo.app.domain.model.GeoMath
 import com.nolleo.app.domain.model.GeoPoint
 import com.nolleo.app.domain.model.RegionInfo
-import kotlin.math.asin
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
 
 /**
  * 위경도 → 시/도 코드. 정밀 폴리곤 대신 17개 시/도 바운딩 박스 + 중심점 거리로 판정하는
@@ -44,17 +41,9 @@ class RegionResolver(private val regions: List<RegionInfo>) {
         return best?.first
     }
 
-    fun distanceKm(p: GeoPoint, r: RegionInfo): Double = haversineKm(p.latitude, p.longitude, r.centerLat, r.centerLng)
+    fun distanceKm(p: GeoPoint, r: RegionInfo): Double = GeoMath.distanceM(p, GeoPoint(r.centerLat, r.centerLng)) / 1000.0
 
     companion object {
         const val FALLBACK_MAX_KM = 40.0
-
-        fun haversineKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-            val dLat = Math.toRadians(lat2 - lat1)
-            val dLon = Math.toRadians(lon2 - lon1)
-            val a = sin(dLat / 2) * sin(dLat / 2) +
-                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2)
-            return 2 * 6371.0 * asin(sqrt(a))
-        }
     }
 }

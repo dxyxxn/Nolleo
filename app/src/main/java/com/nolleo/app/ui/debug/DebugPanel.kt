@@ -206,9 +206,9 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
             val pick = remember(trip, reading, restAreas, serviceAreas) { coordinator.restCare.preview() }
             Line(
                 "졸음쉼터 자료 ${restAreas.size}곳 · 휴게소 정보 ${serviceAreas.size}곳 · 위치 ${if (motion == null) "모름(시뮬 여정 시작 또는 adb emu geo fix)" else "방향 ${motion.second.toInt()}°"}" +
-                    " · 표의 앞쪽 졸음쉼터 ${tablePick?.let { (a, dm) -> "${a.displayName}(${a.to} 방향) ${km(dm)}" } ?: "-"}",
+                    " · 표의 앞쪽 졸음쉼터 ${tablePick?.let { (a, dm) -> "${a.displayName}(${a.to} 방향) ${TripUnits.formatDistance(dm)}" } ?: "-"}",
             )
-            Line("경로 위: ${trip?.restStopsAhead?.let { l -> l.take(4).joinToString { "${it.name} ${km(it.distanceM)}" }.ifEmpty { "없음" } } ?: "정보 없음(길 안내 없음 → 표에서 고름)"}")
+            Line("경로 위: ${trip?.restStopsAhead?.let { l -> l.take(4).joinToString { "${it.name} ${TripUnits.formatDistance(it.distanceM)}" }.ifEmpty { "없음" } } ?: "정보 없음(길 안내 없음 → 표에서 고름)"}")
             Line("지금 걸리면 권할 곳: ${pick?.let { "${it.name} ${it.distanceLabel} (${it.source.label})${it.facilityLine?.let { f -> " · $f" } ?: ""}" } ?: "없음"}")
             Line("쉬어 가기 상태: ${restLabel(rest, restDistance)}")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -231,12 +231,10 @@ private fun restLabel(state: RestCareController.State?, distanceM: Int?): String
     null -> "없음"
     is RestCareController.State.Offered -> "권유 중 · ${state.suggestion?.name ?: "고를 곳 없음"}"
     is RestCareController.State.Heading ->
-        "가는 중 · ${state.suggestion.name} ${distanceM?.let { km(it) } ?: ""} (${state.suggestion.source.label}) · 근접 알림 ${if (state.alertRegistered) "요청" else "없음 — 주차하면 도착"}" +
+        "가는 중 · ${state.suggestion.name} ${distanceM?.let(TripUnits::formatDistance) ?: ""} (${state.suggestion.source.label}) · 근접 알림 ${if (state.alertRegistered) "요청" else "없음 — 주차하면 도착"}" +
             (state.suggestion.area?.let { " · 도착 시험 geo fix ${it.longitude} ${it.latitude}" } ?: "")
     is RestCareController.State.Arrived -> "도착 (${state.trigger}) · 주차 후 다시 주행하면 끝"
 }
-
-private fun km(m: Int): String = if (m >= 1_000) "%.1fkm".format(m / 1000.0) else "${m}m"
 
 @Composable
 private fun Section(title: String, content: @Composable () -> Unit) {

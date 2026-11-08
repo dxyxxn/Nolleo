@@ -136,7 +136,7 @@ class WordChainGame(
                 if (attempt == 1) retry() else miss("두 글자 이상 낱말로 말해 주세요.", "짧은 말")
             word.first() !in starts ->
                 miss("아쉬워요. ${startsWithPhrase(required)} 시작해야 해요.", "'$word' 시작 음절 틀림")
-            word in used -> miss("'$word'${if (Hangul.hasBatchim(word.last())) "은" else "는"} 이미 나왔어요!", "'$word' 중복")
+            word in used -> miss("${Hangul.eunNeun("'$word'")} 이미 나왔어요!", "'$word' 중복")
             word !in dictionary ->
                 if (attempt == 1) {
                     retry()

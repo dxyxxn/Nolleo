@@ -13,11 +13,10 @@ class WordBlocklist(private val contains: List<String>, private val exact: Set<S
 
     companion object {
         val EMPTY = WordBlocklist(emptyList(), emptySet())
-        private val BOM = Char(0xFEFF).toString()
 
         /** 한 줄에 하나, '#' 은 설명, '=' 로 시작하면 완전 일치 */
         fun parse(text: String): WordBlocklist {
-            val lines = text.lineSequence().map { it.trim().removePrefix(BOM) }.filter { it.isNotEmpty() && !it.startsWith("#") }.toList()
+            val lines = text.lineSequence().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }.toList()
             return WordBlocklist(
                 contains = lines.filterNot { it.startsWith("=") },
                 exact = lines.filter { it.startsWith("=") }.map { it.removePrefix("=").trim() }.filter { it.isNotEmpty() }.toSet(),

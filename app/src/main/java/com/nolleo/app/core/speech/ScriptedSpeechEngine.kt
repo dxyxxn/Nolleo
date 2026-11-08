@@ -52,12 +52,6 @@ class ScriptedSpeechEngine(private val clock: Clock) : SpeechEngine {
     private val _listening = MutableStateFlow(false)
     val listening: StateFlow<Boolean> = _listening.asStateFlow()
 
-    /** 직전 hint (수동 정답/오답 버튼용) */
-    @Volatile private var currentHint: ListenHint = ListenHint()
-
-    /** 발화 속도: 글자당 ms (데모 녹화가 늘어지지 않게 실제 TTS 보다 약간 빠르게) */
-    var msPerChar: Long = 55L
-
     sealed interface ManualAnswer {
         data class Text(val text: String) : ManualAnswer
         data object Correct : ManualAnswer
@@ -83,11 +77,10 @@ class ScriptedSpeechEngine(private val clock: Clock) : SpeechEngine {
     }
 
     override suspend fun speak(text: String) {
-        delay((text.length * msPerChar).coerceIn(700L, 4_000L))
+        delay((text.length * MS_PER_CHAR).coerceIn(700L, 4_000L))
     }
 
-    override fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent> = channelFlow {
-        currentHint = hint
+    override fun listen(hint: ListenHint): Flow<SttEvent> = channelFlow {
         _listening.value = true
         // 이전 듣기에서 남은 수동 입력은 버린다
         while (manualAnswers.tryReceive().isSuccess) Unit
@@ -152,6 +145,9 @@ class ScriptedSpeechEngine(private val clock: Clock) : SpeechEngine {
 
     companion object {
         private const val TAG = "ScriptedSpeech"
+
+        /** 발화 속도: 글자당 ms (데모 녹화가 늘어지지 않게 실제 TTS 보다 약간 빠르게) */
+        private const val MS_PER_CHAR = 55L
         private const val FINALIZE_MS = 250L
         private const val YES_NO_DELAY_MS = 1_500L
         private val PASSENGER_DELAYS = listOf(1_200L, 1_600L, 1_400L, 1_800L)

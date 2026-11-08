@@ -38,6 +38,8 @@ import com.nolleo.app.app.ScreenGameKind
 import com.nolleo.app.core.navi.TripUnits
 import com.nolleo.app.domain.engine.SessionPlanner
 import com.nolleo.app.ui.common.Chip
+import com.nolleo.app.ui.common.NlCard
+import com.nolleo.app.ui.common.isWideLayout
 import com.nolleo.app.ui.common.SecondaryButton
 import com.nolleo.app.ui.common.pressable
 import com.nolleo.app.ui.theme.Nl
@@ -150,7 +152,7 @@ private fun GameCards(container: AppContainer, onOpen: (ScreenGameKind) -> Unit)
         }
     }
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        if (maxWidth > maxHeight && maxWidth >= 1000.dp) {
+        if (isWideLayout()) {
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(Sp.xl)) {
                 Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Sp.xl)) {
                     idiom(Modifier.weight(1f).fillMaxHeight())
@@ -177,14 +179,7 @@ private fun GameCards(container: AppContainer, onOpen: (ScreenGameKind) -> Unit)
 @Composable
 private fun GameCard(title: String, subtitle: String, onClick: () -> Unit, modifier: Modifier, visual: @Composable () -> Unit) {
     val c = Nl.colors
-    Column(
-        modifier
-            .background(c.card, Radius.card)
-            .border(1.dp, c.line, Radius.card)
-            .pressable(onClick, Radius.card)
-            .padding(Sp.xl),
-        verticalArrangement = Arrangement.spacedBy(Sp.m),
-    ) {
+    NlCard(modifier.pressable(onClick, Radius.card), padding = Sp.xl, spacing = Sp.m) {
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { visual() }
         Text(title, style = MaterialTheme.typography.headlineMedium, color = c.ink)
         Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = c.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -192,21 +187,23 @@ private fun GameCard(title: String, subtitle: String, onClick: () -> Unit, modif
     }
 }
 
-/** 준비 중 카드 — 낮게, 흐리게, 눌리지 않음 */
+/** 준비 중 카드 — 낮게, 흐리게(비활성 글자색), 눌리지 않음 */
 @Composable
 private fun SoonCard(title: String, mark: String, modifier: Modifier) {
     val c = Nl.colors
-    Row(
-        modifier.background(c.ground, Radius.card).border(1.dp, c.line, Radius.card).padding(horizontal = Sp.xl),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Sp.l),
-    ) {
-        Box(Modifier.size(64.dp).border(1.dp, c.line, Radius.tile), contentAlignment = Alignment.Center) {
-            Text(mark, style = MaterialTheme.typography.headlineMedium, color = c.faint)
-        }
-        Column {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = c.faint)
-            Text("준비 중이에요", style = MaterialTheme.typography.bodyMedium, color = c.faint)
+    NlCard(modifier, padding = Sp.xl) {
+        Row(
+            Modifier.weight(1f).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Sp.l),
+        ) {
+            Box(Modifier.size(64.dp).border(1.dp, c.line, Radius.tile), contentAlignment = Alignment.Center) {
+                Text(mark, style = MaterialTheme.typography.headlineMedium, color = c.faint)
+            }
+            Column {
+                Text(title, style = MaterialTheme.typography.titleMedium, color = c.faint)
+                Text("준비 중이에요", style = MaterialTheme.typography.bodyMedium, color = c.faint)
+            }
         }
     }
 }

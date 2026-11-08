@@ -39,9 +39,6 @@ class ModeController(
     private val _pauseReasons = MutableStateFlow<Set<PauseReason>>(emptySet())
     val pauseReasons: StateFlow<Set<PauseReason>> = _pauseReasons.asStateFlow()
 
-    private val _rawDriveState = MutableStateFlow(DriveState.UNKNOWN)
-    val rawDriveState: StateFlow<DriveState> = _rawDriveState.asStateFlow()
-
     private val _decision = MutableStateFlow(
         ModeArbiter.Decision(GameMode.IDLE, DriveState.UNKNOWN, false, "init", null),
     )
@@ -68,7 +65,6 @@ class ModeController(
     fun reevaluate() {
         val now = clock.elapsedMs()
         val derived = deriver.derive(signals.value, now)
-        _rawDriveState.value = derived.state
         val decision = arbiter.evaluate(
             ModeArbiter.Input(
                 sessionActive = sessionActive.value,

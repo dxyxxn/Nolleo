@@ -3,8 +3,6 @@ package com.nolleo.app.domain.model
 enum class GameKind(val label: String) {
     REGION_QUIZ("지역 퀴즈"),
     WORD_CHAIN("끝말잇기"),
-    /** 정차 중 화면 게임 (음성 판에는 나오지 않는다) */
-    IDIOM_QUIZ("사자성어"),
 }
 
 /** 홈에서 고르는 게임 구성. */
@@ -18,10 +16,13 @@ enum class GameChoice(val label: String) {
  * 홈에서 고르는 판 간격 — 여정에 판을 얼마나 촘촘히 놓을지. [slotSec] 마다 한 판(판 시작 간격의 목표값).
  * 판 사이에는 말을 걸지 않는다. 쉬지 않고 이어 해도 최소 휴지(2분)는 남긴다.
  */
-enum class RoundPacing(val label: String, val detail: String, val slotSec: Int) {
-    RELAXED("여유 있게", "약 45분마다 한 판", 45 * 60),
-    OFTEN("자주", "약 20분마다 한 판", 20 * 60),
-    NONSTOP("쉬지 않고", "판 사이 2분만 쉬어요", 12 * 60),
+enum class RoundPacing(val label: String, val slotSec: Int) {
+    /** 약 45분마다 한 판 */
+    RELAXED("여유 있게", 45 * 60),
+    /** 약 20분마다 한 판 */
+    OFTEN("자주", 20 * 60),
+    /** 판 사이 최소 휴지(2분)만 */
+    NONSTOP("쉬지 않고", 12 * 60),
 }
 
 /** 운전자 1 + 동승자 0~3. 턴은 라운드 로빈. */

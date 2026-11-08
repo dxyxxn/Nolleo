@@ -44,6 +44,7 @@ import com.nolleo.app.domain.model.TripSourceKind
 import com.nolleo.app.domain.model.UxState
 import com.nolleo.app.domain.rest.RestStopSuggestion
 import com.nolleo.app.ui.common.Avatar
+import com.nolleo.app.ui.common.isWideLayout
 import com.nolleo.app.ui.common.BandCard
 import com.nolleo.app.ui.common.Chip
 import com.nolleo.app.ui.common.Hairline
@@ -80,7 +81,7 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val paused = mode == GameMode.PAUSED
 
     BoxWithConstraints(modifier.fillMaxSize()) {
-        val wide = maxWidth > 1000.dp && maxWidth > maxHeight
+        val wide = isWideLayout()
         Row(Modifier.fillMaxSize().padding(horizontal = Sp.xxl, vertical = Sp.xl), horizontalArrangement = Arrangement.spacedBy(Sp.xxl)) {
             Column(Modifier.weight(1f).fillMaxHeight()) {
                 // 상단 상태 줄: 점(정적) + 모드 + 남은 시간

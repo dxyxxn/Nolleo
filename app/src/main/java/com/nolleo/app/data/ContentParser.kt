@@ -15,8 +15,6 @@ import org.json.JSONObject
  * 순수 함수라 JVM 단위 테스트에서 실제 org.json 구현으로 검증한다.
  */
 object ContentParser {
-    private val BOM = Char(0xFEFF).toString()
-
     fun parseRegions(json: String): List<RegionInfo> {
         val arr = JSONObject(json).getJSONArray("regions")
         return (0 until arr.length()).map { i ->
@@ -57,7 +55,7 @@ object ContentParser {
      * hint 는 읽지 않는다 (사지선다라 힌트를 쓰지 않음).
      */
     fun parseIdioms(json: String): List<IdiomItem> {
-        val arr = JSONArray(json.removePrefix(BOM))
+        val arr = JSONArray(json)
         return (0 until arr.length()).mapNotNull { i ->
             val o = arr.getJSONObject(i)
             val word = o.optJSONArray("answers").toStringList().firstOrNull()?.trim().orEmpty()
@@ -83,7 +81,7 @@ object ContentParser {
 
     /** assets/content/rest_areas.json (전국졸음쉼터표준데이터에서 변환) */
     fun parseRestAreas(json: String): List<RestArea> {
-        val arr = JSONObject(json.removePrefix(BOM)).getJSONArray("restAreas")
+        val arr = JSONObject(json).getJSONArray("restAreas")
         return (0 until arr.length()).map { i ->
             val o = arr.getJSONObject(i)
             RestArea(
@@ -102,7 +100,7 @@ object ContentParser {
 
     /** assets/content/service_areas.json (도로공사 휴게소 편의시설 + 가족사랑 화장실에서 변환, 좌표 없음) */
     fun parseServiceAreas(json: String): List<ServiceAreaInfo> {
-        val arr = JSONObject(json.removePrefix(BOM)).getJSONArray("serviceAreas")
+        val arr = JSONObject(json).getJSONArray("serviceAreas")
         return (0 until arr.length()).map { i ->
             val o = arr.getJSONObject(i)
             ServiceAreaInfo(
@@ -119,14 +117,14 @@ object ContentParser {
 
     /** 한 줄에 한 낱말 (끝말잇기 검증용 words_ko_valid.txt) */
     fun parseWords(text: String): List<String> =
-        text.lineSequence().map { it.trim().removePrefix(BOM) }.filter { it.isNotEmpty() && !it.startsWith("#") }.toList()
+        text.lineSequence().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }.toList()
 
     /**
      * 끝말잇기 출제용 (words_ko_play.json): [{word, level, category, definition, from_team_list}] → 낱말·어휘 등급.
      * 앱은 `word`·`level` 만 쓴다. 등급 표기를 모르면 중급으로 본다.
      */
     fun parsePlayWords(json: String): List<Pair<String, WordLevel>> {
-        val arr = JSONArray(json.removePrefix(BOM))
+        val arr = JSONArray(json)
         return (0 until arr.length()).mapNotNull { i ->
             val o = arr.optJSONObject(i) ?: return@mapNotNull null
             val word = o.optString("word").trim()

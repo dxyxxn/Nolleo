@@ -21,8 +21,8 @@ data class RouteWaypoint(
  * 홈 화면의 프리셋 목적지. 실제 내비(NaviHelper.requestRoute)와 시뮬레이션 여정이 같은 정보를 쓴다.
  *
  * poiId: 샘플(pleos-sample-navi-app data/sample/NaviTestData.kt)의 실제 값을 재사용한다.
- * 샘플에는 수도권 POI 2개뿐이라 장거리 프리셋은 poiId 를 비워 좌표·주소로 요청한다.
- * TODO(verify): 순정 내비가 빈 poiId 요청을 받아 주는지 — onError 면 TripRepository 가 시뮬레이션으로 넘어간다.
+ * 샘플에는 수도권 POI 2개뿐이라 장거리 프리셋은 poiId 를 비워 좌표·주소로 요청한다 — 에뮬레이터 순정 내비가 정상 수락함
+ * (WORK_STATUS 기록). onError 면 TripRepository 가 시뮬레이션으로 넘어간다.
  */
 data class DestinationPreset(
     val id: String,

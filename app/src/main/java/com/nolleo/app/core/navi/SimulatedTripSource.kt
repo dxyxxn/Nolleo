@@ -134,7 +134,7 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
     private fun publish() {
         val p = preset ?: return
         val remain = remainSec()
-        val totalDistance = haversineRouteMeters(p)
+        val totalDistance = routeMeters(p)
         val ratio = if (p.estimatedSec == 0) 0.0 else remain.toDouble() / p.estimatedSec
         _snapshot.update {
             TripSnapshot(
@@ -171,20 +171,14 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
         }
     }
 
-    private fun haversineRouteMeters(p: DestinationPreset): Double {
-        var sum = 0.0
-        p.timeline.zipWithNext { a, b -> sum += haversine(a.latitude, a.longitude, b.latitude, b.longitude) }
-        return sum * 1.25 // 도로 굴곡 보정
-    }
-
-    private fun haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val r = 6_371_000.0
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = kotlin.math.sin(dLat / 2).let { it * it } +
-            kotlin.math.cos(Math.toRadians(lat1)) * kotlin.math.cos(Math.toRadians(lat2)) *
-            kotlin.math.sin(dLon / 2).let { it * it }
-        return 2 * r * kotlin.math.asin(kotlin.math.sqrt(a))
+    /**
+     * 경로 전체 거리(m) — 쉼 장소 거리([restStopsAhead])와 같은 기준인 내비 경로 거리 [DestinationPreset.routeKm].
+     * routeKm 이 없는 프리셋만 경유지 직선거리 합에 도로 굴곡 보정(× 1.25)을 한다.
+     */
+    private fun routeMeters(p: DestinationPreset): Double {
+        if (p.routeKm > 0) return p.routeKm * 1000
+        val straight = p.timeline.zipWithNext { a, b -> GeoMath.distanceM(GeoPoint(a.latitude, a.longitude), GeoPoint(b.latitude, b.longitude)) }.sum()
+        return straight * 1.25
     }
 
     fun clear() {

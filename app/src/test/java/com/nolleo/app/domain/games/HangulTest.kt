@@ -95,6 +95,11 @@ class HangulTest {
         assertEquals("아빠가", Hangul.iGa("아빠"))
         assertEquals("엄마가", Hangul.iGa("엄마"))
         assertEquals("조수석이", Hangul.iGa("조수석"))
+        // 따옴표로 감싼 낱말은 따옴표 앞 음절로 고른다 (끝말잇기 "'사람'은 이미 나왔어요")
+        assertEquals("'사람'은", Hangul.eunNeun("'사람'"))
+        assertEquals("'기차'는", Hangul.eunNeun("'기차'"))
+        assertEquals("'사람'이에요", Hangul.ieyo("'사람'"))
+        assertEquals("'기차'예요", Hangul.ieyo("'기차'"))
         assertEquals("'과'로", "'과'" + Hangul.euro("과").drop(1))
         assertEquals("역으로", Hangul.euro("역"))
         assertEquals("길로", Hangul.euro("길")) // ㄹ 받침은 "로"

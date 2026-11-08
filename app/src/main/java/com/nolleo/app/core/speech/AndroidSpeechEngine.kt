@@ -159,7 +159,7 @@ class AndroidSpeechEngine(
         }
     }
 
-    override fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent> = callbackFlow {
+    override fun listen(hint: ListenHint): Flow<SttEvent> = callbackFlow {
         if (_sttStatus.value != SdkStatus.Available) {
             trySend(SttEvent.Error("Android STT 불가", fatal = true))
             close()

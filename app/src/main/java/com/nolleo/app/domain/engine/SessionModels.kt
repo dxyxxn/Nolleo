@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 /** GameSession 이 보는 음성 입출력 (SpeechRouter 를 감싼다; 테스트는 가짜를 넣는다) */
 interface SpeechPort {
     suspend fun speak(text: String)
-    fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent>
+    fun listen(hint: ListenHint): Flow<SttEvent>
     fun stop()
     fun markNewStream()
 }

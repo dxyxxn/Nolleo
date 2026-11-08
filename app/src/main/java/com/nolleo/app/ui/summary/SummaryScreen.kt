@@ -28,6 +28,7 @@ import com.nolleo.app.app.AppContainer
 import com.nolleo.app.domain.engine.SessionSummary
 import com.nolleo.app.domain.model.GameContent
 import com.nolleo.app.ui.common.Avatar
+import com.nolleo.app.ui.common.isWideLayout
 import com.nolleo.app.ui.common.Chip
 import com.nolleo.app.ui.common.Hairline
 import com.nolleo.app.ui.common.NlCard
@@ -47,7 +48,7 @@ fun SummaryScreen(container: AppContainer, summary: SessionSummary, modifier: Mo
     }
     val c = Nl.colors
     BoxWithConstraints(modifier.fillMaxSize()) {
-        val wide = maxWidth > 1000.dp && maxWidth > maxHeight
+        val wide = isWideLayout()
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Sp.xxl, vertical = Sp.xl),
             verticalArrangement = Arrangement.spacedBy(Sp.xl),

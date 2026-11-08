@@ -195,7 +195,7 @@ class GameCoordinator(private val c: AppContainer) {
             c.speechRouter.speak(text)
         }
 
-        override fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent> = c.speechRouter.listen(timeoutMs, hint)
+        override fun listen(hint: ListenHint): Flow<SttEvent> = c.speechRouter.listen(hint)
 
         override fun stop() = c.speechRouter.stopAll()
 

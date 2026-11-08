@@ -50,7 +50,7 @@ class ContentRepository(context: Context) {
     suspend fun load() = withContext(Dispatchers.IO) {
         if (_content.value != null) return@withContext
         val started = System.currentTimeMillis()
-        val regions = readOrNull("content/regions.json")?.let { runCatching { ContentParser.parseRegions(it) }.getOrNull() }.orEmpty()
+        val regions = readOrNull("content/regions.json")?.let { runCatching { ContentParser.parseRegions(it) }.onFailure { e -> AppLog.e(TAG, "regions parse", e) }.getOrNull() }.orEmpty()
         val regionQuiz = readOrNull("content/quiz_regions.json")
             ?.let { runCatching { ContentParser.parseRegionQuiz(it) }.onFailure { e -> AppLog.e(TAG, "quiz_regions parse", e) }.getOrNull() }
             .orEmpty()
@@ -122,11 +122,13 @@ class ContentRepository(context: Context) {
         }.onFailure { AppLog.e(TAG, "script parse $path", it) }.getOrNull()
     }
 
+    /** asset 을 UTF-8 로 읽는다. 맨 앞 BOM 은 여기서 한 번만 뗀다 (PowerShell 5.1 로 다시 저장하면 붙는다) */
     private fun readOrNull(path: String): String? = runCatching {
-        assets.open(path).bufferedReader(Charsets.UTF_8).use { it.readText() }
+        assets.open(path).bufferedReader(Charsets.UTF_8).use { it.readText() }.removePrefix(BOM)
     }.onFailure { AppLog.w(TAG, "asset missing: $path") }.getOrNull()
 
     companion object {
         private const val TAG = "Content"
+        private val BOM = Char(0xFEFF).toString()
     }
 }

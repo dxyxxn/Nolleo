@@ -46,8 +46,6 @@ class ModeArbiter(
     private var lastDriveLogged: DriveState? = null
     private var lastDoLogged: Boolean? = null
 
-    val currentDriveState: DriveState get() = stableDrive
-
     fun evaluate(input: Input, nowMs: Long): Decision {
         var recheckAt: Long? = null
         if (input.driveState == stableDrive) {

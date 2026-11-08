@@ -102,14 +102,18 @@ object Hangul {
         return syllableLabel(s) + euro(last.toString()).drop(1)
     }
 
-    /** 받침 유무에 따라 조사를 고른다. 한글이 아니면 받침 없음으로 본다. */
-    private fun batchimOf(word: String): Jamo? = word.lastOrNull()?.let { decompose(it) }
+    /**
+     * 받침 유무에 따라 조사를 고른다. 한글이 아니면 받침 없음으로 본다.
+     * 끝의 따옴표는 건너뛴다 — "'사람'이에요"처럼 따옴표로 감싼 낱말에도 쓴다.
+     */
+    private fun batchimOf(word: String): Jamo? = word.trimEnd(*QUOTES).lastOrNull()?.let { decompose(it) }
+
+    private val QUOTES = charArrayOf('\'', '"', '‘', '’', '“', '”')
 
     fun ieyo(word: String): String = word + if ((batchimOf(word)?.final ?: 0) != 0) "이에요" else "예요"
     fun ieosseoyo(word: String): String = word + if ((batchimOf(word)?.final ?: 0) != 0) "이었어요" else "였어요"
     fun eunNeun(word: String): String = word + if ((batchimOf(word)?.final ?: 0) != 0) "은" else "는"
     fun iGa(word: String): String = word + if ((batchimOf(word)?.final ?: 0) != 0) "이" else "가"
-    fun eulReul(word: String): String = word + if ((batchimOf(word)?.final ?: 0) != 0) "을" else "를"
 
     /** (으)로: 받침이 없거나 ㄹ 받침이면 "로" */
     fun euro(word: String): String {

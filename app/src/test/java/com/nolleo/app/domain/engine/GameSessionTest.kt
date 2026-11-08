@@ -74,10 +74,10 @@ class GameSessionTest {
             delay(400)
         }
 
-        override fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent> = flow {
+        override fun listen(hint: ListenHint): Flow<SttEvent> = flow {
             val d = delays[cursor++ % delays.size]
             emit(SttEvent.Listening(clock.elapsedMs()))
-            if (d >= timeoutMs) awaitCancellation()
+            if (d >= AnswerCollector.FIRST_SPEECH_TIMEOUT_MS) awaitCancellation()
             delay(d)
             val text = answer(hint) ?: awaitCancellation()
             emit(SttEvent.SpeechDetected(clock.elapsedMs()))
@@ -95,7 +95,7 @@ class GameSessionTest {
     /** 듣기마다 인식 오류(네트워크 등)로 끝나는 가짜 음성 */
     private class ErrorSpeech : SpeechPort {
         override suspend fun speak(text: String) = delay(400)
-        override fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent> = flow {
+        override fun listen(hint: ListenHint): Flow<SttEvent> = flow {
             delay(300)
             emit(SttEvent.Error("NETWORK_ERROR"))
         }

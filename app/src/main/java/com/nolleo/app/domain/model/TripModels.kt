@@ -14,15 +14,4 @@ data class TurnHint(
     val needsAttention: Boolean,
 )
 
-/** 트립 컨텍스트. */
-data class TripContext(
-    val destinationName: String,
-    val remainTimeSec: Int?,
-    val remainDistanceM: Int?,
-    val navigationStatus: NaviStatus?,
-    val nextTurn: TurnHint?,
-    val regionCode: String?,
-    val source: TripSourceKind,
-)
-
 data class GeoPoint(val latitude: Double, val longitude: Double)

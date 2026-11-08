@@ -1,5 +1,6 @@
 package com.nolleo.app.domain.rest
 
+import com.nolleo.app.domain.games.Hangul
 import com.nolleo.app.domain.model.GeoMath
 import com.nolleo.app.domain.model.GeoPoint
 import kotlin.math.roundToInt
@@ -132,10 +133,10 @@ data class RestStopSuggestion(
         get() {
             val km = if (distanceM >= 1_000) "${(distanceM / 1000.0).roundToInt()}킬로미터" else "${distanceM}미터"
             val main = when (source) {
-                Source.ON_ROUTE -> "가는 길에 있는 ${name}${subject(name)} $km 앞이에요."
+                Source.ON_ROUTE -> "가는 길에 있는 ${Hangul.iGa(name)} $km 앞이에요."
                 Source.TABLE -> {
                     val where = listOfNotNull(directionLabel, name).joinToString(" ")
-                    "${where}${subject(where)} $km 앞에 있어요."
+                    "${Hangul.iGa(where)} $km 앞에 있어요."
                 }
             }
             // 시설 이름은 모두 "실"로 끝난다 (수면실·수유실·가족사랑 화장실) → 조사 "과"·"이"
@@ -150,14 +151,6 @@ data class RestStopSuggestion(
         /** 노선 이름을 함께 말해, 지금 달리는 도로가 아니면 운전자가 거절할 수 있게 한다 */
         fun fromTable(area: RestArea, distanceM: Int) =
             RestStopSuggestion(area.displayName, RestStopKind.SHELTER, distanceM, "${area.route} ${area.to} 방향", Source.TABLE, area)
-
-        private fun subject(word: String) = if (endsWithBatchim(word)) "이" else "가"
-
-        fun endsWithBatchim(word: String): Boolean {
-            val c = word.lastOrNull() ?: return false
-            if (c !in '가'..'힣') return false
-            return (c - '가') % 28 != 0
-        }
     }
 }
 

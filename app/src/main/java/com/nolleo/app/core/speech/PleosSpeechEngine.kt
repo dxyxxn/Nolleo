@@ -306,7 +306,7 @@ class PleosSpeechEngine(
         if (cont.isActive) cont.resume(Unit)
     }
 
-    override fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent> = callbackFlow {
+    override fun listen(hint: ListenHint): Flow<SttEvent> = callbackFlow {
         val engine = stt
         if (engine == null || _sttStatus.value != SdkStatus.Available) {
             trySend(SttEvent.Error("STT 미초기화", fatal = true))

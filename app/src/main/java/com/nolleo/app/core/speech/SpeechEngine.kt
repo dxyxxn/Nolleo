@@ -23,8 +23,6 @@ sealed interface SttEvent {
     /** 최종 결과. 빈 문자열이면 말이 없었다는 뜻 */
     data class Final(val text: String, val tMs: Long) : SttEvent
 
-    data object Timeout : SttEvent
-
     /** [fatal] = 이 엔진으로는 더 들을 수 없음(마이크·퍼미션·미지원). 엔진이 상태를 Unavailable 로 내려 라우터가 다른 엔진을 고른다 */
     data class Error(val reason: String, val fatal: Boolean = false) : SttEvent
 }
@@ -58,7 +56,7 @@ interface SpeechEngine {
     suspend fun speak(text: String)
 
     /** 수집을 취소하면 인식을 멈춘다. 타임아웃 정책은 [AnswerCollector] 가 맡는다. */
-    fun listen(timeoutMs: Long, hint: ListenHint = ListenHint()): Flow<SttEvent>
+    fun listen(hint: ListenHint = ListenHint()): Flow<SttEvent>
 
     fun stop()
 

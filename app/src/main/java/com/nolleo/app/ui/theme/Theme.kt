@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.sp
  *
  * 색(11/8 사용자 선택 "옐로"): 글은 거의 검정, 바탕은 연회색·흰 카드. 밤(시스템 야간 모드)에는 차콜 바탕·흰 글.
  * 노랑은 **주 버튼과 고른 표시, 꼭 봐야 하는 안내 카드에만** 쓰고 나머지는 중립색이다. 노랑 위의 글은 항상 검정.
- * 정답·오답 두 상태색은 사자성어 보기에만 쓴다. 보라색은 쓰지 않는다.
+ * 정답·오답 두 상태색은 화면 게임의 답 표시와 음성 화면의 진행·듣는 중 표시에만 쓴다. 보라색은 쓰지 않는다.
  *
  * 대비(WCAG): 낮 — 글 #16181D / 흰 카드 17:1, 보조 글 #5B616E / 바탕 #F3F4F6 5.6:1, 노랑 #FFC53D 위 검정 글 12:1,
  * 정답 #1B7F43 위 흰 글 5.0:1, 오답 #C62828 위 흰 글 5.6:1. 밤 — 글 #F1F3F5 / 카드 #1A1D22 15:1, 보조 글 #A7AEB9 7.6:1,
@@ -70,7 +70,6 @@ data class NlPalette(
     val onSuccess: Color,
     val danger: Color,
     val onDanger: Color,
-    val isDark: Boolean,
 )
 
 private val Ink = Color(0xFF16181D)
@@ -103,7 +102,6 @@ val DayPalette = NlPalette(
     onSuccess = Color(0xFFFFFFFF),
     danger = Color(0xFFC62828),
     onDanger = Color(0xFFFFFFFF),
-    isDark = false,
 )
 
 val NightPalette = NlPalette(
@@ -133,7 +131,6 @@ val NightPalette = NlPalette(
     onSuccess = Color(0xFF052E16),
     danger = Color(0xFFF87171),
     onDanger = Color(0xFF3B0A0A),
-    isDark = true,
 )
 
 /** 간격 4·8·12·16·24·32·48 만 쓴다 */

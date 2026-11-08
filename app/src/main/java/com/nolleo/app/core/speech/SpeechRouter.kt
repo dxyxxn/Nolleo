@@ -83,7 +83,7 @@ class SpeechRouter(
 
     suspend fun speak(text: String) = engine(ttsKind.value).speak(text)
 
-    fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent> = engine(sttKind.value).listen(timeoutMs, hint)
+    fun listen(hint: ListenHint): Flow<SttEvent> = engine(sttKind.value).listen(hint)
 
     /** 현재 발화가 Pleos Speech Service 경유인지 (자체 포커스 손실 판별용) */
     val pleosSpeaking: StateFlow<Boolean> get() = pleos.isSpeaking

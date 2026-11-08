@@ -32,6 +32,8 @@ import com.nolleo.app.domain.engine.SessionPlanner
 import com.nolleo.app.domain.model.GameChoice
 import com.nolleo.app.domain.model.RoundPacing
 import com.nolleo.app.ui.common.ChoiceRow
+import com.nolleo.app.ui.common.SettingLabelWidth
+import com.nolleo.app.ui.common.isWideLayout
 import com.nolleo.app.ui.common.Hairline
 import com.nolleo.app.ui.common.NlCard
 import com.nolleo.app.ui.common.PrimaryButton
@@ -60,7 +62,7 @@ fun HomeScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val c = Nl.colors
 
     BoxWithConstraints(modifier.fillMaxSize()) {
-        val wide = maxWidth > 1000.dp && maxWidth > maxHeight
+        val wide = isWideLayout()
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = Sp.xxl, vertical = Sp.xl),
             verticalArrangement = Arrangement.spacedBy(Sp.xl),
@@ -232,7 +234,7 @@ private fun GameCard(
         }
         val suggested = detected?.coerceAtMost(3)
         if (suggested != null && suggested != passengers) {
-            Row(Modifier.fillMaxWidth().padding(start = 88.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
+            Row(Modifier.fillMaxWidth().padding(start = SettingLabelWidth), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
                 Text(
                     "좌석 센서가 동승자 ${suggested}명을 감지했어요",
                     style = MaterialTheme.typography.bodyMedium,

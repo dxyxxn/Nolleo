@@ -12,7 +12,7 @@
     <uses-permission android:name="pleos.car.permission.CAR_SEATS" />
     <!-- NaviHelper: getDestinationInfo / getRouteStateInfo / getTBTInfo / getCurrentLocationInfo -->
     <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />
-    <!-- NaviHelper: requestRoute / cancelRoute -->
+    <!-- NaviHelper: requestRoute (사용자의 길 안내는 취소하지 않는다) -->
     <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />
     <!-- TextToSpeech / SpeechToText SDK -->
     <uses-permission android:name="pleos.car.permission.TTS_SERVICE" />
