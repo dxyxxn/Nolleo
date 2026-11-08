@@ -260,13 +260,38 @@ class GameSession(
         val expected = planBasisRemainSec - elapsedTripSec
         if (expected <= SessionPlanner.END_BUFFER_SEC) return
         if (!SessionPlanner.needsReplan(expected, remainSec)) return
-        val keep = roundIndex + if (currentGame != null) 1 else 0
+        val inRound = currentGame != null
+        val keep = roundIndex + if (inRound) 1 else 0
         val newPlan = SessionPlanner.replanRemaining(plan, keep, remainSec, choice, demo)
         callbacks.log("SessionPlanner: remain ${expected}s → ${remainSec}s (±20%↑) → ${plan.roundCount}판 → ${newPlan.roundCount}판")
+        applyPlan(newPlan, remainSec)
+        // 진행 중인 판이 언제 끝날지 모르므로, 새 첫 판의 시작은 그 판이 끝난 때 다시 정한다 (끝나자마자 다음 판이 이어지지 않게)
+        if (inRound) replanAtRoundEnd = true
+    }
+
+    /** 계획이 바뀔 때마다 올린다 — 판을 기다리는 동안(쉬는 시간·모두 마침)에도 새 계획을 다시 읽게 한다 */
+    private val planVersion = MutableStateFlow(0)
+
+    /** 판 진행 중에 다시 계획했다 → 판이 끝나면 그때의 남은 시간으로 한 번 더 계획한다 */
+    private var replanAtRoundEnd = false
+
+    private fun applyPlan(newPlan: SessionPlan, basisRemainSec: Int) {
         plan = newPlan
-        planBasisRemainSec = remainSec
+        planBasisRemainSec = basisRemainSec
         planBasisAtMs = clock.elapsedMs()
         _state.update { it.copy(plan = newPlan) }
+        planVersion.value++
+    }
+
+    /** 판 진행 중에 다시 계획했으면: 판이 끝난 지금의 남은 시간으로 다음 판들을 다시 잡는다 — 새 첫 판은 최소 휴지(2분) 뒤 */
+    private fun replanAfterRound() {
+        if (!replanAtRoundEnd) return
+        replanAtRoundEnd = false
+        val remain = inputs.remainSec.value ?: return
+        if (arrival(remain)) return
+        val newPlan = SessionPlanner.replanRemaining(plan, roundIndex + 1, remain, choice, demo)
+        callbacks.log("SessionPlanner: 판 진행 중 다시 계획함 → 판이 끝난 지금(${remain}s) 기준으로 다음 판 다시 잡기 (${newPlan.roundCount}판)")
+        applyPlan(newPlan, remain)
     }
 
     suspend fun run() = coroutineScope {
@@ -297,24 +322,20 @@ class GameSession(
             if (arrivalImminent()) return
             val round = plan.rounds.getOrNull(roundIndex)
             if (round == null) {
-                setPhase(SessionPhase.ALL_DONE)
-                _state.update { it.copy(nextRoundAtRemainSec = null) }
-                val (_, _, skip) = waitFor { remain, _, skip -> arrival(remain) || skip }
-                if (!skip) return
-                skipWait.value = false
-                // 준비한 판을 다 했어도 가족이 원하면 보너스 판
-                val bonus = RoundPlan(
-                    index = plan.roundCount,
-                    game = SessionPlanner.gameFor(plan.roundCount, choice),
-                    targetDurationSec = SessionPlanner.MIN_ROUND_SEC,
-                    questionCount = if (demo) SessionPlanner.DEMO_QUESTION_COUNT else 8,
-                    startAtRemainSec = Int.MAX_VALUE,
-                )
-                plan = plan.copy(rounds = plan.rounds + bonus)
-                _state.update { it.copy(plan = plan) }
+                when (waitAllDone()) {
+                    WaitEnd.ARRIVED -> return
+                    // 남은 시간이 늘어 판이 더해졌으면 그 판부터 (없으면 다시 "모두 했어요")
+                    WaitEnd.PLAN_CHANGED -> continue
+                    WaitEnd.START -> addBonusRound()
+                }
                 continue
             }
-            if (!waitForRound(round)) return
+            when (waitForRound(round)) {
+                WaitEnd.ARRIVED -> return
+                // 기다리는 동안 계획이 바뀜 → 새 계획의 판(시작 시점·문제 수)을 다시 기다린다
+                WaitEnd.PLAN_CHANGED -> continue
+                WaitEnd.START -> Unit
+            }
             playRound(round)
             roundIndex++
             rotationIndex = 0
@@ -323,15 +344,43 @@ class GameSession(
         }
     }
 
+    /** 준비한 판을 다 했어도 가족이 원하면("한 판 더") 보너스 판 */
+    private fun addBonusRound() {
+        val count = if (demo) SessionPlanner.DEMO_QUESTION_COUNT else BONUS_QUESTION_COUNT
+        val bonus = RoundPlan(
+            index = plan.roundCount,
+            game = SessionPlanner.gameFor(plan.roundCount, choice),
+            targetDurationSec = count * SessionPlanner.SEC_PER_QUESTION,
+            questionCount = count,
+            startAtRemainSec = Int.MAX_VALUE,
+        )
+        plan = plan.copy(rounds = plan.rounds + bonus)
+        _state.update { it.copy(plan = plan) }
+    }
+
     // ── 대기 ────────────────────────────────────────────────────
 
-    private data class WaitResult(val remain: Int?, val mode: GameMode, val skip: Boolean)
+    /** 판을 기다린 결과: 시작 / 기다리는 동안 계획이 바뀜 / 곧 도착 */
+    private enum class WaitEnd { START, PLAN_CHANGED, ARRIVED }
 
-    private suspend fun waitFor(predicate: (Int?, GameMode, Boolean) -> Boolean): WaitResult =
-        combine(inputs.remainSec, inputs.mode, skipWait) { r, m, s -> WaitResult(r, m, s) }
-            .first { predicate(it.remain, it.mode, it.skip) }
+    /** 오늘 준비한 판을 다 함: 도착·"한 판 더"·계획 변경(남은 시간이 늘어 판이 더해짐) 중 먼저 오는 것 */
+    private suspend fun waitAllDone(): WaitEnd {
+        setPhase(SessionPhase.ALL_DONE)
+        _state.update { it.copy(nextRoundAtRemainSec = null) }
+        val version = planVersion.value
+        val (remain, skip, v) = combine(inputs.remainSec, skipWait, planVersion) { r, s, v -> Triple(r, s, v) }
+            .first { (r, s, v) -> arrival(r) || s || v != version }
+        return when {
+            arrival(remain) -> WaitEnd.ARRIVED
+            v != version && !skip -> WaitEnd.PLAN_CHANGED
+            else -> {
+                skipWait.value = false
+                WaitEnd.START
+            }
+        }
+    }
 
-    private suspend fun waitForRound(round: RoundPlan): Boolean {
+    private suspend fun waitForRound(round: RoundPlan): WaitEnd {
         val first = round.index == 0
         setPhase(if (first) SessionPhase.WAITING else SessionPhase.RESTING)
         _state.update {
@@ -346,14 +395,16 @@ class GameSession(
             )
         }
         val waitPhase = if (first) SessionPhase.WAITING else SessionPhase.RESTING
+        val version = planVersion.value
         while (true) {
-            val r = combine(inputs.remainSec, inputs.mode, skipWait, announcement) { remain, mode, skip, line ->
-                RoundWait(remain, mode, skip, line)
+            val r = combine(inputs.remainSec, inputs.mode, skipWait, announcement, planVersion) { remain, mode, skip, line, v ->
+                RoundWait(remain, mode, skip, line, v)
             }.first { w ->
-                arrival(w.remain) ||
+                arrival(w.remain) || w.planVersion != version ||
                     (w.mode == GameMode.VOICE && (w.line != null || w.skip || first || w.remain == null || w.remain <= round.startAtRemainSec))
             }
-            if (arrival(r.remain)) break
+            if (arrival(r.remain)) return WaitEnd.ARRIVED
+            if (r.planVersion != version) return WaitEnd.PLAN_CHANGED
             // 판 사이에는 게임으로 말을 걸지 않지만, 졸음쉼터 도착·다시 출발 안내 한 줄은 바로 한다
             if (r.line != null) {
                 sayPendingAnnouncement()
@@ -363,10 +414,10 @@ class GameSession(
             if (r.skip || first || r.remain == null || r.remain <= round.startAtRemainSec) break
         }
         skipWait.value = false
-        return !arrival(inputs.remainSec.value)
+        return if (arrival(inputs.remainSec.value)) WaitEnd.ARRIVED else WaitEnd.START
     }
 
-    private data class RoundWait(val remain: Int?, val mode: GameMode, val skip: Boolean, val line: Announcement?)
+    private data class RoundWait(val remain: Int?, val mode: GameMode, val skip: Boolean, val line: Announcement?, val planVersion: Int)
 
     /** VOICE 가 될 때까지 기다린다. 일시정지 중 정차(화면 게임 가능)·도착이면 false → 판 마무리 */
     private suspend fun awaitVoice(): Boolean {
@@ -508,6 +559,7 @@ class GameSession(
         chain = null
         pendingTurn = null
         callbacks.onVoiceRoundActive(false)
+        replanAfterRound()
         callbacks.log("round ${round.index + 1} end")
         callbacks.onSnapshot(snapshot(turnInRound = 0, nextRound = true))
     }
@@ -724,5 +776,8 @@ class GameSession(
         const val RESUME_DELAY_MS = 1_000L
 
         private val YES_NO_HINT = ListenHint(correctAnswer = "네", wrongAnswer = "아니요", forDriver = true, yesNo = true)
+
+        /** "한 판 더" 보너스 판의 문제 수 (데모 모드는 [SessionPlanner.DEMO_QUESTION_COUNT]) */
+        private const val BONUS_QUESTION_COUNT = 8
     }
 }

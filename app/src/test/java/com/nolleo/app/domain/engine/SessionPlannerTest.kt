@@ -173,4 +173,12 @@ class SessionPlannerTest {
         val text = SessionPlanner.previewText(250 * 60, plan) { "4시간 10분" }
         assertEquals("4시간 10분 → 5판 (판당 약 10분)", text)
     }
+
+    @Test
+    fun previewText_tooCloseToArrival_saysNoGame() {
+        // 남은 5분 이하면 세션이 시작하자마자 "곧 도착"으로 끝나므로 출발을 막는다 (홈 미리보기도 같은 문구)
+        val text = SessionPlanner.previewText(4 * 60, SessionPlanner.plan(4 * 60, GameChoice.QUIZ)) { "4분" }
+        assertEquals("4분 → ${SessionPlanner.TOO_CLOSE_MESSAGE}", text)
+        assertEquals("6분 → 짧은 판 1개", SessionPlanner.previewText(6 * 60, SessionPlanner.plan(6 * 60, GameChoice.QUIZ)) { "6분" })
+    }
 }

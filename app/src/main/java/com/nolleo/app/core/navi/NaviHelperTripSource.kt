@@ -64,7 +64,7 @@ class NaviHelperTripSource(context: Context) : TripSource {
     private val _activeNaviDestination = MutableStateFlow<TripSnapshot?>(null)
     val activeNaviDestination: StateFlow<TripSnapshot?> = _activeNaviDestination.asStateFlow()
 
-    /** 마지막으로 받은 이벤트 시각(ms, elapsedRealtime 기준이 아니라 단순 카운터 용도) — 디버그 표시용 */
+    /** 마지막으로 받은 이벤트 이름 — 디버그 패널 표시용 */
     private val _lastEventLabel = MutableStateFlow<String?>(null)
     val lastEventLabel: StateFlow<String?> = _lastEventLabel.asStateFlow()
 
@@ -161,7 +161,10 @@ class NaviHelperTripSource(context: Context) : TripSource {
             val stops = tbtInfoList.takeIf { it.isNotEmpty() }
                 ?.let { list -> RouteRestStops.fromTbt(list.map { TbtItem(it.type.name, it.distance, it.description) }) }
             tbtStops = stops
-            remainAtTbt = _snapshot.value?.remainDistanceM
+            // 기준은 지금의 남은 거리여야 한다 — 마지막으로 받은 값은 최대 30초 전·재탐색 전 경로의 값일 수 있다.
+            // 비워 두고 바로 다시 조회하면 다음 onDestinationInfo 가 그 값으로 기준을 잡는다 (currentRestStops)
+            remainAtTbt = null
+            refresh()
             AppLog.i(
                 TAG,
                 "onTBTInfo ${tbtInfoList.size}개 · 경로 위 휴게소 ${stops?.count { it.kind == RestStopKind.SERVICE_AREA } ?: 0}곳 · " +
@@ -212,6 +215,12 @@ class NaviHelperTripSource(context: Context) : TripSource {
 
         override fun onRouteStateInfo(routeStateInfo: RouteStateInfo) {
             AppLog.i(TAG, "onRouteStateInfo isRouting=${routeStateInfo.isRouting} mode=${routeStateInfo.naviMode}")
+            // 앱보다 먼저 시작한 길 안내는 상태가 바뀔 때 오는 onNavigationStatus 를 받지 못해 상태가 비어 있다 →
+            // 연결 때 조회한 경로 상태로 채운다 (그래야 30초 주기 남은 시간 조회가 돈다)
+            if (_naviStatus.value == null && routeStateInfo.isRouting) {
+                _naviStatus.value = NaviStatus.ROUTE_DRIVE
+                _snapshot.update { it?.copy(navStatus = NaviStatus.ROUTE_DRIVE) }
+            }
             // TODO(phase2): routeStateInfo.trafficStatus (TrafficCongestionType.HEAVY) → 정체 구간 자동 일시정지
         }
 

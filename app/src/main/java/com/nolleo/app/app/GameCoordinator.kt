@@ -305,6 +305,11 @@ class GameCoordinator(private val c: AppContainer) {
             _message.value = "목적지를 먼저 골라 주세요."
             return
         }
+        // 남은 시간이 도착 여유(5분) 이하면 출발하자마자 "곧 도착"으로 끝난다
+        if (preview.remainSec <= SessionPlanner.END_BUFFER_SEC) {
+            _message.value = SessionPlanner.TOO_CLOSE_MESSAGE
+            return
+        }
         // 내비 목적지를 골랐어도 그 사이 길 안내가 끝났으면 프리셋으로 간다 (planPreview 와 같은 기준)
         val useNavi = h.useNaviRoute && c.naviTrip.activeNaviDestination.value?.remainTimeSec != null
         val preset = DestinationPreset.byId(h.presetId)
@@ -496,6 +501,8 @@ class GameCoordinator(private val c: AppContainer) {
         _stage1CardVisible.value = false
         restCare.clear()
         resetTbtPause()
+        // 세션 중에는 내비 상태 변화를 홈에 반영하지 않았다 → 끝난 지금 맞춘다 (길 안내가 끝났으면 프리셋으로; 새로 고르지는 않는다)
+        _home.update { it.withNaviRoute(c.naviTrip.activeNaviDestination.value != null, autoSelect = false) }
     }
 
     /**

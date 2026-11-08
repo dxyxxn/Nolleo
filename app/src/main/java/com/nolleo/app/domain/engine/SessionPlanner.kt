@@ -132,8 +132,12 @@ object SessionPlanner {
         GameChoice.ALTERNATE -> if (index % 2 == 0) GameKind.REGION_QUIZ else GameKind.WORD_CHAIN
     }
 
+    /** 남은 시간이 [END_BUFFER_SEC] 이하일 때 — 세션은 이 시간을 도착으로 보고 바로 끝내므로 시작하지 않는다 */
+    const val TOO_CLOSE_MESSAGE = "곧 도착이라 게임을 시작하지 않아요"
+
     /** 홈 화면 미리보기 문구: "4시간 10분 → 5판" */
     fun previewText(remainSec: Int, plan: SessionPlan, format: (Int) -> String): String {
+        if (remainSec <= END_BUFFER_SEC) return "${format(remainSec)} → $TOO_CLOSE_MESSAGE"
         val rounds = plan.roundCount
         val minutes = plan.rounds.firstOrNull()?.targetDurationSec?.div(60) ?: 0
         val short = plan.rounds.firstOrNull()?.isShort == true

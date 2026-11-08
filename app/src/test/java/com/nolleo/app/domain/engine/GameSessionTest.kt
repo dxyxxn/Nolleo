@@ -439,6 +439,64 @@ class GameSessionTest {
         job.cancel()
     }
 
+    private val twoRounds = SessionPlan(
+        listOf(RoundPlan(0, GameKind.REGION_QUIZ, 360, 2, 3 * 3600), RoundPlan(1, GameKind.REGION_QUIZ, 360, 2, 3600)),
+        basisRemainSec = 3 * 3600,
+    )
+
+    @Test
+    fun replanWhileResting_waitsForTheNewPlansRound() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val s = session(env, speech, Recorder(), listOf(driver), twoRounds)
+        val job = launch { s.run() }
+        advanceTimeBy(60_000)
+        assertEquals("1판 뒤 쉬는 시간 (2판은 남은 1시간에 시작할 계획)", SessionPhase.RESTING, s.state.value.phase)
+        env.remain.value = 2 * 3600 // 정체가 풀려 남은 시간이 크게 줄었다
+        s.onTripUpdate(2 * 3600, 1f)
+        advanceTimeBy(1_000)
+        env.remain.value = 2 * 3600 - 300 // 새 계획의 2판 시작 시점(남은 시간 - 2분)을 지남
+        advanceTimeBy(10_000)
+        assertTrue("옛 계획(남은 1시간)이 아니라 새 계획으로 2판을 시작한다", speech.spoken.any { it.startsWith("2번째 판") })
+        job.cancel()
+    }
+
+    @Test
+    fun replanWhenAllDone_startsTheAddedRounds() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val s = session(env, speech, Recorder(), listOf(driver), plan(GameKind.REGION_QUIZ, 2))
+        val job = launch { s.run() }
+        advanceTimeBy(60_000)
+        assertEquals(SessionPhase.ALL_DONE, s.state.value.phase)
+        env.remain.value = 6 * 3600 // 휴게소에서 오래 쉬어 남은 시간이 늘었다
+        s.onTripUpdate(6 * 3600, 1f)
+        advanceTimeBy(1_000)
+        env.remain.value = 6 * 3600 - 300
+        advanceTimeBy(10_000)
+        assertTrue("늘어난 시간에 더해진 판을 시작한다", speech.spoken.any { it.startsWith("2번째 판") })
+        job.cancel()
+    }
+
+    @Test
+    fun replanDuringRound_keepsRestAfterTheRoundEnds() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val s = session(env, speech, Recorder(), listOf(driver), plan(GameKind.REGION_QUIZ, 4))
+        val job = launch { s.run() }
+        advanceTimeBy(3_000) // 1판 진행 중
+        env.remain.value = 6 * 3600
+        s.onTripUpdate(6 * 3600, 1f) // 판 진행 중 다시 계획 → 새 첫 판 시작 = 지금 남은 시간 - 2분
+        env.remain.value = 6 * 3600 - 200 // 판이 끝나기 전에 그 시점을 지남
+        advanceTimeBy(30_000)
+        assertEquals("판이 끝나자마자 다음 판을 잇지 않고 쉰다", SessionPhase.RESTING, s.state.value.phase)
+        assertTrue(speech.spoken.none { it.startsWith("2번째 판") })
+        env.remain.value = 6 * 3600 - 200 - 300 // 판이 끝난 때부터 2분 넘게 지남
+        advanceTimeBy(10_000)
+        assertTrue(speech.spoken.any { it.startsWith("2번째 판") })
+        job.cancel()
+    }
+
     @Test
     fun parkingMidRound_wrapsUpRound() = runTest {
         val env = Env(this)
