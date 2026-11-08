@@ -24,6 +24,8 @@ data class HomeState(
     val driverId: Int = 1,
     val passengerCount: Int = 1,
     val choice: GameChoice = GameChoice.ALTERNATE,
+    /** "랜덤"의 판별 게임 순서 씨앗 — 랜덤을 누를 때마다 새로 (미리보기와 출발이 같은 순서) */
+    val gameSeed: Long = 0L,
     /** 판 간격 (여유 있게 / 자주 / 쉬지 않고) */
     val pacing: RoundPacing = RoundPacing.RELAXED,
 ) {

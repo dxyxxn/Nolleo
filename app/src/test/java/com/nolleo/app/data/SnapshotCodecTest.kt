@@ -106,6 +106,15 @@ class SnapshotCodecTest {
     }
 
     @Test
+    fun randomPlanSeed_roundTrips_andOldPlanReadsAsZero() {
+        val snap = minimal(SessionPlanner.plan(3 * 3600, GameChoice.RANDOM, gameSeed = 7L)).copy(choice = GameChoice.RANDOM)
+        assertEquals(snap, SnapshotCodec.decode(SnapshotCodec.encode(snap)))
+        val json = JSONObject(SnapshotCodec.encode(snap))
+        json.getJSONObject("plan").remove("gameSeed")
+        assertEquals(0L, SnapshotCodec.decode(json.toString())?.plan?.gameSeed)
+    }
+
+    @Test
     fun brokenJson_decodesToNull() {
         assertNull(SnapshotCodec.decode("{not json"))
         assertNull(SnapshotCodec.decodeBaseline("[]"))

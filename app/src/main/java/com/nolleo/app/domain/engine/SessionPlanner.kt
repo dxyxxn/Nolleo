@@ -7,6 +7,7 @@ import com.nolleo.app.domain.model.RoundPlan
 import com.nolleo.app.domain.model.SessionPlan
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.random.Random
 
 /**
  * 남은 이동 시간 → 오늘의 게임 구성 (세션 플랜).
@@ -32,19 +33,20 @@ object SessionPlanner {
         choice: GameChoice,
         demo: Boolean = false,
         pacing: RoundPacing = RoundPacing.RELAXED,
+        gameSeed: Long = 0L,
     ): SessionPlan {
         if (remainSec < SHORT_TRIP_SEC) {
             val duration = (remainSec - END_BUFFER_SEC).coerceIn(120, MIN_ROUND_SEC)
             val count = if (demo) DEMO_QUESTION_COUNT else (duration / SEC_PER_QUESTION).coerceIn(3, 6)
             val round = RoundPlan(
                 index = 0,
-                game = gameFor(0, choice),
+                game = gameFor(0, choice, gameSeed),
                 targetDurationSec = duration,
                 questionCount = count,
                 startAtRemainSec = remainSec,
                 isShort = true,
             )
-            return SessionPlan(listOf(round), basisRemainSec = remainSec, pacing = pacing)
+            return SessionPlan(listOf(round), basisRemainSec = remainSec, pacing = pacing, gameSeed = gameSeed)
         }
         val available = remainSec - END_BUFFER_SEC
         val n = (available.toDouble() / pacing.slotSec).roundToInt().coerceAtLeast(1)
@@ -56,13 +58,13 @@ object SessionPlanner {
         val rounds = (0 until n).map { i ->
             RoundPlan(
                 index = i,
-                game = gameFor(i, choice),
+                game = gameFor(i, choice, gameSeed),
                 targetDurationSec = duration,
                 questionCount = count,
                 startAtRemainSec = remainSec - i * slot,
             )
         }
-        return SessionPlan(rounds, basisRemainSec = remainSec, pacing = pacing)
+        return SessionPlan(rounds, basisRemainSec = remainSec, pacing = pacing, gameSeed = gameSeed)
     }
 
     /** 판 시작 간격(slot) 안에서 판 길이: 여유 있게 1/4, 자주 1/2, 쉬지 않고 = 최소 휴지만 남김 (6~10분으로 제한) */
@@ -99,7 +101,7 @@ object SessionPlanner {
         val pacing = plan.pacing
         val kept = plan.rounds.take(keepCount)
         val usable = actualRemainSec - END_BUFFER_SEC - MIN_GAP_SEC
-        if (usable < MIN_ROUND_SEC) return SessionPlan(kept, basisRemainSec = actualRemainSec, pacing = pacing)
+        if (usable < MIN_ROUND_SEC) return SessionPlan(kept, basisRemainSec = actualRemainSec, pacing = pacing, gameSeed = plan.gameSeed)
         val n = (usable.toDouble() / pacing.slotSec).roundToInt().coerceAtLeast(1)
         val slot = usable / n
         val duration = roundDuration(slot, pacing).coerceAtMost(slot)
@@ -108,13 +110,13 @@ object SessionPlanner {
             val index = keepCount + j
             RoundPlan(
                 index = index,
-                game = gameFor(index, choice),
+                game = gameFor(index, choice, plan.gameSeed),
                 targetDurationSec = duration,
                 questionCount = count,
                 startAtRemainSec = actualRemainSec - MIN_GAP_SEC - j * slot,
             )
         }
-        return SessionPlan(kept + fresh, basisRemainSec = actualRemainSec, pacing = pacing)
+        return SessionPlan(kept + fresh, basisRemainSec = actualRemainSec, pacing = pacing, gameSeed = plan.gameSeed)
     }
 
     /**
@@ -126,10 +128,29 @@ object SessionPlanner {
         return (remainSec.toLong() - startAtRemainSec.toLong()).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
     }
 
-    fun gameFor(index: Int, choice: GameChoice): GameKind = when (choice) {
+    fun gameFor(index: Int, choice: GameChoice, gameSeed: Long = 0L): GameKind = when (choice) {
         GameChoice.QUIZ -> GameKind.REGION_QUIZ
         GameChoice.WORD_CHAIN -> GameKind.WORD_CHAIN
         GameChoice.ALTERNATE -> if (index % 2 == 0) GameKind.REGION_QUIZ else GameKind.WORD_CHAIN
+        GameChoice.RANDOM -> randomGames(gameSeed, index + 1)[index]
+    }
+
+    /**
+     * "랜덤" 게임 순서: 씨앗이 같으면 늘 같은 순서(미리보기·출발·다시 짜기·이어서 하기가 같은 게임). 판마다 반반으로 고르되
+     * 같은 게임이 이미 두 판 이어졌으면 다른 게임으로 — 한쪽만 계속 나오지 않게.
+     */
+    fun randomGames(gameSeed: Long, count: Int): List<GameKind> {
+        val r = Random(gameSeed)
+        val games = ArrayList<GameKind>(count)
+        repeat(count) { i ->
+            val twoInARow = i >= 2 && games[i - 1] == games[i - 2]
+            games += when {
+                twoInARow -> if (games[i - 1] == GameKind.REGION_QUIZ) GameKind.WORD_CHAIN else GameKind.REGION_QUIZ
+                r.nextBoolean() -> GameKind.REGION_QUIZ
+                else -> GameKind.WORD_CHAIN
+            }
+        }
+        return games
     }
 
     /** 남은 시간이 [END_BUFFER_SEC] 이하일 때 — 세션은 이 시간을 도착으로 보고 바로 끝내므로 시작하지 않는다 */

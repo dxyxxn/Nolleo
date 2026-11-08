@@ -174,7 +174,7 @@ class GameCoordinator(private val c: AppContainer) {
     /** 홈 화면 플랜 미리보기 ("4시간 10분 → 5판"). 최근 목적지의 예상 시간을 아직 모르면 null */
     val planPreview: StateFlow<PlanPreview?> = combine(_home, destinationOptions, _settings) { h, options, s ->
         val (remain, name) = h.timeAndName(options) ?: return@combine null
-        val plan = SessionPlanner.plan(remain, h.choice, s.demoMode, h.pacing)
+        val plan = SessionPlanner.plan(remain, h.choice, s.demoMode, h.pacing, h.gameSeed)
         PlanPreview(SessionPlanner.previewText(remain, plan, TripUnits::formatDuration), plan, remain, name)
     }.stateIn(scope, SharingStarted.Eagerly, null)
 
@@ -223,6 +223,7 @@ class GameCoordinator(private val c: AppContainer) {
                 driverId = s.lastDriverId,
                 passengerCount = s.lastPassengerCount.coerceIn(0, 3),
                 choice = s.lastChoice,
+                gameSeed = kotlin.random.Random.nextLong(),
                 pacing = s.lastPacing,
             ).withRouteAppeared(destinationOptions.value.route != null)
             c.content.load()
@@ -284,7 +285,10 @@ class GameCoordinator(private val c: AppContainer) {
     fun selectTimer(minutes: Int) = _home.update { it.copy(destination = DestinationChoice.Timer, timerMinutes = minutes) }
     fun selectDriver(id: Int) = _home.update { it.copy(driverId = id) }
     fun setPassengers(count: Int) = _home.update { it.copy(passengerCount = count.coerceIn(0, 3)) }
-    fun selectChoice(choice: GameChoice) = _home.update { it.copy(choice = choice) }
+    /** "랜덤"을 누르면(다시 눌러도) 판별 게임 순서를 새로 섞는다 */
+    fun selectChoice(choice: GameChoice) = _home.update {
+        it.copy(choice = choice, gameSeed = if (choice == GameChoice.RANDOM) kotlin.random.Random.nextLong() else it.gameSeed)
+    }
     fun selectPacing(pacing: RoundPacing) = _home.update { it.copy(pacing = pacing) }
     fun dismissMessage() {
         _message.value = null

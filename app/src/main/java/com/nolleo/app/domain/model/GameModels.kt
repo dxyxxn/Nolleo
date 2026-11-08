@@ -10,6 +10,9 @@ enum class GameChoice(val label: String) {
     QUIZ("지역 퀴즈"),
     WORD_CHAIN("끝말잇기"),
     ALTERNATE("번갈아"),
+
+    /** 판마다 지역 퀴즈·끝말잇기 중 무작위 — 같은 게임이 세 판 넘게 이어지지 않는다 ([SessionPlan.gameSeed]) */
+    RANDOM("랜덤"),
 }
 
 /**
@@ -59,6 +62,8 @@ data class SessionPlan(
     val basisRemainSec: Int,
     /** 판 간격 — 남은 시간이 바뀌어 다시 짤 때도 같은 간격을 쓴다 */
     val pacing: RoundPacing = RoundPacing.RELAXED,
+    /** "랜덤" 게임 순서의 씨앗 — 다시 짜거나 이어서 해도 판 번호별 게임이 그대로다 */
+    val gameSeed: Long = 0L,
 ) {
     val roundCount: Int get() = rounds.size
 }

@@ -351,7 +351,7 @@ class GameSession(
         val count = if (demo) SessionPlanner.DEMO_QUESTION_COUNT else BONUS_QUESTION_COUNT
         val bonus = RoundPlan(
             index = plan.roundCount,
-            game = SessionPlanner.gameFor(plan.roundCount, choice),
+            game = SessionPlanner.gameFor(plan.roundCount, choice, plan.gameSeed),
             targetDurationSec = count * SessionPlanner.SEC_PER_QUESTION,
             questionCount = count,
             startAtRemainSec = Int.MAX_VALUE,

@@ -123,6 +123,7 @@ object SnapshotCodec {
     private fun encodePlan(p: SessionPlan) = JSONObject().apply {
         put("basis", p.basisRemainSec)
         put("pacing", p.pacing.name)
+        put("gameSeed", p.gameSeed)
         put("rounds", JSONArray(p.rounds.map { r ->
             JSONObject().put("index", r.index).put("game", r.game.name).put("duration", r.targetDurationSec)
                 .put("count", r.questionCount).put("startAt", r.startAtRemainSec).put("short", r.isShort)
@@ -144,7 +145,8 @@ object SnapshotCodec {
         }
         // pacing 이 없는 이전 저장본은 기본 간격(여유 있게)으로 읽는다
         val pacing = runCatching { RoundPacing.valueOf(o.getString("pacing")) }.getOrDefault(RoundPacing.RELAXED)
-        return SessionPlan(rounds, o.getInt("basis"), pacing)
+        // gameSeed 가 없는 저장본(11/8 저녁 전)은 0 — "랜덤"이 생기기 전이라 쓰이지 않는다
+        return SessionPlan(rounds, o.getInt("basis"), pacing, o.optLong("gameSeed", 0L))
     }
 
     private fun encodeSample(s: ResponseSample) = JSONObject()

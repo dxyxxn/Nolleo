@@ -11,6 +11,19 @@ import org.junit.Test
 class SessionPlannerTest {
 
     @Test
+    fun randomChoice_sameSeedSameGames_bothKinds_neverThreeInARow() {
+        val plan = SessionPlanner.plan(10 * 3600, GameChoice.RANDOM, pacing = RoundPacing.OFTEN, gameSeed = 42L)
+        val games = plan.rounds.map { it.game }
+        assertEquals(games, SessionPlanner.plan(10 * 3600, GameChoice.RANDOM, pacing = RoundPacing.OFTEN, gameSeed = 42L).rounds.map { it.game })
+        assertTrue(GameKind.REGION_QUIZ in games && GameKind.WORD_CHAIN in games)
+        assertTrue(games.windowed(3).none { w -> w.toSet().size == 1 })
+        // 다시 짜도 판 번호별 게임은 같은 순서를 따른다
+        val replanned = SessionPlanner.replanRemaining(plan, keepCount = 2, actualRemainSec = 12 * 3600, choice = GameChoice.RANDOM)
+        assertEquals(SessionPlanner.randomGames(42L, replanned.roundCount), replanned.rounds.map { it.game })
+        assertEquals(42L, replanned.gameSeed)
+    }
+
+    @Test
     fun fourHours_givesFiveRounds() {
         val plan = SessionPlanner.plan(4 * 3600, GameChoice.QUIZ)
         assertEquals(5, plan.roundCount)
