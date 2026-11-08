@@ -1,6 +1,7 @@
 package com.nolleo.app.app
 
 import android.app.Application
+import android.content.Intent
 import com.nolleo.app.BuildConfig
 import com.nolleo.app.core.Clock
 import com.nolleo.app.core.SystemClockSource
@@ -102,6 +103,17 @@ class AppContainer(val application: Application) {
         tripRepository.setForeground(foreground)
         if (foreground) locationRepository.start() else locationRepository.pause()
         if (foreground) speechRouter.recoverUnavailableEngines()
+    }
+
+    /**
+     * 놀레오를 다시 앞으로 — 최근 목적지로 출발해 순정 내비가 앱 영역 전체를 덮은 뒤, 길 안내가 시작되면 부른다(GameCoordinator).
+     * 에뮬레이터(11/8)에서는 시스템이 "Background activity launch blocked(BAL_BLOCK)"를 남기면서도 이미 있는 놀레오 작업에
+     * 인텐트를 전하고(onNewIntent → onRestart → onStart) 다시 앞으로 보였다. 실차에서 막히면 아무 일도 없다(크래시 없음).
+     */
+    fun bringToFront() {
+        val intent = Intent(application, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+        runCatching { application.startActivity(intent) }.onFailure { AppLog.w("App", "bringToFront failed", it) }
     }
 
     /** 액티비티가 실제로 종료(finish)될 때만 SDK 를 해제한다 (Back 은 moveTaskToBack 이라 해당 없음). */

@@ -128,6 +128,12 @@ class GameCoordinator(private val c: AppContainer) {
     private var backgroundInterrupted = false
     private var activeDriverId: Int = 1
 
+    /** 놀레오 화면이 보이는 중 (onStart ~ onStop) */
+    private var visible = false
+
+    /** 최근 목적지로 출발한 시각 — 내비가 놀레오를 덮었으면 길 안내가 시작될 때 다시 앞으로 온다 ([returnAfterRouteStarted]) */
+    private var placeStartedAtMs: Long? = null
+
     // ── GameSession 입력 ─────────────────────────────────────────
     val gameMode: StateFlow<GameMode> = mode.decision.map { it.mode }.stateIn(scope, SharingStarted.Eagerly, GameMode.IDLE)
     private val screenAvailable = mode.decision.map { it.screenAvailable }.stateIn(scope, SharingStarted.Eagerly, false)
@@ -322,6 +328,7 @@ class GameCoordinator(private val c: AppContainer) {
             val baseline = c.preferences.loadBaseline(h.driverId)
                 ?: if (demo) DEMO_BASELINE.also { AppLog.i(TAG, "demo: seeded driver baseline ${it.latencyEmaMs.toLong()}ms") } else null
             arrived.value = false
+            placeStartedAtMs = if (target is TripTarget.Place) c.clock.elapsedMs() else null
             c.tripRepository.begin(target)
             val session = GameSession(
                 speech = speechPort,
@@ -666,9 +673,24 @@ class GameCoordinator(private val c: AppContainer) {
                 }
                 is TripEvent.Error -> AppLog.w(TAG, "trip error ${e.reason}")
                 TripEvent.Cancelled -> AppLog.i(TAG, "route cancelled in navi — 게임은 계속")
-                is TripEvent.RouteStarted -> Unit
+                is TripEvent.RouteStarted -> returnAfterRouteStarted()
             }
         }.launchIn(scope)
+    }
+
+    /**
+     * 최근 목적지로 출발하면 순정 내비가 앞으로 나온다. 놀레오가 앱 영역 전체를 쓰고 있었으면 내비가 전체를 덮어 게임이
+     * 사라지므로, 길 안내가 시작되면(onRouteStarted) 놀레오를 다시 앞으로 부른다(11/8 사용자 결정). 앱이 3분할을 만들 수는 없다
+     * (LAUNCH_ADJACENT·launch bounds 무시, 세로 요청은 레터박스 — 11/8 확인). 이미 3분할이면 내비가 자기 창에서 안내하고
+     * 놀레오는 계속 보이므로 부르지 않는다.
+     */
+    private fun returnAfterRouteStarted() {
+        val since = placeStartedAtMs ?: return
+        placeStartedAtMs = null
+        if (visible || _session.value == null) return
+        if (c.clock.elapsedMs() - since > RETURN_AFTER_ROUTE_MS) return
+        AppLog.i(TAG, "내비 길 안내 시작 → 놀레오를 다시 앞으로")
+        c.bringToFront()
     }
 
     /**
@@ -737,6 +759,7 @@ class GameCoordinator(private val c: AppContainer) {
     // ── 생명주기 ────────────────────────────────────────────────
 
     fun onBackground() {
+        visible = false
         stopScreenQuizzes("background")
         val s = _session.value ?: return
         val phase = sessionState.value?.phase
@@ -766,6 +789,7 @@ class GameCoordinator(private val c: AppContainer) {
     }
 
     fun onForeground() {
+        visible = true
         if (PauseReason.BACKGROUND in mode.pauseReasons.value && !backgroundInterrupted) {
             // 진행 중이던 발화가 없었다면(쉬는 시간 등) 그대로 이어 간다. 끊긴 발화는 사용자가 "계속"을 눌러야 재개.
             mode.removePause(PauseReason.BACKGROUND)
@@ -834,6 +858,9 @@ class GameCoordinator(private val c: AppContainer) {
         private const val TBT_RESUME_HOLD_MS = 3_000L
         private const val TBT_STALE_MS = 20_000L
         private const val RESTORE_MAX_AGE_MS = 12 * 60 * 60 * 1000L
+
+        /** 최근 목적지로 출발한 뒤 이 시간 안에 길 안내가 시작될 때만 놀레오를 다시 앞으로 부른다 (늦게 오면 사용자가 이미 다른 화면을 보는 중일 수 있음) */
+        private const val RETURN_AFTER_ROUTE_MS = 30_000L
 
         /** 데모 모드에서 기준값이 없을 때 넣는 평소 응답 시간 */
         val DEMO_BASELINE = DriverBaseline(latencyEmaMs = 1_500.0, accuracyEma = 0.9, sampleCount = 0)
