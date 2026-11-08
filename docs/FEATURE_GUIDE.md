@@ -2,7 +2,7 @@
 
 > 대상: 팀원·심사위원·처음 보는 개발자. **Pleos Connect Emulator** 에서 놀레오의 기능이 실제로 동작하는지, 무엇을 누르고 무엇을 보면 되는지를 기능별로 정리했다.
 > 기준: release APK `apk/돈도아연_놀레오_release.apk` (v1.0.0), 2026-11-07~08 에뮬레이터에서 직접 확인한 절차와 결과만 적었다(확인하지 못한 것은 그렇다고 적었다).
-> 3분 시연 순서는 [`DEMO_SCENARIO.md`](DEMO_SCENARIO.md), 설치·SDK 표는 [`../README.md`](../README.md).
+> 시연 영상 시나리오(장면별 촬영 → 편집)는 [`DEMO_SCENARIO.md`](DEMO_SCENARIO.md), 설치·SDK 표는 [`../README.md`](../README.md).
 
 표시: **[실제]** Pleos/AAOS SDK 가 에뮬레이터에서 실제로 동작 · **[시뮬]** 에뮬레이터가 못 하는 부분(차 이동·마이크)을 앱의 시뮬레이션으로 채움 · **[불가]** 에뮬레이터에서 확인할 수 없음
 

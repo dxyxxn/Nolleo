@@ -41,7 +41,7 @@ Where things go (the docs are in Korean; write in the same plain style):
 |---|---|
 | `README.md` | app intro, how to run, test environment/settings, APK location, SDK usage table (§4), architecture tree (§5), test count (§6), content licences, docs list (§7) change |
 | `docs/FEATURE_GUIDE.md` | a feature's behaviour changes: what it does, emulator steps, expected screen/voice/log output, log tags (§12), what can't be verified (§13), troubleshooting (§14). Keep the table of contents and anchors valid |
-| `docs/DEMO_SCENARIO.md` | the 3-minute demo flow, on-screen/TTS wording, timing, or pre-recording checklist changes |
+| `docs/DEMO_SCENARIO.md` | the demo-video scenario changes (per-scene clips edited into ~3 min): scene list and caption script, clip settings and steps, on-screen/TTS wording, timings, editing guide, pre-recording checklist |
 | `docs/WORK_STATUS.md` | always, for any change: a milestone row (commit hash), a numbered section with what changed and why, decisions (§1.4), doc-vs-reality findings (§1.5), emulator verification results and DoD numbers (lint errors/warnings, test count), and remaining work (§2). It is **one file updated in place** — never create per-date files. The user edits it concurrently, so re-read it right before editing |
 | `docs/PHASE2_NOTES.md` | a follow-up idea comes up, or a phase-2 item is implemented — then **remove** it (the file lists only unimplemented work; first make sure FEATURE_GUIDE/WORK_STATUS cover what was built) |
 | `docs/CONTENT_SOURCES.md` | any asset/data file is added, edited or removed: source, licence, transformation steps, counts, data quirks |

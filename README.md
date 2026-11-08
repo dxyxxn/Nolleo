@@ -58,7 +58,7 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 7. **3분할**: 화면 오른쪽 끝 창 막대(⋮)를 끌어 내비와 나란히 놓으면, 놀레오가 스스로 맨 오른쪽(조수석 쪽)으로 옮겨 `Driving view | 내비 | 놀레오` 가 됩니다. — §10
 8. 왼쪽 위 로고·제목 **"Nolleo"를 길게 누르면 디버그 패널**(DEV): 입력 소스 강제 선택, 시뮬레이션 기어·속도·지역·남은 시간, 대본 응답, 졸음 지표·쉬어 갈 곳 미리보기·2단계 시험, 최근 로그. — §11
 
-위의 "§" 는 기능 사용설명서 [`docs/FEATURE_GUIDE.md`](docs/FEATURE_GUIDE.md) 의 절입니다(무엇을 누르고 무엇이 보이는지). 3분 시연 대본은 [`docs/DEMO_SCENARIO.md`](docs/DEMO_SCENARIO.md)에 있습니다.
+위의 "§" 는 기능 사용설명서 [`docs/FEATURE_GUIDE.md`](docs/FEATURE_GUIDE.md) 의 절입니다(무엇을 누르고 무엇이 보이는지). 시연 영상 시나리오(장면별로 찍어 편집하는 약 3분 영상 — 장면 구성·자막 대본·클립별 촬영 순서)는 [`docs/DEMO_SCENARIO.md`](docs/DEMO_SCENARIO.md)에 있습니다.
 
 ---
 
@@ -188,7 +188,7 @@ GameMode    IDLE(세션 없음) · VOICE(주행/정차/DO) · SCREEN(주차 && !
 ## 7. 문서
 - [`docs/README.md`](docs/README.md) — docs 폴더 안내 (각 문서가 무슨 내용인지)
 - [`docs/FEATURE_GUIDE.md`](docs/FEATURE_GUIDE.md) — 기능 사용설명서 (기능별로 에뮬레이터에서 확인하는 방법)
-- [`docs/DEMO_SCENARIO.md`](docs/DEMO_SCENARIO.md) — 3분 시연 대본
+- [`docs/DEMO_SCENARIO.md`](docs/DEMO_SCENARIO.md) — 시연 영상 시나리오(장면별 촬영 → 편집, 약 3분)
 - [`docs/PHASE2_NOTES.md`](docs/PHASE2_NOTES.md) — 2차(12/3 PT) 설계 메모(아직 구현하지 않은 것만)
 - [`docs/CONTENT_SOURCES.md`](docs/CONTENT_SOURCES.md) — 퀴즈·사자성어·사전·졸음쉼터·휴게소 자료 출처와 생성 방식
 - [`docs/WORK_STATUS.md`](docs/WORK_STATUS.md) — 작업 현황·결정 사항·남은 일 (한 파일을 계속 갱신)
