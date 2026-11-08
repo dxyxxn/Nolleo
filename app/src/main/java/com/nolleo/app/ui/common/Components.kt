@@ -157,7 +157,7 @@ fun <T> SegmentedControl(
             Box(
                 Modifier
                     .weight(1f)
-                    .heightIn(min = MinTouch - Sp.s)
+                    .heightIn(min = MinTouch)
                     .then(if (on) Modifier.shadow(2.dp, Radius.chip) else Modifier)
                     .background(if (on) c.segmentOn else Color.Transparent, Radius.chip)
                     .pressable({ onSelect(option) }, Radius.chip, enabled, Role.RadioButton)

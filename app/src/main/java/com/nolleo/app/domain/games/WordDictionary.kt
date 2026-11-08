@@ -117,10 +117,15 @@ class WordDictionary(playWords: Collection<String>, levels: Map<String, WordLeve
     fun pick(lastSyllable: Char, used: Set<String>, random: Random, difficultyCap: Int = 3): Pick {
         val all = continuations(lastSyllable).filter { it !in used }
         if (all.isEmpty()) return Pick.Nothing
-        val friendly = all.filter { w -> !isDeadEnd(w.last()) && continuations(w.last()).any { it !in used && it != w } }
+        val friendly = all.filter { canContinueAfter(it, used) }
         if (friendly.isEmpty()) return Pick.OnlyDeadEnds
         return Pick.Word(preferred(friendly, lastSyllable, difficultyCap).random(random))
     }
+
+    /** [word] 를 말한 뒤 다음 사람이 이을 수 있는가: 막다른 음절이 아니고, 안 쓴 이을 말이 남아 있다 */
+    private fun canContinueAfter(word: String, used: Set<String>): Boolean =
+        !isDeadEnd(word.last()) &&
+            Hangul.allowedStarts(word.last()).any { s -> byFirst[s].orEmpty().any { it !in used && it != word } }
 
     /**
      * 이어 말할 낱말 하나 (화면 끝말잇기 정답·대본 응답 힌트). [avoidDeadEnd] 면 막다른 말은 빼고,
@@ -141,12 +146,17 @@ class WordDictionary(playWords: Collection<String>, levels: Map<String, WordLeve
             .ifEmpty { candidates }
     }
 
-    /** 첫 낱말: [preferred] 중 잇기 쉬운 말, 없으면 난이도 상한 안의 아무 말 */
+    /**
+     * 첫 낱말(판 시작·막다른 말 뒤 다시 시작): 안 쓴 출제용 낱말 중 다음 사람이 이을 수 있는 말.
+     * 고르는 순서는 [pick] 과 같이 난이도 상한이 먼저다 — 상한 안의 [preferred] → 상한 안의 아무 말 → [preferred] → 아무 말.
+     */
     fun randomStarter(random: Random, preferred: List<String>, difficultyCap: Int = 3, exclude: Set<String> = emptySet()): String? {
-        val good = preferred.filter { it in play && it !in exclude && !isDeadEnd(it.last()) }
-        if (good.isNotEmpty()) return good.random(random)
-        val pool = play.filter { it !in exclude && !isDeadEnd(it.last()) }
-        return pool.filter { level(it).allowedAt(difficultyCap) }.ifEmpty { pool }.randomOrNull(random)
+        val usable = { w: String -> w !in exclude && canContinueAfter(w, exclude) }
+        val easy = { w: String -> level(w).allowedAt(difficultyCap) }
+        val starters = preferred.filter { it in play && usable(it) }
+        starters.filter(easy).randomOrNull(random)?.let { return it }
+        val pool = play.filter(usable)
+        return pool.filter(easy).ifEmpty { starters }.ifEmpty { pool }.randomOrNull(random)
     }
 
     /**

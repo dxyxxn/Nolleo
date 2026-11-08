@@ -42,7 +42,7 @@ class RestCareController(
         val suggestion: RestStopSuggestion?
 
         /** 2단계가 걸려 쉬어 가기를 권하는 중 (음성 질문 + 화면 버튼) */
-        data class Offered(val driverName: String, override val suggestion: RestStopSuggestion?) : State
+        data class Offered(override val suggestion: RestStopSuggestion?) : State
 
         /** 수락해서 쉼 장소로 가는 중 */
         data class Heading(override val suggestion: RestStopSuggestion, val alertRegistered: Boolean) : State
@@ -63,6 +63,9 @@ class RestCareController(
     var onRested: (() -> Unit)? = null
 
     private var alertId: String? = null
+
+    /** 지금 근접 알림 요청의 번호 — 지난 요청(취소·도착·다른 쉼 장소)의 늦은 등록·ENTER 를 거른다 */
+    private var alertRequest = 0
     private var sawParkedAfterArrival = false
     private var hideJob: Job? = null
 
@@ -173,10 +176,13 @@ class RestCareController(
         return m.point to heading
     }
 
-    fun offer(driverName: String, suggestion: RestStopSuggestion?) {
+    /** 이미 쉼 장소로 가는 중이면 그곳 (2단계가 다시 걸리면 새로 묻지 않고 가던 곳을 다시 알려 준다) */
+    val headingTo: RestStopSuggestion? get() = (_state.value as? State.Heading)?.suggestion
+
+    fun offer(suggestion: RestStopSuggestion?) {
         hideJob?.cancel()
         if (_state.value is State.Heading) return
-        _state.value = State.Offered(driverName, suggestion)
+        _state.value = State.Offered(suggestion)
     }
 
     /** 음성 질문의 결과 */
@@ -204,13 +210,15 @@ class RestCareController(
 
     private fun start(s: RestStopSuggestion) {
         hideJob?.cancel()
+        removeAlert() // 앞서 가던 쉼 장소의 알림이 남아 있으면 지운다
         nearTrigger = null
         val area = s.area
+        val request = alertRequest
         val alert = area != null && c.fusedLocation.addProximityAlert(
             center = area.point,
             radiusMeters = ARRIVE_RADIUS_M.toFloat(),
-            registered = { id -> scope.launch { alertId = id; AppLog.i(TAG, "proximity alert registered ($id)") } },
-            entered = { scope.launch { markNear("근접 알림 ENTER") } },
+            registered = { id -> scope.launch { onAlertRegistered(request, id) } },
+            entered = { scope.launch { onAlertEntered(request) } },
             failed = { e -> AppLog.w(TAG, "proximity alert error: ${e.message}") },
         )
         c.modeController.addPause(PauseReason.REST_STOP)
@@ -219,6 +227,21 @@ class RestCareController(
         AppLog.i(TAG, "rest stop accepted: ${s.kind.label} · ${s.source.label} · 근접 알림 ${if (alert) "요청" else "없음(좌표 없음 — 주차하면 도착)"}")
         // 에뮬레이터에서 도착을 시험할 때 붙여 쓰는 명령 (debug 빌드 logcat, 그리고 디버그 패널 "쉬어 가기 상태" 줄)
         AppLog.sensitive(TAG, "rest stop", "${s.name} ${s.distanceLabel}${area?.let { " · 도착 시험: adb emu geo fix ${it.longitude} ${it.latitude}" } ?: ""}")
+    }
+
+    private fun onAlertRegistered(request: Int, id: String) {
+        if (request == alertRequest) {
+            alertId = id
+            AppLog.i(TAG, "proximity alert registered ($id)")
+        } else {
+            // 등록이 끝나기 전에 취소·도착했거나 다른 쉼 장소로 바뀌었다 → 늦게 온 알림은 바로 지운다
+            c.fusedLocation.removeProximityAlert(id)
+            AppLog.i(TAG, "proximity alert registered late ($id) → removed")
+        }
+    }
+
+    private fun onAlertEntered(request: Int) {
+        if (request == alertRequest) markNear("근접 알림 ENTER") else AppLog.i(TAG, "ENTER from an old proximity alert → ignored")
     }
 
     /** 근처에 왔다 — 이미 서 있거나 주차 중이면 바로 도착, 아니면 서는 순간 도착 (옆을 지나가는 것과 구별) */
@@ -274,7 +297,9 @@ class RestCareController(
         _state.value = null
     }
 
+    /** 지금 알림을 지우고 요청 번호를 넘긴다 — 아직 오지 않은 등록·ENTER 콜백은 지난 요청이 된다 */
     private fun removeAlert() {
+        alertRequest++
         alertId?.let(c.fusedLocation::removeProximityAlert)
         alertId = null
     }

@@ -1,6 +1,5 @@
 package com.nolleo.app.domain.drowsy
 
-import com.nolleo.app.domain.model.DriveState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -9,7 +8,7 @@ import org.junit.Test
 class DrowsinessMonitorTest {
 
     private fun sample(latency: Long, correct: Boolean? = true) =
-        ResponseSample(latency, correct, difficulty = 2, atEpochMs = 0, driveState = DriveState.DRIVING)
+        ResponseSample(latency, correct)
 
     @Test
     fun calibration_firstFiveSamples_noAlerts() {
@@ -136,9 +135,33 @@ class DrowsinessMonitorTest {
     @Test
     fun restore_keepsWindowAndCooldown() {
         val m = DrowsinessMonitor(DriverBaseline(1500.0, 0.9, 10))
-        m.restore(listOf(sample(8000), sample(8000)), difficultyCap = 2, lastTriggerAtMs = 1_000, stage1Count = 1)
+        m.restore(DrowsinessMonitor.SavedState(listOf(sample(8000), sample(8000)), difficultyCap = 2, lastTriggerAtMs = 1_000, stage1Count = 1))
         assertEquals(2, m.difficultyCap)
         // 쿨다운 안: 세 번째 느린 응답이 와도 트리거 없음
         assertEquals(DrowsinessMonitor.Action.None, m.record(sample(8000), 2_000))
+    }
+
+    @Test
+    fun saveAndRestore_keepsStage2CooldownAndCounts() {
+        val m = DrowsinessMonitor(DriverBaseline(1500.0, 0.9, 10))
+        m.forceStage2(10_000)
+        val saved = m.saveState()
+        assertEquals(1, saved.stage2Count)
+        assertEquals(10_000L, saved.lastStage2AtMs)
+
+        val restored = DrowsinessMonitor(DriverBaseline(1500.0, 0.9, 10))
+        restored.restore(saved)
+        assertEquals(saved, restored.saveState())
+        // 2단계 쿨다운(20분) 안: 느리고 틀린 응답이 이어져도 2단계가 곧바로 다시 걸리지 않는다
+        val actions = (1..5).map { restored.record(sample(8000, correct = false), 20_000L + it * 1000) }
+        assertTrue(actions.none { it is DrowsinessMonitor.Action.Stage2 })
+    }
+
+    @Test
+    fun resetBaseline_recalibratesFromNextAnswers() {
+        val m = DrowsinessMonitor(DriverBaseline(1500.0, 0.9, 10))
+        m.resetBaseline()
+        assertTrue(m.snapshot().calibrating)
+        assertNull(m.currentBaseline)
     }
 }

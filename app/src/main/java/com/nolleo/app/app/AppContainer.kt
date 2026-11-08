@@ -99,6 +99,7 @@ class AppContainer(val application: Application) {
         aaosCar.setForeground(foreground)
         tripRepository.setForeground(foreground)
         if (foreground) locationRepository.start() else locationRepository.pause()
+        if (foreground) speechRouter.recoverUnavailableEngines()
     }
 
     /** 액티비티가 실제로 종료(finish)될 때만 SDK 를 해제한다 (Back 은 moveTaskToBack 이라 해당 없음). */

@@ -39,6 +39,12 @@ import com.nolleo.app.ui.theme.Sp
 @Composable
 fun SummaryScreen(container: AppContainer, summary: SessionSummary, modifier: Modifier = Modifier) {
     val content by container.content.content.collectAsStateWithLifecycle()
+    val ux by container.carRepository.ux.collectAsStateWithLifecycle()
+    // 주행 중(Distraction Optimization)에는 스크롤·카드 여러 장 대신 한눈에 읽는 3줄만 — 정차하면 전체 기록
+    if (ux.requiresDO) {
+        DrivingSummary(summary, onDone = container.coordinator::dismissSummary, modifier = modifier)
+        return
+    }
     val c = Nl.colors
     BoxWithConstraints(modifier.fillMaxSize()) {
         val wide = maxWidth > 1000.dp && maxWidth > maxHeight
@@ -47,7 +53,7 @@ fun SummaryScreen(container: AppContainer, summary: SessionSummary, modifier: Mo
             verticalArrangement = Arrangement.spacedBy(Sp.xl),
         ) {
             Column {
-                Text(if (summary.endedByUser) "여기까지 했어요" else "도착했어요", style = MaterialTheme.typography.headlineMedium, color = c.ink)
+                Text(summaryTitle(summary), style = MaterialTheme.typography.headlineMedium, color = c.ink)
                 Text(summary.destinationName, style = MaterialTheme.typography.bodyLarge, color = c.muted)
             }
             if (wide) {
@@ -76,6 +82,28 @@ fun SummaryScreen(container: AppContainer, summary: SessionSummary, modifier: Mo
         }
     }
 }
+
+/** 주행 중 요약: 제목 · 맞힌 수와 1등 한 줄 · 안내 한 줄 + "처음으로" (스크롤 없음) */
+@Composable
+private fun DrivingSummary(summary: SessionSummary, onDone: () -> Unit, modifier: Modifier) {
+    val c = Nl.colors
+    Column(modifier.fillMaxSize().padding(horizontal = Sp.xxl, vertical = Sp.xl), verticalArrangement = Arrangement.Center) {
+        NlCard(Modifier.fillMaxWidth(), spacing = Sp.l) {
+            Text(summaryTitle(summary), style = MaterialTheme.typography.headlineMedium, color = c.ink, maxLines = 1)
+            Text(
+                listOfNotNull("${summary.totalCorrect}번 맞혔어요", summary.winner?.let { "1등 ${it.name}" }).joinToString(" · "),
+                style = MaterialTheme.typography.titleLarge,
+                color = c.ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text("차를 세우면 오늘의 기록을 모두 보여 드려요", style = MaterialTheme.typography.bodyLarge, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            PrimaryButton("처음으로", onClick = onDone, modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+private fun summaryTitle(summary: SessionSummary) = if (summary.endedByUser) "여기까지 했어요" else "도착했어요"
 
 /** 오늘의 기록: 맞힌 수(크게) · 1등 · 함께한 게임 · 끝말잇기 최장 */
 @Composable

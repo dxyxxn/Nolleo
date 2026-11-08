@@ -1,15 +1,11 @@
 package com.nolleo.app.domain.drowsy
 
-import com.nolleo.app.domain.model.DriveState
 import kotlin.math.max
 
-/** 운전자 차례의 응답 1건. PAUSED 직후 첫 응답과 판 첫 문제(워밍업)는 호출자가 제외한다. */
+/** 운전자 차례의 응답 1건. PAUSED 직후 첫 응답·판 첫 문제(워밍업)·인식 오류는 호출자가 제외한다. */
 data class ResponseSample(
     val latencyMs: Long,
     val correct: Boolean?,
-    val difficulty: Int,
-    val atEpochMs: Long,
-    val driveState: DriveState,
 )
 
 /** 운전자 프로필별 기준값 (DataStore 저장, 과거 여정 누적) */
@@ -97,6 +93,10 @@ class DrowsinessMonitor(
 
     val currentBaseline: DriverBaseline? get() = baseline
 
+    /** 기준값을 만드는 응답 수 / 최근 응답 창 크기 (로그 표시용) */
+    val calibrationSamples: Int get() = config.calibrationSamples
+    val windowSize: Int get() = config.windowSize
+
     fun isSlow(latencyMs: Long, baselineMs: Double): Boolean =
         latencyMs > max(baselineMs * config.slowRatio, baselineMs + config.slowExtraMs)
 
@@ -150,7 +150,7 @@ class DrowsinessMonitor(
             lastTriggerAtMs = nowMs
             stage1Count++
             stage1Times.addLast(nowMs)
-            while (stage1Times.size > 4) stage1Times.removeFirst()
+            while (stage1Times.size > MAX_STAGE1_TIMES) stage1Times.removeFirst()
             difficultyCap = (difficultyCap - 1).coerceAtLeast(1)
             return Action.Stage1(difficultyCap)
         }
@@ -194,14 +194,51 @@ class DrowsinessMonitor(
         )
     }
 
-    /** 세션 복원용 */
-    fun restore(window: List<ResponseSample>, difficultyCap: Int, lastTriggerAtMs: Long?, stage1Count: Int) {
-        this.window.clear()
-        this.window.addAll(window.takeLast(config.windowSize))
-        this.difficultyCap = difficultyCap.coerceIn(1, config.maxDifficulty)
-        this.lastTriggerAtMs = lastTriggerAtMs
-        this.stage1Count = stage1Count
+    /** 디버그 "운전자 기준값 초기화": 다음 응답부터 다시 캘리브레이션한다 (응답 창·쿨다운은 그대로) */
+    fun resetBaseline() {
+        baseline = null
+        calibration.clear()
     }
 
-    val windowSamples: List<ResponseSample> get() = window.toList()
+    /**
+     * 이어서 하기용 저장 상태 — 판단에 쓰는 것 전부(기준값은 운전자 프로필에 따로 저장한다).
+     * 기본값은 이 필드가 생기기 전(v1) 저장본을 읽을 때 쓴다.
+     */
+    data class SavedState(
+        val window: List<ResponseSample>,
+        val difficultyCap: Int,
+        val lastTriggerAtMs: Long?,
+        val stage1Count: Int,
+        val stage1Times: List<Long> = emptyList(),
+        val stage2Count: Int = 0,
+        val lastStage2AtMs: Long? = null,
+    )
+
+    fun saveState(): SavedState = SavedState(
+        window = window.toList(),
+        difficultyCap = difficultyCap,
+        lastTriggerAtMs = lastTriggerAtMs,
+        stage1Count = stage1Count,
+        stage1Times = stage1Times.toList(),
+        stage2Count = stage2Count,
+        lastStage2AtMs = lastStage2AtMs,
+    )
+
+    /** 세션 복원 — 2단계 쿨다운·횟수까지 이어 간다 */
+    fun restore(s: SavedState) {
+        window.clear()
+        window.addAll(s.window.takeLast(config.windowSize))
+        difficultyCap = s.difficultyCap.coerceIn(1, config.maxDifficulty)
+        lastTriggerAtMs = s.lastTriggerAtMs
+        stage1Count = s.stage1Count
+        stage1Times.clear()
+        stage1Times.addAll(s.stage1Times.takeLast(MAX_STAGE1_TIMES))
+        stage2Count = s.stage2Count
+        lastStage2AtMs = s.lastStage2AtMs
+    }
+
+    private companion object {
+        /** 2단계 판단(15분 안에 1단계 두 번)에 필요한 만큼만 1단계 시각을 남긴다 */
+        const val MAX_STAGE1_TIMES = 4
+    }
 }

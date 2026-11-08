@@ -25,7 +25,7 @@ sealed interface SttEvent {
 
     data object Timeout : SttEvent
 
-    /** [fatal] = 이 엔진으로는 더 들을 수 없음(마이크·퍼미션·미지원) → 라우터가 폴백한다 */
+    /** [fatal] = 이 엔진으로는 더 들을 수 없음(마이크·퍼미션·미지원). 엔진이 상태를 Unavailable 로 내려 라우터가 다른 엔진을 고른다 */
     data class Error(val reason: String, val fatal: Boolean = false) : SttEvent
 }
 

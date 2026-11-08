@@ -36,6 +36,7 @@ import com.nolleo.app.domain.model.PauseReason
 import com.nolleo.app.domain.model.Player
 import com.nolleo.app.domain.model.RoundPacing
 import com.nolleo.app.domain.model.SessionPlan
+import com.nolleo.app.domain.model.TripSourceKind
 import com.nolleo.app.domain.rest.RestStopSuggestion
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -81,8 +82,6 @@ data class HomeState(
 
 data class PlanPreview(val text: String, val plan: SessionPlan, val remainSec: Int, val destinationName: String)
 
-data class Stage1Card(val driverName: String, val atWallMs: Long)
-
 /**
  * 앱 계층의 오케스트레이터: 홈 설정 → 세션 시작, 차량·내비·위치 SDK 입력을 GameSession 에 연결하고
  * 오디오 포커스·TBT 자동 일시정지·백그라운드·상태 저장을 처리한다.
@@ -112,8 +111,9 @@ class GameCoordinator(private val c: AppContainer) {
     private val _summary = MutableStateFlow<SessionSummary?>(null)
     val summary: StateFlow<SessionSummary?> = _summary.asStateFlow()
 
-    private val _stage1Card = MutableStateFlow<Stage1Card?>(null)
-    val stage1Card: StateFlow<Stage1Card?> = _stage1Card.asStateFlow()
+    /** 졸음 1단계 카드("잠깐 쉬어 갈까요?")를 보이는 중 — [STAGE1_CARD_MS] 뒤 저절로 닫힌다 */
+    private val _stage1CardVisible = MutableStateFlow(false)
+    val stage1CardVisible: StateFlow<Boolean> = _stage1CardVisible.asStateFlow()
 
     private val _restorable = MutableStateFlow<SessionSnapshot?>(null)
     val restorable: StateFlow<SessionSnapshot?> = _restorable.asStateFlow()
@@ -163,7 +163,6 @@ class GameCoordinator(private val c: AppContainer) {
         screenAvailable = screenAvailable,
         remainSec = remainSec,
         regionCode = c.locationRepository.regionCode,
-        driveState = driveState,
     )
 
     /** 홈 화면 플랜 미리보기 ("4시간 10분 → 5판") */
@@ -203,7 +202,15 @@ class GameCoordinator(private val c: AppContainer) {
         override fun markNewStream() = c.speechRouter.markNewStream()
     }
 
+    private var initialized = false
+
+    /**
+     * 앱 수명 동안 한 번만. 작업 제거 뒤 같은 프로세스에서 다시 열면 [AppContainer.start] 가 다시 불리지만,
+     * 아래 구독을 또 붙이면 포커스 손실·TBT 처리가 두 번씩 돈다 (SDK 초기화만 다시 한다).
+     */
     fun initialize() {
+        if (initialized) return
+        initialized = true
         scope.launch {
             val s = c.preferences.loadSettings()
             _settings.value = s
@@ -286,7 +293,7 @@ class GameCoordinator(private val c: AppContainer) {
     }
 
     fun startSession() {
-        if (_session.value != null) return
+        if (_session.value != null || starting) return
         val content = c.content.content.value
         val dictionary = c.content.dictionary.value
         if (content == null || dictionary == null) {
@@ -306,9 +313,8 @@ class GameCoordinator(private val c: AppContainer) {
         activeDriverId = h.driverId
         updateSettings { it.copy(lastPresetId = h.presetId ?: it.lastPresetId, lastDriverId = h.driverId, lastPassengerCount = h.passengerCount, lastChoice = h.choice, lastPacing = h.pacing) }
         c.scriptedSpeech.rewind()
-        // 끝말잇기 검증용 사전(약 19만 어)은 첫 판을 시작할 때 백그라운드에서 붙인다 — 세션 시작을 기다리게 하지 않는다
-        scope.launch { c.content.loadValidWords() }
-        scope.launch {
+        prepareSessionStart()
+        launchStart {
             val baseline = c.preferences.loadBaseline(h.driverId)
                 ?: if (demo) DEMO_BASELINE.also { AppLog.i(TAG, "demo: seeded driver baseline ${it.latencyEmaMs.toLong()}ms") } else null
             arrived.value = false
@@ -333,20 +339,47 @@ class GameCoordinator(private val c: AppContainer) {
         }
     }
 
+    /**
+     * 출발·이어서 하기를 눌러 세션을 만드는 중(기준값 읽기 등) — 그 사이 다시 눌러도 세션이 둘 생기지 않게 한다.
+     */
+    private var starting = false
+
+    private fun launchStart(block: suspend () -> Unit) {
+        starting = true
+        scope.launch {
+            try {
+                block()
+            } finally {
+                starting = false
+            }
+        }
+    }
+
+    /** 출발·이어서 하기 공통 준비 */
+    private fun prepareSessionStart() {
+        // 실패했던 음성 엔진은 새 세션에서 한 번 다시 초기화한다 (예: 마이크를 켜지 않은 채 생긴 MIC_ERROR)
+        c.speechRouter.recoverUnavailableEngines()
+        // 끝말잇기 검증용 사전(약 19만 어)은 첫 판을 시작할 때 백그라운드에서 붙인다 — 세션 시작을 기다리게 하지 않는다
+        scope.launch { c.content.loadValidWords() }
+    }
+
     fun resumeSaved() {
+        if (_session.value != null || starting) return
         val snap = _restorable.value ?: return
         val content = c.content.content.value ?: return
         val dictionary = c.content.dictionary.value ?: return
         _restorable.value = null
-        scope.launch { c.content.loadValidWords() }
-        scope.launch {
-            activeDriverId = drivers.firstOrNull { d -> snap.players.firstOrNull { it.isDriver }?.name == d.name }?.id ?: 1
+        prepareSessionStart()
+        launchStart {
+            // v1 저장본에는 운전자 id 가 없다 → 운전자 이름으로 찾는다
+            activeDriverId = snap.driverProfileId
+                ?: drivers.firstOrNull { d -> snap.players.firstOrNull { it.isDriver }?.name == d.name }?.id ?: 1
             val baseline = c.preferences.loadBaseline(activeDriverId) ?: if (snap.demo) DEMO_BASELINE else null
-            val monitor = DrowsinessMonitor(baseline, drowsyConfig(snap.demo)).also {
-                it.restore(snap.drowsyWindow, snap.difficultyCap, snap.lastTriggerAtMs, snap.stage1Count)
-            }
+            val monitor = DrowsinessMonitor(baseline, drowsyConfig(snap.demo)).also { it.restore(snap.drowsy) }
             arrived.value = false
             DestinationPreset.byId(snap.presetId)?.let { c.tripRepository.beginTrip(it) } ?: c.tripRepository.adoptNaviRoute()
+            // 시뮬 여정은 저장할 때의 남은 시간부터 이어 간다 (앱이 꺼져 있던 동안은 흐르지 않은 것으로 본다)
+            if (c.tripRepository.activeKind.value == TripSourceKind.SIMULATED) snap.simRemainSec?.let(c.simTrip::jumpToRemain)
             val session = GameSession(
                 speech = speechPort,
                 clock = c.clock,
@@ -377,8 +410,9 @@ class GameCoordinator(private val c: AppContainer) {
 
     private fun launchSession(session: GameSession, keepPauses: Boolean = false) {
         _summary.value = null
-        _stage1Card.value = null
+        _stage1CardVisible.value = false
         restCare.clear()
+        resetTbtPause()
         screenQuizzes.forEach { it.reset() }
         if (!keepPauses) mode.clearPauses()
         _session.value = session
@@ -403,29 +437,29 @@ class GameCoordinator(private val c: AppContainer) {
         }
 
         override fun onStage1(driver: Player, newDifficultyCap: Int) {
-            _stage1Card.value = Stage1Card(driver.name, c.clock.wallMs())
+            _stage1CardVisible.value = true
             stage1HideJob?.cancel()
             stage1HideJob = scope.launch {
                 delay(STAGE1_CARD_MS)
-                _stage1Card.value = null
+                _stage1CardVisible.value = false
             }
         }
 
         override fun suggestRestStop(): RestStopSuggestion? = restCare.suggest()
 
+        override fun headingRestStop(): RestStopSuggestion? = restCare.headingTo
+
         override fun onStage2(driver: Player, suggestion: RestStopSuggestion?) {
             stage1HideJob?.cancel()
-            _stage1Card.value = null
-            restCare.offer(driver.name, suggestion)
+            _stage1CardVisible.value = false
+            restCare.offer(suggestion)
         }
 
         override fun onRestDecision(suggestion: RestStopSuggestion?, accepted: Boolean) = restCare.decide(suggestion, accepted)
 
         override fun onRestHold() = restCare.holdAtRestArea()
 
-        override fun onSnapshot(snapshot: SessionSnapshot) {
-            scope.launch { c.preferences.saveSession(snapshot) }
-        }
+        override fun onSnapshot(snapshot: SessionSnapshot) = persist(snapshot)
 
         override fun onFinished(summary: SessionSummary) {
             finishSession(summary)
@@ -436,13 +470,22 @@ class GameCoordinator(private val c: AppContainer) {
         override fun logSensitive(label: String, value: String) = AppLog.sensitive("GameSession", label, value)
     }
 
+    /** 세션이 끝남(도착·사용자 종료·오류): 요약을 보이고 기준값을 남기고 저장본을 지운다 */
     private fun finishSession(summary: SessionSummary, showSummary: Boolean = true) {
         val s = _session.value
         _summary.value = if (showSummary) summary else null
-        s?.drowsy?.currentBaseline?.let { b -> scope.launch { c.preferences.saveBaseline(activeDriverId, b) } }
+        // 데모 모드는 시연용 기준값으로 시작하므로 운전자 기준값으로 남기지 않는다
+        s?.takeIf { !it.demo }?.drowsy?.currentBaseline?.let { b -> scope.launch { c.preferences.saveBaseline(activeDriverId, b) } }
         scope.launch { c.preferences.saveSession(null) }
-        _session.value = null
+        tearDownSession()
+        AppLog.i(TAG, if (showSummary) "session ended → summary" else "session ended → home")
+    }
+
+    /** 세션의 메모리 상태와 그 세션이 잡은 것(여정·화면 게임 읽기·오디오 포커스·쉬어 가기·TBT 일시정지)을 정리한다 */
+    private fun tearDownSession() {
+        sessionJob?.cancel()
         sessionJob = null
+        _session.value = null
         mode.voiceRoundActive.value = false
         mode.sessionActive.value = false
         mode.clearPauses()
@@ -450,9 +493,9 @@ class GameCoordinator(private val c: AppContainer) {
         stopScreenQuizzes("session end")
         // 통화 중(일시 손실)에 끝내도 요청을 거둔다 — 남겨 두면 통화 뒤 포커스가 돌아와 다른 미디어가 계속 작게 들린다
         c.audioFocus.abandon(force = true)
-        _stage1Card.value = null
+        _stage1CardVisible.value = false
         restCare.clear()
-        AppLog.i(TAG, if (showSummary) "session ended → summary" else "session ended → home")
+        resetTbtPause()
     }
 
     /**
@@ -653,6 +696,14 @@ class GameCoordinator(private val c: AppContainer) {
     private var tbtActiveKey: String? = null
     private var tbtSuppressedKey: String? = null
 
+    /** 세션 시작·끝: 지난 세션의 TBT 판단(같은 안내 억제 키·타이머)이 다음 세션의 첫 분기점에 남지 않게 한다 */
+    private fun resetTbtPause() {
+        tbtClearJob?.cancel()
+        tbtStaleJob?.cancel()
+        tbtActiveKey = null
+        tbtSuppressedKey = null
+    }
+
     // ── 생명주기 ────────────────────────────────────────────────
 
     fun onBackground() {
@@ -669,9 +720,17 @@ class GameCoordinator(private val c: AppContainer) {
     }
 
     /** 중단(백그라운드·포커스 영구 손실)에 대비해 지금 상태를 저장한다 — 이어서 하기의 원본 */
-    private fun saveSnapshot(s: GameSession) {
-        val snapshot = s.snapshot()
-        scope.launch { c.preferences.saveSession(snapshot) }
+    private fun saveSnapshot(s: GameSession) = persist(s.snapshot())
+
+    private fun persist(snapshot: SessionSnapshot) {
+        val full = fullSnapshot(snapshot)
+        scope.launch { c.preferences.saveSession(full) }
+    }
+
+    /** 세션이 모르는 앱 쪽 정보(운전자 프로필 id, 시뮬 여정의 남은 시간)를 붙인다 */
+    private fun fullSnapshot(snapshot: SessionSnapshot): SessionSnapshot {
+        val simRemain = if (c.tripRepository.activeKind.value == TripSourceKind.SIMULATED) c.tripRepository.snapshot.value?.remainTimeSec else null
+        return snapshot.copy(driverProfileId = activeDriverId, simRemainSec = simRemain)
     }
 
     fun onForeground() {
@@ -681,8 +740,15 @@ class GameCoordinator(private val c: AppContainer) {
         }
     }
 
+    /**
+     * 액티비티가 실제로 끝날 때(작업 제거). 진행 중이던 세션은 메모리에서만 정리하고 저장본은 남긴다 —
+     * 같은 프로세스에서 다시 열면 "이어서 하기"로 고를 수 있다 (프로세스가 죽었으면 다음 실행 때 DataStore 에서 읽는다).
+     */
     fun shutdown() {
-        sessionJob?.cancel()
+        val s = _session.value ?: return
+        _restorable.value = fullSnapshot(s.snapshot())
+        tearDownSession()
+        AppLog.i(TAG, "shutdown → session kept as restorable")
     }
 
     // ── 디버그 패널 ─────────────────────────────────────────────
@@ -717,9 +783,13 @@ class GameCoordinator(private val c: AppContainer) {
     fun simRestArrival() = restCare.arrive("디버그 패널")
     fun manualAnswer(answer: ScriptedSpeechEngine.ManualAnswer) = c.scriptedSpeech.submitManual(answer)
 
+    /** 디버그 "운전자 기준값 초기화". 세션 중이면 지금 세션도 다음 응답부터 다시 기준을 만든다 (끝날 때 옛 값을 다시 저장하지 않게) */
     fun resetBaseline() {
-        scope.launch { c.preferences.saveBaseline(_home.value.driverId, null) }
-        AppLog.i(TAG, "driver baseline reset (${_home.value.driverId})")
+        val s = _session.value
+        val driverId = if (s != null) activeDriverId else _home.value.driverId
+        s?.drowsy?.resetBaseline()
+        scope.launch { c.preferences.saveBaseline(driverId, null) }
+        AppLog.i(TAG, "driver baseline reset ($driverId${if (s != null) ", 세션 중 → 다시 캘리브레이션" else ""})")
     }
 
     companion object {

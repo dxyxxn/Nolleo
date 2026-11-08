@@ -6,7 +6,6 @@ import com.nolleo.app.core.speech.SttEvent
 import com.nolleo.app.domain.drowsy.DriverBaseline
 import com.nolleo.app.domain.drowsy.DrowsinessMonitor
 import com.nolleo.app.domain.games.WordDictionary
-import com.nolleo.app.domain.model.DriveState
 import com.nolleo.app.domain.model.GameChoice
 import com.nolleo.app.domain.model.GameContent
 import com.nolleo.app.domain.model.GameKind
@@ -93,6 +92,17 @@ class GameSessionTest {
         override fun markNewStream() = Unit
     }
 
+    /** 듣기마다 인식 오류(네트워크 등)로 끝나는 가짜 음성 */
+    private class ErrorSpeech : SpeechPort {
+        override suspend fun speak(text: String) = delay(400)
+        override fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent> = flow {
+            delay(300)
+            emit(SttEvent.Error("NETWORK_ERROR"))
+        }
+        override fun stop() = Unit
+        override fun markNewStream() = Unit
+    }
+
     private class Recorder : SessionCallbacks {
         val voiceRound = mutableListOf<Boolean>()
         var stage1 = 0
@@ -101,7 +111,9 @@ class GameSessionTest {
         var restSuggestion: RestStopSuggestion? = null
         val stage2Offers = mutableListOf<RestStopSuggestion?>()
         val restDecisions = mutableListOf<Boolean>()
+        var heading: RestStopSuggestion? = null
         override fun suggestRestStop(): RestStopSuggestion? = restSuggestion
+        override fun headingRestStop(): RestStopSuggestion? = heading
         override fun onStage2(driver: Player, suggestion: RestStopSuggestion?) {
             stage2Offers += suggestion
         }
@@ -137,8 +149,7 @@ class GameSessionTest {
         val screen = MutableStateFlow(false)
         val remain = MutableStateFlow<Int?>(3 * 3600)
         val region = MutableStateFlow<String?>("chungbuk")
-        val drive = MutableStateFlow(DriveState.DRIVING)
-        val inputs = SessionInputs(mode, screen, remain, region, drive)
+        val inputs = SessionInputs(mode, screen, remain, region)
     }
 
     private fun plan(game: GameKind, count: Int) =
@@ -286,6 +297,35 @@ class GameSessionTest {
         val retryAt = speech.spoken.indexOf("다시 한번 말해 줄래요?")
         assertTrue("재개하면 같은 문제를 다시 낸다", speech.spoken.drop(retryAt + 1).any { it.contains("아빠 차례예요") })
         assertTrue("무응답으로 넘기지 않는다", speech.spoken.none { it.startsWith("시간이 다 됐어요") })
+        job.cancel()
+    }
+
+    @Test
+    fun stage2_whileHeadingToRestStop_remindsInsteadOfAskingAgain() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { if (it.yesNo) "네" else it.correctAnswer }
+        val rec = Recorder().apply { restSuggestion = osan; heading = osan }
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 6), DriverBaseline(1500.0, 0.9, 10))
+        s.requestStage2()
+        val job = launch { s.run() }
+        advanceTimeBy(30_000)
+        assertEquals("카드는 가던 곳", listOf<RestStopSuggestion?>(osan), rec.stage2Offers)
+        assertTrue("다른 곳을 묻지 않는다", speech.spoken.none { it.contains("잠깐 쉬어 갈까요?") })
+        assertTrue(rec.restDecisions.isEmpty())
+        assertTrue(speech.spoken.any { it == "아빠, 반응이 계속 느려졌어요. 오산 졸음쉼터에서 꼭 쉬어 가요." })
+        job.cancel()
+    }
+
+    @Test
+    fun recognitionErrors_areExcludedFromDrowsinessSamples() = runTest {
+        val env = Env(this)
+        val rec = Recorder()
+        val s = session(env, ErrorSpeech(), rec, listOf(driver), plan(GameKind.REGION_QUIZ, 8), DriverBaseline(1500.0, 0.9, 10))
+        val job = launch { s.run() }
+        advanceTimeBy(200_000)
+        assertEquals("엔진 오류로 졸음 1단계가 걸리지 않는다", 0, rec.stage1)
+        assertTrue(s.drowsy.snapshot().recentLatencies.isEmpty())
+        assertTrue(rec.logs.any { it.contains("샘플 제외(인식 오류") })
         job.cancel()
     }
 

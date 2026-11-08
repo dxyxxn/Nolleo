@@ -142,7 +142,7 @@ class NaviHelperTripSource(context: Context) : TripSource {
                 runCall("getDestinationInfo") { helper?.getDestinationInfo() }
             } else {
                 _activeNaviDestination.value = null
-                if (next == NaviStatus.FREE_DRIVE || next == NaviStatus.INACTIVE) clearRestStops()
+                if (next == NaviStatus.FREE_DRIVE || next == NaviStatus.INACTIVE) clearRouteDetails()
             }
         }
 
@@ -188,7 +188,7 @@ class NaviHelperTripSource(context: Context) : TripSource {
             AppLog.i(TAG, "onRouteCancelled")
             mark("onRouteCancelled")
             _activeNaviDestination.value = null
-            clearRestStops()
+            clearRouteDetails()
             _events.tryEmit(TripEvent.Cancelled)
         }
 
@@ -244,6 +244,9 @@ class NaviHelperTripSource(context: Context) : TripSource {
                 },
                 onFailed = { t ->
                     AppLog.w(TAG, "NaviHelper connection failed", t)
+                    // 샘플(NaviHelperViewModel)처럼 실패한 helper 를 버린다 — 남겨 두면 start() 로 다시 시도할 수 없다
+                    runCatching { h.release() }
+                    if (helper === h) helper = null
                     _status.value = SdkStatus.Unavailable(t.javaClass.simpleName)
                 },
             )
@@ -305,10 +308,11 @@ class NaviHelperTripSource(context: Context) : TripSource {
         runCall("getTBTInfo") { helper?.getTBTInfo() }
     }
 
-    private fun clearRestStops() {
+    /** 경로가 없어짐(취소·길 안내 끝): 경로 위 쉼 장소와 다음 분기점 안내를 함께 지운다 — 안내가 남으면 길 안내 일시정지가 풀리지 않는다 */
+    private fun clearRouteDetails() {
         tbtStops = null
         remainAtTbt = null
-        _snapshot.update { it?.copy(restStopsAhead = null) }
+        _snapshot.update { it?.copy(restStopsAhead = null, nextTurn = null) }
     }
 
     /** 마지막 TBT 뒤로 남은 거리가 준 만큼 경로 위 쉼 장소를 앞당긴다 (내비가 TBT 를 자주 보내지 않아도 거리가 맞게) */

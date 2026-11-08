@@ -57,7 +57,7 @@ class GameSession(
     val players: List<Player>,
     initialPlan: SessionPlan,
     private val choice: GameChoice,
-    private val demo: Boolean,
+    val demo: Boolean,
     val drowsy: DrowsinessMonitor,
     private val inputs: SessionInputs,
     private val callbacks: SessionCallbacks,
@@ -74,12 +74,14 @@ class GameSession(
     private var pendingTurn: Turn? = null
     private var currentGame: VoiceGame? = null
     private var restoredChainState: Map<String, String>? = restore?.chainState?.takeIf { it.isNotEmpty() }
-    private var longestChain = 0
+    /** 끝말잇기 최장 = 한 판에 이은 낱말 수(다른 말로 다시 시작한 전후 합산, [WordChainGame.chainLength]) */
+    private var longestChain = restore?.longestChain ?: 0
 
     private val quiz = RegionQuizGame(content, random).also { q -> restore?.quizState?.let { q.restoreState(it) } }
     private var chain: WordChainGame? = null
 
-    private var planBasisRemainSec: Int = plan.basisRemainSec
+    // 시뮬 여정을 이어서 하면 저장할 때의 남은 시간이 기준 — 판 일정이 원래 시간표 그대로 이어진다
+    private var planBasisRemainSec: Int = restore?.simRemainSec ?: plan.basisRemainSec
     private var planBasisAtMs: Long = clock.elapsedMs()
 
     private val skipWait = MutableStateFlow(false)
@@ -177,6 +179,13 @@ class GameSession(
 
     private suspend fun offerRest(driver: Player, action: DrowsinessMonitor.Action.Stage2) {
         callbacks.log("Drowsiness: Stage2 (${action.reason.label}) → 휴식 권유 + 경로 위 휴게소·졸음쉼터")
+        callbacks.headingRestStop()?.let { target ->
+            // 이미 쉼 장소로 가는 중("계속"으로 게임을 이어 감) — 다른 곳을 묻지 않는다. 화면 카드와 말이 같은 곳을 가리키게
+            callbacks.log("Stage2: 이미 쉼 장소로 가는 중 → 새로 묻지 않고 다시 알림")
+            callbacks.onStage2(driver, target)
+            say("${driver.name}, 반응이 계속 느려졌어요. ${target.name}에서 꼭 쉬어 가요.", SessionPhase.FEEDBACK)
+            return
+        }
         val suggestion = callbacks.suggestRestStop()
         callbacks.onStage2(driver, suggestion)
         if (suggestion == null) {
@@ -462,7 +471,7 @@ class GameSession(
             applyScore(player, judgement)
             _state.update { it.copy(lastAnswer = AnswerLine(player.name, heard, judgement.label), partial = null) }
 
-            var action = if (player.isDriver) recordDrowsy(first, judgement, turn, eligible = !firstHumanTurn && !interrupted) else DrowsinessMonitor.Action.None
+            var action = if (player.isDriver) recordDrowsy(first, judgement, eligible = !firstHumanTurn && !interrupted) else DrowsinessMonitor.Action.None
             if (player.isDriver && forceStage2) {
                 forceStage2 = false
                 action = drowsy.forceStage2(clock.wallMs())
@@ -620,26 +629,25 @@ class GameSession(
         }
     }
 
-    private fun recordDrowsy(result: AnswerResult, judgement: Judgement, turn: Turn, eligible: Boolean): DrowsinessMonitor.Action {
+    private fun recordDrowsy(result: AnswerResult, judgement: Judgement, eligible: Boolean): DrowsinessMonitor.Action {
         if (!eligible) {
             callbacks.log("Drowsiness: 샘플 제외(판 첫 문제 또는 일시정지 직후)")
             return DrowsinessMonitor.Action.None
         }
+        // 인식 오류(네트워크·오디오 등)는 운전자의 반응이 아니다 — 8초 무응답과 달리 느린 응답으로 세지 않는다
+        if (result.error != null) {
+            callbacks.log("Drowsiness: 샘플 제외(인식 오류 ${result.error})")
+            return DrowsinessMonitor.Action.None
+        }
         val before = drowsy.snapshot()
-        val sample = ResponseSample(
-            latencyMs = result.latencyMs,
-            correct = judgement.correct,
-            difficulty = turn.difficulty,
-            atEpochMs = clock.wallMs(),
-            driveState = inputs.driveState.value,
-        )
-        val action = drowsy.record(sample, clock.wallMs())
+        val action = drowsy.record(ResponseSample(result.latencyMs, judgement.correct), clock.wallMs())
         val after = drowsy.snapshot()
         if (before.calibrating) {
-            callbacks.log("Drowsiness: 기준을 만드는 중 (${if (after.calibrating) after.calibrationCount else 5}/5)" +
+            val samples = drowsy.calibrationSamples
+            callbacks.log("Drowsiness: 기준을 만드는 중 (${if (after.calibrating) after.calibrationCount else samples}/$samples)" +
                 (after.baselineMs?.let { " → 기준 ${it}ms" } ?: ""))
         } else {
-            callbacks.log("Drowsiness: latency=${result.latencyMs}ms baseline=${after.baselineMs}ms slow=${after.slowCount}/5 cap=${after.difficultyCap}")
+            callbacks.log("Drowsiness: latency=${result.latencyMs}ms baseline=${after.baselineMs}ms slow=${after.slowCount}/${drowsy.windowSize} cap=${after.difficultyCap}")
         }
         if (action is DrowsinessMonitor.Action.Stage1) callbacks.log("Drowsiness: Stage1 → 말 걸기 + 난이도 상한 ${action.newDifficultyCap}")
         return action
@@ -672,6 +680,7 @@ class GameSession(
 
     fun buildSummary(): SessionSummary {
         val s = _state.value
+        val d = drowsy.snapshot()
         return SessionSummary(
             destinationName = destinationName,
             players = players,
@@ -679,15 +688,14 @@ class GameSession(
             correctCounts = s.correctCounts,
             regionsVisited = s.regionsVisited,
             roundsPlayed = s.roundsPlayed,
-            stage1Count = drowsy.snapshot().stage1Count,
+            stage1Count = d.stage1Count,
             longestChain = maxOf(longestChain, chain?.chainLength ?: 0),
-            stage2Count = drowsy.snapshot().stage2Count,
+            stage2Count = d.stage2Count,
         )
     }
 
     fun snapshot(turnInRound: Int = _state.value.turnInRound, nextRound: Boolean = false): SessionSnapshot {
         val s = _state.value
-        val d = drowsy.snapshot()
         return SessionSnapshot(
             destinationName = destinationName,
             presetId = presetId,
@@ -705,10 +713,8 @@ class GameSession(
             quizState = quiz.saveState(),
             chainState = chain?.saveState().orEmpty(),
             pendingQuestionId = pendingTurn?.questionId,
-            drowsyWindow = drowsy.windowSamples,
-            difficultyCap = d.difficultyCap,
-            lastTriggerAtMs = d.lastTriggerAtMs,
-            stage1Count = d.stage1Count,
+            drowsy = drowsy.saveState(),
+            longestChain = maxOf(longestChain, chain?.chainLength ?: 0),
             savedAtWallMs = clock.wallMs(),
         )
     }

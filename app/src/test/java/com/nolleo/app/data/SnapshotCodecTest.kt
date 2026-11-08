@@ -1,10 +1,10 @@
 package com.nolleo.app.data
 
 import com.nolleo.app.domain.drowsy.DriverBaseline
+import com.nolleo.app.domain.drowsy.DrowsinessMonitor
 import com.nolleo.app.domain.drowsy.ResponseSample
 import com.nolleo.app.domain.engine.SessionPlanner
 import com.nolleo.app.domain.engine.SessionSnapshot
-import com.nolleo.app.domain.model.DriveState
 import com.nolleo.app.domain.model.GameChoice
 import com.nolleo.app.domain.model.GameKind
 import com.nolleo.app.domain.model.Player
@@ -35,25 +35,59 @@ class SnapshotCodecTest {
             quizState = mapOf("asked" to "seoul-01,seoul-02", "lastRegion" to "gyeonggi"),
             chainState = mapOf("used" to "기차,차표", "lastWord" to "차표"),
             pendingQuestionId = "gyeonggi-03",
-            drowsyWindow = listOf(ResponseSample(2500, true, 2, 1_000, DriveState.DRIVING), ResponseSample(8000, null, 1, 2_000, DriveState.STOPPED)),
-            difficultyCap = 2,
-            lastTriggerAtMs = 123_456,
-            stage1Count = 1,
+            drowsy = DrowsinessMonitor.SavedState(
+                window = listOf(ResponseSample(2500, true), ResponseSample(8000, null)),
+                difficultyCap = 2,
+                lastTriggerAtMs = 123_456,
+                stage1Count = 2,
+                stage1Times = listOf(100_000, 123_456),
+                stage2Count = 1,
+                lastStage2AtMs = 200_000,
+            ),
+            longestChain = 7,
+            driverProfileId = 2,
+            simRemainSec = 5_400,
             savedAtWallMs = 999,
         )
         assertEquals(snap, SnapshotCodec.decode(SnapshotCodec.encode(snap)))
     }
 
+    private fun minimal(plan: com.nolleo.app.domain.model.SessionPlan = SessionPlanner.plan(3600, GameChoice.QUIZ)) = SessionSnapshot(
+        destinationName = "강릉역", presetId = null, players = listOf(Player(1, "엄마", true)),
+        choice = GameChoice.QUIZ, demo = false, plan = plan, roundIndex = 0, turnInRound = 0, rotationIndex = 0,
+        scores = emptyMap(), correctCounts = emptyMap(), regionsVisited = emptyList(), roundsPlayed = emptyList(),
+        quizState = emptyMap(), chainState = emptyMap(), pendingQuestionId = null,
+        drowsy = DrowsinessMonitor.SavedState(emptyList(), difficultyCap = 3, lastTriggerAtMs = null, stage1Count = 0),
+        savedAtWallMs = 1,
+    )
+
+    @Test
+    fun v1Snapshot_readsWithDefaultsForNewFields() {
+        val json = JSONObject(SnapshotCodec.encode(minimal().copy(longestChain = 5, driverProfileId = 2, simRemainSec = 600)))
+        json.put("v", 1)
+        listOf("stage1Times", "stage2", "lastStage2", "longestChain", "driverId", "simRemain").forEach(json::remove)
+        // v1 의 응답 샘플에는 판단에 쓰지 않는 필드가 더 있었다
+        json.put("window", org.json.JSONArray().put(JSONObject().put("latency", 2000).put("correct", true).put("difficulty", 2).put("at", 5).put("drive", "DRIVING")))
+        val decoded = SnapshotCodec.decode(json.toString())!!
+        assertEquals(0, decoded.longestChain)
+        assertNull(decoded.driverProfileId)
+        assertNull(decoded.simRemainSec)
+        assertEquals(0, decoded.drowsy.stage2Count)
+        assertEquals(listOf(ResponseSample(2000, true)), decoded.drowsy.window)
+    }
+
+    @Test
+    fun unknownVersionOrInconsistentSnapshot_decodesToNull() {
+        val future = JSONObject(SnapshotCodec.encode(minimal())).put("v", SnapshotCodec.VERSION + 1)
+        assertNull(SnapshotCodec.decode(future.toString()))
+        assertNull("운전자 없음", SnapshotCodec.decode(SnapshotCodec.encode(minimal().copy(players = listOf(Player(2, "조수석", false))))))
+        assertNull("계획 밖 판", SnapshotCodec.decode(SnapshotCodec.encode(minimal().copy(roundIndex = 99))))
+        assertNull("음수 위치", SnapshotCodec.decode(SnapshotCodec.encode(minimal().copy(turnInRound = -1))))
+    }
+
     @Test
     fun oldSnapshotWithoutPacing_readsAsRelaxed() {
-        val plan = SessionPlanner.plan(3600, GameChoice.QUIZ, pacing = RoundPacing.NONSTOP)
-        val snap = SessionSnapshot(
-            destinationName = "강릉역", presetId = null, players = listOf(Player(1, "엄마", true)),
-            choice = GameChoice.QUIZ, demo = false, plan = plan, roundIndex = 0, turnInRound = 0, rotationIndex = 0,
-            scores = emptyMap(), correctCounts = emptyMap(), regionsVisited = emptyList(), roundsPlayed = emptyList(),
-            quizState = emptyMap(), chainState = emptyMap(), pendingQuestionId = null, drowsyWindow = emptyList(),
-            difficultyCap = 3, lastTriggerAtMs = null, stage1Count = 0, savedAtWallMs = 1,
-        )
+        val snap = minimal(SessionPlanner.plan(3600, GameChoice.QUIZ, pacing = RoundPacing.NONSTOP))
         val json = JSONObject(SnapshotCodec.encode(snap))
         assertEquals("NONSTOP", json.getJSONObject("plan").getString("pacing"))
         json.getJSONObject("plan").remove("pacing") // pacing 필드가 생기기 전 저장본

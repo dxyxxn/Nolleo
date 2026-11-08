@@ -96,7 +96,7 @@ private fun Header(title: String, state: ScreenQuizController.UiState, onReplay:
             Text(
                 status,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (state.voiceStopped) c.danger else c.muted,
+                color = if (state.voiceStopped) c.ink else c.muted,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -121,7 +121,7 @@ private fun ColumnScope.QuestionAndChoices(q: ScreenQuestion, state: ScreenQuizC
                     index == state.picked -> TileLook(c.danger, c.onDanger, c.danger)
                     else -> TileLook(c.ground, c.faint, c.line)
                 }
-                ChoiceTile(choice, look, onClick = { onChoose(index) }, modifier = Modifier.weight(1f))
+                ChoiceTile(choice, look, onClick = { onChoose(index) }, enabled = !state.revealed, modifier = Modifier.weight(1f))
             }
         }
     }
@@ -130,13 +130,13 @@ private fun ColumnScope.QuestionAndChoices(q: ScreenQuestion, state: ScreenQuizC
 private data class TileLook(val container: Color, val content: Color, val border: Color)
 
 @Composable
-private fun ChoiceTile(text: String, look: TileLook, onClick: () -> Unit, modifier: Modifier) {
+private fun ChoiceTile(text: String, look: TileLook, onClick: () -> Unit, enabled: Boolean, modifier: Modifier) {
     Box(
         modifier
             .heightIn(min = MinTouch + 16.dp)
             .background(look.container, Radius.tile)
             .border(1.dp, look.border, Radius.tile)
-            .pressable(onClick, Radius.tile)
+            .pressable(onClick, Radius.tile, enabled)
             .padding(horizontal = Sp.l, vertical = Sp.m),
         contentAlignment = Alignment.Center,
     ) {

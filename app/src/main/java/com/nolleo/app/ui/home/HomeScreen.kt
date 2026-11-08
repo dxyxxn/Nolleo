@@ -87,7 +87,12 @@ fun HomeScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     Text("정차한 뒤에 목적지와 게임을 골라 주세요.", style = MaterialTheme.typography.bodyLarge, color = c.muted)
                     preview?.let { p ->
                         Text("이전 설정: ${p.destinationName} · ${p.text}", style = MaterialTheme.typography.bodyLarge, color = c.ink)
-                        PrimaryButton("이전 설정으로 출발", onClick = coordinator::startSession, icon = R.drawable.ic_play)
+                        // 이어서 할 여정이 있으면 위 배너의 "이어서 하기"가 주 버튼 (화면마다 채운 버튼은 하나)
+                        if (restorable == null) {
+                            PrimaryButton("이전 설정으로 출발", onClick = coordinator::startSession, icon = R.drawable.ic_play)
+                        } else {
+                            SecondaryButton("이전 설정으로 출발", onClick = coordinator::startSession, icon = R.drawable.ic_play)
+                        }
                     }
                 }
                 return@Column

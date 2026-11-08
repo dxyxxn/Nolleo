@@ -33,7 +33,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nolleo.app.R
 import com.nolleo.app.app.AppContainer
 import com.nolleo.app.app.RestCareController
-import com.nolleo.app.app.Stage1Card
 import com.nolleo.app.core.navi.TripUnits
 import com.nolleo.app.domain.engine.MicState
 import com.nolleo.app.domain.engine.SessionPhase
@@ -68,7 +67,7 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val tripKind by container.tripRepository.activeKind.collectAsStateWithLifecycle()
     val ux by container.carRepository.ux.collectAsStateWithLifecycle()
     val reasons by container.modeController.pauseReasons.collectAsStateWithLifecycle()
-    val stage1 by coordinator.stage1Card.collectAsStateWithLifecycle()
+    val stage1Visible by coordinator.stage1CardVisible.collectAsStateWithLifecycle()
     val restState by coordinator.restCare.state.collectAsStateWithLifecycle()
     val restDistance by coordinator.restCare.distanceM.collectAsStateWithLifecycle()
     val region by container.locationRepository.regionCode.collectAsStateWithLifecycle()
@@ -127,7 +126,7 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
                         onCancel = coordinator::cancelRest,
                     )
                 } else {
-                    stage1?.let { Stage1Overlay(it) }
+                    if (stage1Visible) Stage1Overlay()
                 }
                 Spacer(Modifier.height(Sp.l))
                 Hairline()
@@ -194,8 +193,8 @@ private fun CenterBlock(s: SessionState, ux: UxState, remainSec: Int?) {
                         Text("${p.name} 차례", style = MaterialTheme.typography.titleLarge, color = c.ink)
                     }
                 }
-                // 규제가 LIMIT_STRING_LENGTH 면 1줄 요약, 아니면 ≤ 3줄
-                val text = if (ux.limitStringLength) s.shortDisplay else (s.display ?: s.caption)
+                // 규제가 LIMIT_STRING_LENGTH 면 1줄 요약, 아니면 ≤ 3줄. 화면 글이 없으면 발화 문장을 화면 문구로(느낌표 없이)
+                val text = if (ux.limitStringLength) limitedText(s) else (s.display ?: s.caption?.let(::screenSentence))
                 Text(
                     text ?: "",
                     style = MaterialTheme.typography.headlineLarge,
@@ -219,6 +218,18 @@ private fun CenterBlock(s: SessionState, ux: UxState, remainSec: Int?) {
         }
     }
 }
+
+/**
+ * 글자 수 제한(LIMIT_STRING_LENGTH) 때의 한 줄: 문제를 내고 듣는 동안에는 그 차례의 짧은 글,
+ * 그 밖(판 시작·결과·안내·마무리)에는 단계 이름 — 앞 차례의 글이 남거나 가운데가 비지 않게
+ */
+private fun limitedText(s: SessionState): String = when (s.phase) {
+    SessionPhase.ASKING, SessionPhase.LISTENING -> s.shortDisplay ?: s.phase.label
+    else -> s.phase.label
+}
+
+/** 발화 문장을 화면 문구로: UI 문구에는 느낌표를 쓰지 않는다 (발화는 그대로) */
+private fun screenSentence(spoken: String): String = spoken.replace("! ", ". ").replace("!", "")
 
 @Composable
 private fun BigText(text: String) {
@@ -260,7 +271,7 @@ private fun PausedBlock(reasons: Set<PauseReason>) {
 }
 
 @Composable
-private fun Stage1Overlay(card: Stage1Card) {
+private fun Stage1Overlay() {
     val c = Nl.colors
     BandCard(Modifier.fillMaxWidth()) {
         Text("잠깐 쉬어 갈까요?", style = MaterialTheme.typography.titleLarge, color = c.onBand)
@@ -280,13 +291,18 @@ private fun RestOverlay(
     val c = Nl.colors
     val s = state.suggestion
     val target = s?.let { listOfNotNull(it.name, it.directionLabel).joinToString(" · ") }
-    val distance = (distanceM ?: s?.distanceM)?.let { d -> if (d >= 1_000) "${(d / 100) / 10.0}km" else "${d}m" }
+    val distance = (distanceM ?: s?.distanceM)?.let(TripUnits::formatDistance)
     BandCard(Modifier.fillMaxWidth()) {
         when (state) {
             is RestCareController.State.Offered -> {
                 Text("잠깐 쉬어 가요", style = MaterialTheme.typography.titleLarge, color = c.onBand)
                 Text(
-                    if (s != null) "반응이 계속 느려졌어요 · $target ${distance ?: ""} 앞" else "반응이 계속 느려졌어요 · 가까운 졸음쉼터나 휴게소에서 쉬어 가요",
+                    // 좁은 창에서 줄이 잘려도 거리는 보이게 앞에 둔다
+                    when {
+                        s == null -> "반응이 계속 느려졌어요 · 가까운 졸음쉼터나 휴게소에서 쉬어 가요"
+                        distance != null -> "반응이 계속 느려졌어요 · $distance 앞 $target"
+                        else -> "반응이 계속 느려졌어요 · $target"
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     color = c.onBand,
                     maxLines = 1,
@@ -358,15 +374,19 @@ private fun BottomBar(
             SecondaryButton("게임 끝내기", onClick = onEnd)
         }
         when {
-            quiet && mode != GameMode.PAUSED && s.phase != SessionPhase.RESTING && s.phase != SessionPhase.WAITING && s.phase != SessionPhase.ALL_DONE ->
-                SecondaryButton("일시정지", onClick = onPause, icon = R.drawable.ic_pause)
-            mode == GameMode.PAUSED -> PrimaryButton("계속", onClick = onResume, enabled = userResumable, icon = R.drawable.ic_play)
-            s.phase == SessionPhase.RESTING || s.phase == SessionPhase.WAITING ->
-                PrimaryButton("지금 시작", onClick = onNextRound, icon = R.drawable.ic_play)
-            s.phase == SessionPhase.ALL_DONE -> PrimaryButton("한 판 더", onClick = onNextRound, icon = R.drawable.ic_play)
-            else -> PrimaryButton("일시정지", onClick = onPause, icon = R.drawable.ic_pause)
+            mode == GameMode.PAUSED -> MainButton(quiet, "계속", onResume, R.drawable.ic_play, enabled = userResumable)
+            s.phase == SessionPhase.RESTING || s.phase == SessionPhase.WAITING -> MainButton(quiet, "지금 시작", onNextRound, R.drawable.ic_play)
+            s.phase == SessionPhase.ALL_DONE -> MainButton(quiet, "한 판 더", onNextRound, R.drawable.ic_play)
+            else -> MainButton(quiet, "일시정지", onPause, R.drawable.ic_pause)
         }
     }
+}
+
+/** 아래 줄의 주 동작. [quiet] = 쉬어 가기 권유 카드의 버튼이 화면의 주 버튼이라 테두리로 낮춘다 (채운 버튼은 화면에 하나) */
+@Composable
+private fun MainButton(quiet: Boolean, text: String, onClick: () -> Unit, icon: Int, enabled: Boolean = true) {
+    if (quiet) SecondaryButton(text, onClick = onClick, enabled = enabled, icon = icon)
+    else PrimaryButton(text, onClick = onClick, enabled = enabled, icon = icon)
 }
 
 @Composable

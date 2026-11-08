@@ -167,6 +167,23 @@ class PleosSpeechEngine(
         initStt()
     }
 
+    /**
+     * 실패한 엔진(초기화 실패·STT 치명 오류)을 버리고 다시 초기화한다 — 세션 시작·앱 복귀 때.
+     * 그러지 않으면 한 번 실패한 엔진이 프로세스를 다시 띄우기 전까지 돌아오지 않는다. 정상인 엔진은 건드리지 않는다.
+     */
+    fun recoverIfUnavailable() {
+        if (_ttsStatus.value is SdkStatus.Unavailable) {
+            AppLog.i(TAG, "TTS unavailable (${_ttsStatus.value.label}) → 다시 초기화")
+            releaseTts()
+            initTts()
+        }
+        if (_sttStatus.value is SdkStatus.Unavailable) {
+            AppLog.i(TAG, "STT unavailable (${_sttStatus.value.label}) → 다시 초기화")
+            releaseStt()
+            initStt()
+        }
+    }
+
     private fun initTts() {
         if (tts != null) return
         _ttsStatus.value = SdkStatus.Connecting
@@ -305,7 +322,10 @@ class PleosSpeechEngine(
             engine.request()
         } catch (t: Throwable) {
             AppLog.w(TAG, "STT request threw", t)
-            trySend(SttEvent.Error(t.javaClass.simpleName, fatal = t is SecurityException))
+            val fatal = t is SecurityException
+            // 치명 오류면 상태도 내린다 — 라우터는 상태만 보고 엔진을 고르므로, 그래야 같은 문제를 다른 엔진으로 다시 낸다
+            if (fatal) _sttStatus.value = SdkStatus.Unavailable(t.javaClass.simpleName)
+            trySend(SttEvent.Error(t.javaClass.simpleName, fatal))
             close()
         }
         awaitClose {
@@ -327,18 +347,26 @@ class PleosSpeechEngine(
 
     override fun release() {
         stop()
+        releaseTts()
+        releaseStt()
+        _ttsStatus.value = SdkStatus.Idle
+        _sttStatus.value = SdkStatus.Idle
+    }
+
+    private fun releaseTts() {
         tts?.let { engine ->
             runCatching { engine.removeEventListener(ttsListener) }
             runCatching { engine.release() }
         }
+        tts = null
+    }
+
+    private fun releaseStt() {
         stt?.let { engine ->
             runCatching { engine.removeListener(resultListener) }
             runCatching { engine.release() }
         }
-        tts = null
         stt = null
-        _ttsStatus.value = SdkStatus.Idle
-        _sttStatus.value = SdkStatus.Idle
     }
 
     companion object {

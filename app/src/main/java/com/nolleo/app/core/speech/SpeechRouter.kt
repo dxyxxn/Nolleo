@@ -75,6 +75,12 @@ class SpeechRouter(
         android.initialize()
     }
 
+    /** 세션 시작·앱 복귀 때: 실패해 내려간 STT/TTS 를 한 번 다시 살려 본다 */
+    fun recoverUnavailableEngines() {
+        pleos.recoverIfUnavailable()
+        android.refreshSttAvailability()
+    }
+
     suspend fun speak(text: String) = engine(ttsKind.value).speak(text)
 
     fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent> = engine(sttKind.value).listen(timeoutMs, hint)

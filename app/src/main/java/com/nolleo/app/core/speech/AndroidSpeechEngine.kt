@@ -194,7 +194,12 @@ class AndroidSpeechEngine(
                         _sttStatus.value = SdkStatus.Unavailable("마이크 퍼미션")
                         trySend(SttEvent.Error("INSUFFICIENT_PERMISSIONS", fatal = true))
                     }
-                    else -> trySend(SttEvent.Error("ANDROID_STT_$error", fatal = error == SpeechRecognizer.ERROR_CLIENT))
+                    SpeechRecognizer.ERROR_CLIENT -> {
+                        // 치명 오류면 상태도 내린다 (라우터가 다른 엔진을 고르게). 다음 세션 시작 때 refreshSttAvailability 로 되살린다
+                        _sttStatus.value = SdkStatus.Unavailable("ANDROID_STT_CLIENT")
+                        trySend(SttEvent.Error("ANDROID_STT_$error", fatal = true))
+                    }
+                    else -> trySend(SttEvent.Error("ANDROID_STT_$error", fatal = false))
                 }
                 close()
             }
@@ -223,6 +228,7 @@ class AndroidSpeechEngine(
         try {
             r.startListening(intent)
         } catch (t: Throwable) {
+            _sttStatus.value = SdkStatus.Unavailable(t.javaClass.simpleName)
             trySend(SttEvent.Error(t.javaClass.simpleName, fatal = true))
             close()
         }

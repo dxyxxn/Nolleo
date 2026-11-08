@@ -100,7 +100,7 @@ fun ScreenGameScreen(
                 }
                 BackHandler(onBack = close)
                 if (!quiz.isAvailable) {
-                    Text("${openGame.title} 콘텐츠를 불러오지 못했어요.", style = MaterialTheme.typography.titleLarge, color = c.danger)
+                    Text("${openGame.title} 콘텐츠를 불러오지 못했어요.", style = MaterialTheme.typography.titleLarge, color = c.ink)
                 } else {
                     ScreenQuizPanel(quiz, onClose = close)
                 }

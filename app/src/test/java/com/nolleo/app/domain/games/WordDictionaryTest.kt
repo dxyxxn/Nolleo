@@ -44,6 +44,26 @@ class WordDictionaryTest {
     }
 
     @Test
+    fun randomStarter_followsDifficultyCapBeforePreferredList() {
+        // 선호 목록의 "가수"(중급)·"가격"(고급)보다 상한 안의 초급 낱말이 먼저 — 상한 1 → 초급만
+        val starts = (0 until 100).mapNotNull { leveled.randomStarter(Random(it), listOf("가수", "가격"), difficultyCap = 1) }.toSet()
+        assertTrue(starts.isNotEmpty())
+        assertTrue(starts.toString(), starts.all { leveled.level(it) == WordLevel.BASIC })
+        // 상한 3 이면 선호 목록에서 고른다
+        val free = (0 until 100).mapNotNull { leveled.randomStarter(Random(it), listOf("가수", "가격"), difficultyCap = 3) }.toSet()
+        assertEquals(setOf("가수", "가격"), free)
+    }
+
+    @Test
+    fun randomStarter_skipsWordsWhoseContinuationsAreAllUsed() {
+        // 다시 시작할 때: "가방"을 말하면 이을 말(방석·방울·방패)이 모두 쓰였으므로 고르지 않는다
+        val used = setOf("만화가", "방석", "방울", "방패")
+        val starts = (0 until 100).mapNotNull { leveled.randomStarter(Random(it), listOf("가방"), difficultyCap = 1, exclude = used) }.toSet()
+        assertFalse("가방" in starts)
+        assertTrue(starts.isNotEmpty())
+    }
+
+    @Test
     fun deadEnds_areComputedOnce_usingBidirectionalDueum() {
         val d = WordDictionary(listOf("과자", "자름", "자두", "노래", "래커", "래프팅", "래미안", "나비"))
         assertTrue("'름' 으로 이을 말 없음", d.isDeadEnd('름'))

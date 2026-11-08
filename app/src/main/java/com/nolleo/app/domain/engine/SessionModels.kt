@@ -2,8 +2,7 @@ package com.nolleo.app.domain.engine
 
 import com.nolleo.app.core.speech.ListenHint
 import com.nolleo.app.core.speech.SttEvent
-import com.nolleo.app.domain.drowsy.ResponseSample
-import com.nolleo.app.domain.model.DriveState
+import com.nolleo.app.domain.drowsy.DrowsinessMonitor
 import com.nolleo.app.domain.model.GameChoice
 import com.nolleo.app.domain.model.GameKind
 import com.nolleo.app.domain.model.GameMode
@@ -27,7 +26,6 @@ class SessionInputs(
     val screenAvailable: StateFlow<Boolean>,
     val remainSec: StateFlow<Int?>,
     val regionCode: StateFlow<String?>,
-    val driveState: StateFlow<DriveState>,
 )
 
 interface SessionCallbacks {
@@ -36,6 +34,9 @@ interface SessionCallbacks {
 
     /** 졸음 케어 2단계 — 권할 쉼 장소 (진행 방향 앞쪽 졸음쉼터 / 내비 경로 위 쉼터). 없으면 null */
     fun suggestRestStop(): RestStopSuggestion? = null
+
+    /** 앞서 받아들인 쉼 장소로 가는 중이면 그곳 — 2단계가 다시 걸려도 새로 묻지 않고 그곳을 다시 알린다 */
+    fun headingRestStop(): RestStopSuggestion? = null
 
     /** 2단계가 걸려 휴식을 권하기 시작함 (화면 카드 표시) */
     fun onStage2(driver: Player, suggestion: RestStopSuggestion?) = Unit
@@ -108,7 +109,10 @@ data class SessionSummary(
     val winner: Player? get() = players.maxByOrNull { scores[it.id] ?: 0 }?.takeIf { (scores[it.id] ?: 0) > 0 }
 }
 
-/** 프로세스 재생성·백그라운드 복귀 대비 저장본 (상태 복원) */
+/**
+ * 프로세스 재생성·백그라운드 복귀 대비 저장본 (상태 복원).
+ * 쉬어 가기 진행(가는 중·쉬는 중)은 넣지 않는다 — 이어서 하기는 쉬어 가기를 처음 상태로 시작한다(11/8 결정).
+ */
 data class SessionSnapshot(
     val destinationName: String,
     val presetId: String?,
@@ -126,9 +130,12 @@ data class SessionSnapshot(
     val quizState: Map<String, String>,
     val chainState: Map<String, String>,
     val pendingQuestionId: String?,
-    val drowsyWindow: List<ResponseSample>,
-    val difficultyCap: Int,
-    val lastTriggerAtMs: Long?,
-    val stage1Count: Int,
+    val drowsy: DrowsinessMonitor.SavedState,
+    /** 끝말잇기 최장(다른 말로 다시 시작한 전후 합산) — 요약에 쓴다 */
+    val longestChain: Int = 0,
+    /** 운전자 프로필 id. 이 필드가 없는 v1 저장본은 null → 운전자 이름으로 찾는다 */
+    val driverProfileId: Int? = null,
+    /** 저장할 때 시뮬 여정의 남은 시간(초) — 이어서 하기 때 그 지점부터. 실제 내비 여정이면 null */
+    val simRemainSec: Int? = null,
     val savedAtWallMs: Long,
 )

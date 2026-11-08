@@ -187,20 +187,13 @@ class VehicleSdkClient(context: Context) {
     }
 
     /** 운전석 제외 착좌 수. 착좌 센서를 못 읽으면 null. */
-    fun occupiedPassengerCount(): Int? {
-        val map = _seatOccupancy.value
-        if (map.isEmpty()) return null
-        return map.values.count { it }
-    }
-
     fun release() {
         if (!isInitialized) return
         val v = vehicle
-        runSdk("release") {
-            if (brakeRegistered) v?.getBrake()?.unregisterBrakePedalStatus(brakeListener)
-            seatListeners.forEach { (area, listener) -> v?.getSeat()?.unregisterSeatOccupancy(area, listener) }
-            v?.release()
-        }
+        // 하나가 예외를 내도 나머지 해제는 진행한다
+        if (brakeRegistered) runSdk("unregisterBrakePedalStatus") { v?.getBrake()?.unregisterBrakePedalStatus(brakeListener) }
+        seatListeners.forEach { (area, listener) -> runSdk("unregisterSeatOccupancy") { v?.getSeat()?.unregisterSeatOccupancy(area, listener) } }
+        runSdk("release") { v?.release() }
         brakeRegistered = false
         seatListeners.clear()
         vehicle = null

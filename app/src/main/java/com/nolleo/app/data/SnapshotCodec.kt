@@ -1,9 +1,9 @@
 package com.nolleo.app.data
 
 import com.nolleo.app.domain.drowsy.DriverBaseline
+import com.nolleo.app.domain.drowsy.DrowsinessMonitor
 import com.nolleo.app.domain.drowsy.ResponseSample
 import com.nolleo.app.domain.engine.SessionSnapshot
-import com.nolleo.app.domain.model.DriveState
 import com.nolleo.app.domain.model.GameChoice
 import com.nolleo.app.domain.model.GameKind
 import com.nolleo.app.domain.model.Player
@@ -16,8 +16,16 @@ import org.json.JSONObject
 /** 진행 중 세션·운전자 기준값의 JSON 직렬화 (org.json). 순수 함수 — 단위 테스트 대상. */
 object SnapshotCodec {
 
+    /**
+     * 저장본 형식 버전.
+     *  - 1: 첫 형식
+     *  - 2: 졸음 1단계 시각·2단계 횟수·마지막 2단계 시각, 끝말잇기 최장, 운전자 id, 시뮬 남은 시간 (11/8)
+     */
+    const val VERSION = 2
+
     fun encode(s: SessionSnapshot): String = JSONObject().apply {
-        put("v", 1)
+        val d = s.drowsy
+        put("v", VERSION)
         put("destinationName", s.destinationName)
         put("presetId", s.presetId ?: JSONObject.NULL)
         put("players", JSONArray(s.players.map { JSONObject().put("id", it.id).put("name", it.name).put("driver", it.isDriver) }))
@@ -34,15 +42,23 @@ object SnapshotCodec {
         put("quiz", JSONObject(s.quizState))
         put("chain", JSONObject(s.chainState))
         put("pendingQuestionId", s.pendingQuestionId ?: JSONObject.NULL)
-        put("window", JSONArray(s.drowsyWindow.map(::encodeSample)))
-        put("cap", s.difficultyCap)
-        put("lastTrigger", s.lastTriggerAtMs ?: JSONObject.NULL)
-        put("stage1", s.stage1Count)
+        put("window", JSONArray(d.window.map(::encodeSample)))
+        put("cap", d.difficultyCap)
+        put("lastTrigger", d.lastTriggerAtMs ?: JSONObject.NULL)
+        put("stage1", d.stage1Count)
+        put("stage1Times", JSONArray(d.stage1Times))
+        put("stage2", d.stage2Count)
+        put("lastStage2", d.lastStage2AtMs ?: JSONObject.NULL)
+        put("longestChain", s.longestChain)
+        put("driverId", s.driverProfileId ?: JSONObject.NULL)
+        put("simRemain", s.simRemainSec ?: JSONObject.NULL)
         put("savedAt", s.savedAtWallMs)
     }.toString()
 
+    /** v1·v2 를 읽는다. 모르는 버전·손상된 JSON·말이 안 되는 값이면 null — 홈에서 새로 시작한다 */
     fun decode(json: String): SessionSnapshot? = runCatching {
         val o = JSONObject(json)
+        if (o.optInt("v", 1) !in 1..VERSION) return null
         val players = o.getJSONArray("players").let { arr ->
             (0 until arr.length()).map { i ->
                 val p = arr.getJSONObject(i)
@@ -66,13 +82,28 @@ object SnapshotCodec {
             quizState = decodeStringMap(o.optJSONObject("quiz")),
             chainState = decodeStringMap(o.optJSONObject("chain")),
             pendingQuestionId = o.optStringOrNull("pendingQuestionId"),
-            drowsyWindow = o.getJSONArray("window").let { arr -> (0 until arr.length()).map { decodeSample(arr.getJSONObject(it)) } },
-            difficultyCap = o.optInt("cap", 3),
-            lastTriggerAtMs = if (o.isNull("lastTrigger")) null else o.getLong("lastTrigger"),
-            stage1Count = o.optInt("stage1"),
+            drowsy = DrowsinessMonitor.SavedState(
+                window = o.getJSONArray("window").let { arr -> (0 until arr.length()).map { decodeSample(arr.getJSONObject(it)) } },
+                difficultyCap = o.optInt("cap", 3),
+                lastTriggerAtMs = o.optLongOrNull("lastTrigger"),
+                stage1Count = o.optInt("stage1"),
+                stage1Times = o.optJSONArray("stage1Times")?.let { arr -> (0 until arr.length()).map { arr.getLong(it) } }.orEmpty(),
+                stage2Count = o.optInt("stage2"),
+                lastStage2AtMs = o.optLongOrNull("lastStage2"),
+            ),
+            longestChain = o.optInt("longestChain"),
+            driverProfileId = if (o.isNull("driverId")) null else o.getInt("driverId"),
+            simRemainSec = if (o.isNull("simRemain")) null else o.getInt("simRemain"),
             savedAtWallMs = o.optLong("savedAt"),
         )
-    }.getOrNull()
+    }.getOrNull()?.takeIf(::isConsistent)
+
+    /** 이어서 할 수 없는 저장본(운전자 없음·진행 위치가 계획 밖)을 거른다 */
+    private fun isConsistent(s: SessionSnapshot): Boolean =
+        s.players.count { it.isDriver } == 1 &&
+            s.roundIndex in 0..s.plan.rounds.size &&
+            s.turnInRound >= 0 &&
+            s.rotationIndex >= 0
 
     fun encodeBaseline(b: DriverBaseline): String =
         JSONObject().put("latency", b.latencyEmaMs).put("accuracy", b.accuracyEma).put("count", b.sampleCount).toString()
@@ -112,15 +143,12 @@ object SnapshotCodec {
     }
 
     private fun encodeSample(s: ResponseSample) = JSONObject()
-        .put("latency", s.latencyMs).put("correct", s.correct ?: JSONObject.NULL).put("difficulty", s.difficulty)
-        .put("at", s.atEpochMs).put("drive", s.driveState.name)
+        .put("latency", s.latencyMs).put("correct", s.correct ?: JSONObject.NULL)
 
+    /** v1 의 difficulty·at·drive 는 판단에 쓰지 않아 읽지 않는다 */
     private fun decodeSample(o: JSONObject) = ResponseSample(
         latencyMs = o.getLong("latency"),
         correct = if (o.isNull("correct")) null else o.getBoolean("correct"),
-        difficulty = o.optInt("difficulty", 1),
-        atEpochMs = o.optLong("at"),
-        driveState = runCatching { DriveState.valueOf(o.getString("drive")) }.getOrDefault(DriveState.UNKNOWN),
     )
 
     private fun encodeIntMap(m: Map<Int, Int>) = JSONObject().apply { m.forEach { (k, v) -> put(k.toString(), v) } }
@@ -133,4 +161,6 @@ object SnapshotCodec {
     private fun JSONArray.toStrings(): List<String> = (0 until length()).map { getString(it) }
 
     private fun JSONObject.optStringOrNull(key: String): String? = if (isNull(key)) null else optString(key).takeIf { it.isNotEmpty() }
+
+    private fun JSONObject.optLongOrNull(key: String): Long? = if (isNull(key)) null else getLong(key)
 }

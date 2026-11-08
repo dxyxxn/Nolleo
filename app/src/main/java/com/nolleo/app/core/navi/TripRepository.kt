@@ -85,7 +85,9 @@ class TripRepository(
     /** 앱이 다시 보이면 내비 목적지·남은 시간을 바로 다시 조회한다 (내비 앱에서 잡은 경로를 홈에 실시간 반영) */
     fun setForeground(visible: Boolean) {
         foreground.value = visible
-        if (visible) navi.refresh()
+        if (!visible) return
+        // 연결에 실패했던 NaviHelper 는 앱이 다시 보일 때 한 번 더 연결해 본다
+        if (navi.status.value is SdkStatus.Unavailable) navi.start() else navi.refresh()
     }
 
     /** 프리셋 목적지로 여정을 시작한다. */

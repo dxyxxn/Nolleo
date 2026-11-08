@@ -66,7 +66,7 @@ class WordChainGame(
             return Turn(
                 player = Player.APP,
                 prompt = "음… ${startsWithPhrase(s)} 시작하는 말이 생각이 안 나요. 제가 졌어요!",
-                display = "놀레오: 제가 졌어요!",
+                display = "놀레오: 제가 졌어요",
                 shortDisplay = "놀레오가 졌어요",
                 expectsAnswer = false,
                 endsRoundAfter = true,
@@ -161,7 +161,7 @@ class WordChainGame(
             feedback = "좋아요, '$word'!",
             scoreDelta = 10,
             correct = true,
-            label = if (lenient) "'$word' 인정!" else "'$word' 성공!",
+            label = if (lenient) "'$word' 인정" else "'$word' 성공",
         )
     }
 

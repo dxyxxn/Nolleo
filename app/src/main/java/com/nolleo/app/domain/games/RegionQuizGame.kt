@@ -116,7 +116,7 @@ class RegionQuizGame(
                 "딩동댕! ${canonical}, 정답이에요!",
                 scoreDelta = 10,
                 correct = true,
-                label = "정답!",
+                label = "정답",
             )
             else -> Judgement(
                 Outcome.WRONG,
