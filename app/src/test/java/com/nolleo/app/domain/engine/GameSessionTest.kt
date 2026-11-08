@@ -155,11 +155,15 @@ class GameSessionTest {
     private fun plan(game: GameKind, count: Int) =
         SessionPlan(listOf(RoundPlan(0, game, 360, count, 3 * 3600)), basisRemainSec = 3 * 3600)
 
-    private fun session(env: Env, speech: SpeechPort, rec: Recorder, players: List<Player>, plan: SessionPlan, baseline: DriverBaseline? = null) =
+    private fun session(
+        env: Env, speech: SpeechPort, rec: Recorder, players: List<Player>, plan: SessionPlan,
+        baseline: DriverBaseline? = null, noDestination: Boolean = false,
+    ) =
         GameSession(
             speech = speech, clock = env.clock, content = content, dictionary = dictionary, players = players,
             initialPlan = plan, choice = GameChoice.QUIZ, demo = false, drowsy = DrowsinessMonitor(baseline),
-            inputs = env.inputs, callbacks = rec, destinationName = "테스트", presetId = null, random = Random(3),
+            inputs = env.inputs, callbacks = rec, destinationName = "테스트", presetId = null, noDestination = noDestination,
+            random = Random(3),
         )
 
     @Test
@@ -182,6 +186,24 @@ class GameSessionTest {
         assertTrue(speech.spoken.first().contains("1번째 판"))
         assertTrue("지역 안내", speech.spoken.any { it.contains("지금은 충청북도예요!") })
         assertTrue("턴 순서: 아빠 → 조수석", speech.spoken.indexOfFirst { it.contains("아빠 차례") } < speech.spoken.indexOfFirst { it.contains("조수석 차례") })
+        job.cancel()
+    }
+
+    @Test
+    fun noDestination_wrapsAndEndsWithTimeUpLines() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1300L)) { it.correctAnswer }
+        val rec = Recorder()
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 8), noDestination = true)
+        val job = launch { s.run() }
+        advanceTimeBy(8_000) // 판 중간에 정한 시간이 5분 남음
+        env.remain.value = 200
+        advanceUntilIdle()
+        assertTrue(speech.spoken.toString(), speech.spoken.any { it.startsWith("정한 시간이 거의 다 됐어요. 이번 판은 여기까지") })
+        assertTrue(speech.spoken.any { it.startsWith("정한 시간이 다 됐어요! 오늘 놀레오는 여기까지예요.") })
+        assertTrue("도착 문구를 쓰지 않는다", speech.spoken.none { it.contains("곧 도착") })
+        assertTrue(rec.summary!!.noDestination)
+        assertTrue(s.snapshot().noDestination)
         job.cancel()
     }
 

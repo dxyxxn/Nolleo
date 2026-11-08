@@ -59,6 +59,7 @@ fun ScreenGameScreen(
 ) {
     val trip by container.tripRepository.snapshot.collectAsStateWithLifecycle()
     val sessionState by container.coordinator.sessionState.collectAsStateWithLifecycle()
+    val session by container.coordinator.session.collectAsStateWithLifecycle()
     val c = Nl.colors
 
     Column(modifier.fillMaxSize().padding(horizontal = Sp.xxl, vertical = Sp.xl), verticalArrangement = Arrangement.spacedBy(Sp.xl)) {
@@ -78,7 +79,7 @@ fun ScreenGameScreen(
                     modifier = Modifier.weight(1f),
                 )
                 trip?.remainTimeSec?.let {
-                    Chip("도착까지 ${TripUnits.formatDuration(it)}")
+                    Chip(TripUnits.remainLabel(it, session?.noDestination == true))
                 }
                 // 정차 중에는 언제든 게임을 끝내고 홈으로 갈 수 있다 (점수가 있으면 요약 화면을 거친다)
                 SecondaryButton("게임 끝내기", onClick = container.coordinator::endSession)

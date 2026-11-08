@@ -52,6 +52,17 @@ class SnapshotCodecTest {
         assertEquals(snap, SnapshotCodec.decode(SnapshotCodec.encode(snap)))
     }
 
+    @Test
+    fun timerSnapshot_roundTrip_andV2ReadsAsNotTimer() {
+        val timer = minimal().copy(destinationName = "목적지 없이 1시간", noDestination = true, timerTotalSec = 3600, simRemainSec = 2400)
+        assertEquals(timer, SnapshotCodec.decode(SnapshotCodec.encode(timer)))
+        val v2 = JSONObject(SnapshotCodec.encode(timer)).put("v", 2)
+        listOf("noDest", "timerTotal").forEach(v2::remove)
+        val decoded = SnapshotCodec.decode(v2.toString())!!
+        assertEquals(false, decoded.noDestination)
+        assertNull(decoded.timerTotalSec)
+    }
+
     private fun minimal(plan: com.nolleo.app.domain.model.SessionPlan = SessionPlanner.plan(3600, GameChoice.QUIZ)) = SessionSnapshot(
         destinationName = "강릉역", presetId = null, players = listOf(Player(1, "엄마", true)),
         choice = GameChoice.QUIZ, demo = false, plan = plan, roundIndex = 0, turnInRound = 0, rotationIndex = 0,

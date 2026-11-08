@@ -104,7 +104,11 @@ private fun DrivingSummary(summary: SessionSummary, onDone: () -> Unit, modifier
     }
 }
 
-private fun summaryTitle(summary: SessionSummary) = if (summary.endedByUser) "여기까지 했어요" else "도착했어요"
+private fun summaryTitle(summary: SessionSummary) = when {
+    summary.endedByUser -> "여기까지 했어요"
+    summary.noDestination -> "시간이 다 됐어요"
+    else -> "도착했어요"
+}
 
 /** 오늘의 기록: 맞힌 수(크게) · 1등 · 함께한 게임 · 끝말잇기 최장 */
 @Composable

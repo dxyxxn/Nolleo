@@ -58,6 +58,10 @@ object TripUnits {
         }
     }
 
+    /** 상단 남은 시간 표시 — 목적지 없이 정한 시간만큼 노는 세션은 "남은 시간", 아니면 "도착까지" */
+    fun remainLabel(sec: Int, noDestination: Boolean): String =
+        if (noDestination) "남은 시간 ${formatDuration(sec)}" else "도착까지 ${formatDuration(sec)}"
+
     fun formatDistance(m: Int): String =
         if (m >= 1_000) "%.1fkm".format(m / 1000.0) else "${m}m"
 }

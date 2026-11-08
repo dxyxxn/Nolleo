@@ -73,10 +73,12 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val restDistance by coordinator.restCare.distanceM.collectAsStateWithLifecycle()
     val region by container.locationRepository.regionCode.collectAsStateWithLifecycle()
     val content by container.content.content.collectAsStateWithLifecycle()
+    val session by coordinator.session.collectAsStateWithLifecycle()
     val s = state ?: return
     val c = Nl.colors
+    val noDestination = session?.noDestination == true
 
-    val remainText = trip?.remainTimeSec?.let { "도착까지 ${TripUnits.formatDuration(it)}" } ?: "도착 시간 확인 중"
+    val remainText = trip?.remainTimeSec?.let { TripUnits.remainLabel(it, noDestination) } ?: "도착 시간 확인 중"
     val regionName = content?.region(region)?.name
     val paused = mode == GameMode.PAUSED
 
@@ -113,7 +115,7 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 ) {
                     when {
                         paused -> PausedBlock(reasons)
-                        else -> CenterBlock(s, ux, trip?.remainTimeSec)
+                        else -> CenterBlock(s, ux, trip?.remainTimeSec, noDestination)
                     }
                 }
 
@@ -152,7 +154,7 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CenterBlock(s: SessionState, ux: UxState, remainSec: Int?) {
+private fun CenterBlock(s: SessionState, ux: UxState, remainSec: Int?, noDestination: Boolean) {
     val c = Nl.colors
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Sp.xl)) {
         when (s.phase) {
@@ -184,7 +186,11 @@ private fun CenterBlock(s: SessionState, ux: UxState, remainSec: Int?) {
             }
             SessionPhase.ALL_DONE -> {
                 BigText("오늘 준비한 판을 모두 했어요")
-                Text("도착하면 결과를 정리해 드릴게요.", style = MaterialTheme.typography.titleLarge, color = c.muted)
+                Text(
+                    if (noDestination) "정한 시간이 되면 결과를 정리해 드릴게요." else "도착하면 결과를 정리해 드릴게요.",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = c.muted,
+                )
             }
             SessionPhase.FINISHING, SessionPhase.FINISHED -> BigText("오늘의 결과를 정리하고 있어요")
             else -> {

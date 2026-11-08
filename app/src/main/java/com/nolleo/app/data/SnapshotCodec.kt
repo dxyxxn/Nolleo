@@ -20,8 +20,9 @@ object SnapshotCodec {
      * 저장본 형식 버전.
      *  - 1: 첫 형식
      *  - 2: 졸음 1단계 시각·2단계 횟수·마지막 2단계 시각, 끝말잇기 최장, 운전자 id, 시뮬 남은 시간 (11/8)
+     *  - 3: 목적지 없이 노는 세션 여부, 타이머 여정의 전체 시간 (11/8) — simRemain 은 타이머 여정의 남은 시간에도 쓴다
      */
-    const val VERSION = 2
+    const val VERSION = 3
 
     fun encode(s: SessionSnapshot): String = JSONObject().apply {
         val d = s.drowsy
@@ -52,10 +53,12 @@ object SnapshotCodec {
         put("longestChain", s.longestChain)
         put("driverId", s.driverProfileId ?: JSONObject.NULL)
         put("simRemain", s.simRemainSec ?: JSONObject.NULL)
+        put("noDest", s.noDestination)
+        put("timerTotal", s.timerTotalSec ?: JSONObject.NULL)
         put("savedAt", s.savedAtWallMs)
     }.toString()
 
-    /** v1·v2 를 읽는다. 모르는 버전·손상된 JSON·말이 안 되는 값이면 null — 홈에서 새로 시작한다 */
+    /** v1~v3 을 읽는다 (없는 필드는 기본값). 모르는 버전·손상된 JSON·말이 안 되는 값이면 null — 홈에서 새로 시작한다 */
     fun decode(json: String): SessionSnapshot? = runCatching {
         val o = JSONObject(json)
         if (o.optInt("v", 1) !in 1..VERSION) return null
@@ -94,6 +97,8 @@ object SnapshotCodec {
             longestChain = o.optInt("longestChain"),
             driverProfileId = if (o.isNull("driverId")) null else o.getInt("driverId"),
             simRemainSec = if (o.isNull("simRemain")) null else o.getInt("simRemain"),
+            noDestination = o.optBoolean("noDest"),
+            timerTotalSec = if (o.isNull("timerTotal")) null else o.getInt("timerTotal"),
             savedAtWallMs = o.optLong("savedAt"),
         )
     }.getOrNull()?.takeIf(::isConsistent)

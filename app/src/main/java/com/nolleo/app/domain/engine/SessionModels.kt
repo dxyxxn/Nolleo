@@ -104,6 +104,8 @@ data class SessionSummary(
     val stage2Count: Int = 0,
     /** 도착 전에 사용자가 "게임 끝내기"로 끝냄 */
     val endedByUser: Boolean = false,
+    /** 목적지 없이 정한 시간만큼 논 세션 (요약 제목이 "도착했어요" 대신 "시간이 다 됐어요") */
+    val noDestination: Boolean = false,
 ) {
     val totalCorrect: Int get() = correctCounts.values.sum()
     val winner: Player? get() = players.maxByOrNull { scores[it.id] ?: 0 }?.takeIf { (scores[it.id] ?: 0) > 0 }
@@ -135,7 +137,11 @@ data class SessionSnapshot(
     val longestChain: Int = 0,
     /** 운전자 프로필 id. 이 필드가 없는 v1 저장본은 null → 운전자 이름으로 찾는다 */
     val driverProfileId: Int? = null,
-    /** 저장할 때 시뮬 여정의 남은 시간(초) — 이어서 하기 때 그 지점부터. 실제 내비 여정이면 null */
+    /** 저장할 때 시뮬·타이머 여정의 남은 시간(초) — 이어서 하기 때 그 지점부터. 실제 내비 여정이면 null */
     val simRemainSec: Int? = null,
+    /** 목적지 없이 정한 시간만큼 노는 세션 (v3) */
+    val noDestination: Boolean = false,
+    /** 타이머 여정의 전체 시간(초) — 이어서 하기 때 같은 타이머를 다시 만든다. 타이머 여정이 아니면 null (v3) */
+    val timerTotalSec: Int? = null,
     val savedAtWallMs: Long,
 )

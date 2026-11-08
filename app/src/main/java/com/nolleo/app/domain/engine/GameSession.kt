@@ -45,7 +45,7 @@ import kotlin.random.Random
  *
  *  - PAUSED 진입 시 진행 중인 TTS/STT 를 즉시 멈추고(현재 문제 보존), 해제되면 1초 뒤 같은 문제를 다시 낸다.
  *  - 정차(화면 게임 가능)하면 진행 중인 차례만 끝내고 판을 마무리한다 → ModeArbiter 가 SCREEN 으로 전환.
- *  - 남은 시간 ≤ 5분이면 진행 중인 판을 마무리하고 결과를 정리한다.
+ *  - 남은 시간 ≤ 5분이면 진행 중인 판을 마무리하고 결과를 정리한다 (목적지 없이 정한 시간만큼 노는 세션도 같은 기준).
  *  - 운전자 차례 응답의 지연을 DrowsinessMonitor 에 넘긴다 (판 첫 문제·일시정지 직후 첫 응답 제외).
  * 모든 대기는 StateFlow 이벤트로 깨어난다 (폴링·타이머 루프 없음).
  */
@@ -63,6 +63,8 @@ class GameSession(
     private val callbacks: SessionCallbacks,
     val destinationName: String,
     val presetId: String?,
+    /** 목적지 없이 정한 시간만큼 논다 — 끝맺는 말이 "곧 도착이에요" 대신 "정한 시간이 다 됐어요" */
+    val noDestination: Boolean = false,
     private val random: Random = Random.Default,
     restore: SessionSnapshot? = null,
 ) {
@@ -477,7 +479,7 @@ class GameSession(
                 break
             }
             if (arrivalImminent()) {
-                wrapLine = "곧 도착이에요. 이번 판은 여기까지 할게요!"
+                wrapLine = if (noDestination) "정한 시간이 거의 다 됐어요. 이번 판은 여기까지 할게요!" else "곧 도착이에요. 이번 판은 여기까지 할게요!"
                 break
             }
             if (!awaitVoice()) break
@@ -719,7 +721,7 @@ class GameSession(
         if (inputs.mode.value == GameMode.VOICE) {
             val winner = summary.winner
             val line = buildString {
-                append("곧 도착이에요! 오늘 놀레오는 여기까지예요. ")
+                append(if (noDestination) "정한 시간이 다 됐어요! 오늘 놀레오는 여기까지예요. " else "곧 도착이에요! 오늘 놀레오는 여기까지예요. ")
                 if (winner != null) append("오늘의 1등은 ${Hangul.ieyo(winner.name)}. ")
                 append("모두 ${summary.totalCorrect}번 맞혔어요. 즐거운 여행 되세요!")
             }
@@ -743,6 +745,7 @@ class GameSession(
             stage1Count = d.stage1Count,
             longestChain = maxOf(longestChain, chain?.chainLength ?: 0),
             stage2Count = d.stage2Count,
+            noDestination = noDestination,
         )
     }
 
@@ -767,6 +770,7 @@ class GameSession(
             pendingQuestionId = pendingTurn?.questionId,
             drowsy = drowsy.saveState(),
             longestChain = maxOf(longestChain, chain?.chainLength ?: 0),
+            noDestination = noDestination,
             savedAtWallMs = clock.wallMs(),
         )
     }
