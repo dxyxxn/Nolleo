@@ -51,6 +51,9 @@ class WordChainGameTest {
         assertEquals("", human.prompt)
         assertTrue(human.reprompt.contains("아빠"))
         assertTrue(human.expectsAnswer)
+        // 이어진 낱말은 화면 위 낱말 줄에 따로 보이므로 화면 글은 무엇으로 시작할지만
+        assertEquals("${g.startsWithPhrase(g.currentWord!!.last())} 시작하는 말", human.display)
+        assertEquals(listOf(g.currentWord), g.words)
     }
 
     @Test

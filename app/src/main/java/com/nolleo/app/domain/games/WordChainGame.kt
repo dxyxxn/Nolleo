@@ -82,7 +82,8 @@ class WordChainGame(
         return Turn(
             player = Player.APP,
             prompt = (if (restarted) "$RESTART_LINE " else "") + "저는 '$word'! ${ctx.nextPlayer.name}, ${startsWithPhrase(next)} 시작하는 말!",
-            display = (if (restarted) "놀레오: 다른 말로 다시 시작 — $word" else "놀레오: $word") + "\n${startsWithPhrase(next)} 시작하는 말",
+            // 낱말은 화면 위 낱말 줄(SessionState.chainWords)에 있으므로 화면 글은 무엇으로 시작할지만
+            display = (if (restarted) "다른 말로 다시 시작\n" else "") + "${startsWithPhrase(next)} 시작하는 말",
             shortDisplay = "${syllableLabel(next)} 차례",
             expectsAnswer = false,
         )
@@ -99,7 +100,7 @@ class WordChainGame(
             player = ctx.player,
             prompt = prompt,
             reprompt = fullPrompt,
-            display = "${lastWord ?: ""} → ${startsWithPhrase(required)} 시작하는 말",
+            display = "${startsWithPhrase(required)} 시작하는 말",
             shortDisplay = "${syllableLabel(required)} 시작",
             hint = ListenHint(
                 correctAnswer = sample,

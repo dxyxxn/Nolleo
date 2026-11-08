@@ -54,6 +54,7 @@ import com.nolleo.app.ui.common.Hairline
 import com.nolleo.app.ui.common.NlCard
 import com.nolleo.app.ui.common.PrimaryButton
 import com.nolleo.app.ui.common.SecondaryButton
+import com.nolleo.app.ui.common.WordChainRow
 import com.nolleo.app.ui.theme.Nl
 import com.nolleo.app.ui.theme.Radius
 import com.nolleo.app.ui.theme.Sp
@@ -197,6 +198,8 @@ private fun CenterBlock(s: SessionState, ux: UxState, remainSec: Int?, noDestina
             }
             SessionPhase.FINISHING, SessionPhase.FINISHED -> BigText("오늘의 결과를 정리하고 있어요")
             else -> {
+                // 끝말잇기: 이어진 낱말 줄 (정차 중 끝말잇기와 같은 모양). 글자 수 제한 규제면 1줄 요약만 남긴다
+                if (s.roundGame == GameKind.WORD_CHAIN && !ux.limitStringLength) WordChainRow(s.chainWords)
                 s.currentPlayer?.let { p ->
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
                         Avatar(p.name, strong = true)

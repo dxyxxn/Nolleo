@@ -84,6 +84,8 @@ data class SessionState(
     val partial: String? = null,
     /** 듣는 중 답을 시작해야 하는 마감 시각(Clock.elapsedMs 기준) — 끝말잇기 화면의 남은 초. 말을 시작하면 null */
     val listenDeadlineMs: Long? = null,
+    /** 끝말잇기 판에서 지금까지 이은 낱말(화면 글과 같은 때 바뀜) — 그 밖의 판은 빈 목록 */
+    val chainWords: List<String> = emptyList(),
     val lastAnswer: AnswerLine? = null,
     val scores: Map<Int, Int> = emptyMap(),
     val correctCounts: Map<Int, Int> = emptyMap(),

@@ -1,15 +1,12 @@
 package com.nolleo.app.ui.screen
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -35,8 +32,8 @@ import com.nolleo.app.ui.common.MicIndicator
 import com.nolleo.app.ui.common.NlCard
 import com.nolleo.app.ui.common.PrimaryButton
 import com.nolleo.app.ui.common.SecondaryButton
+import com.nolleo.app.ui.common.WordChainRow
 import com.nolleo.app.ui.theme.Nl
-import com.nolleo.app.ui.theme.Radius
 import com.nolleo.app.ui.theme.Sp
 
 /**
@@ -64,7 +61,7 @@ fun WordChainPanel(game: ScreenWordChainController, nowMs: () -> Long, onClose: 
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(Sp.l, Alignment.CenterVertically),
             ) {
-                Chain(s.words)
+                WordChainRow(s.words)
                 val ended = s.ended
                 when {
                     ended != null -> NlCard(Modifier.fillMaxWidth(), spacing = Sp.l, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -128,35 +125,6 @@ private fun Header(ui: ScreenWordChainController.UiState, onRestart: () -> Unit,
     }
 }
 
-/** 이어진 낱말 — 마지막 4개만 (앞이 더 있으면 "…") */
-@Composable
-private fun Chain(words: List<String>) {
-    val c = Nl.colors
-    if (words.isEmpty()) return
-    val shown = words.takeLast(SHOWN_WORDS)
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.s)) {
-        if (words.size > shown.size) Text("…", style = MaterialTheme.typography.titleLarge, color = c.muted)
-        shown.forEachIndexed { i, w ->
-            if (i > 0) Text("→", style = MaterialTheme.typography.titleLarge, color = c.muted)
-            val last = i == shown.lastIndex
-            Box(
-                Modifier
-                    .heightIn(min = 72.dp)
-                    .background(if (last) c.card else c.sunk, Radius.tile)
-                    .padding(horizontal = Sp.l, vertical = Sp.m),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    w,
-                    style = if (last) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineSmall,
-                    color = if (last) c.ink else c.muted,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
 /** 진행 중인 차례: 누구 차례 · 무엇으로 시작 · (듣는 중) 남은 초 · 마이크 */
 @Composable
 private fun Turn(s: WordChainPlay.State, nowMs: () -> Long) {
@@ -198,5 +166,3 @@ private fun LastAnswer(s: WordChainPlay.State) {
         textAlign = TextAlign.Center,
     )
 }
-
-private const val SHOWN_WORDS = 4

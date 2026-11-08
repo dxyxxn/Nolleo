@@ -446,6 +446,9 @@ class GameSession(
 
     // ── 판 진행 ──────────────────────────────────────────────────
 
+    /** 끝말잇기 판이면 지금까지 이은 낱말 (화면 위 낱말 줄) */
+    private fun chainWords(): List<String> = chain?.words.orEmpty()
+
     private suspend fun playRound(round: RoundPlan) {
         val game: VoiceGame = when (round.game) {
             GameKind.WORD_CHAIN -> WordChainGame(dictionary, random) { word -> callbacks.logSensitive("WordChain lenient accept", word) }
@@ -461,7 +464,10 @@ class GameSession(
         callbacks.onVoiceRoundActive(true)
         speech.markNewStream()
         _state.update {
-            it.copy(roundIndex = round.index, roundGame = round.game, turnsInRound = round.questionCount, turnInRound = resumeTurnInRound, lastAnswer = null)
+            it.copy(
+                roundIndex = round.index, roundGame = round.game, turnsInRound = round.questionCount, turnInRound = resumeTurnInRound,
+                lastAnswer = null, chainWords = chainWords(),
+            )
         }
         callbacks.log("round ${round.index + 1}/${plan.roundCount} start: ${round.game.label} x${round.questionCount}")
 
@@ -498,7 +504,9 @@ class GameSession(
             pendingTurn = turn
 
             if (!turn.expectsAnswer) {
-                _state.update { it.copy(currentPlayer = player, display = turn.display, shortDisplay = turn.shortDisplay, partial = null) }
+                _state.update {
+                    it.copy(currentPlayer = player, display = turn.display, shortDisplay = turn.shortDisplay, partial = null, chainWords = chainWords())
+                }
                 // 앱 차례(끝말잇기 낱말)가 일시정지로 끊기면 재개 후 다시 말한다 — 다음 사람이 낱말을 들어야 한다
                 if (!sayFully(turn.prompt)) break
                 pendingTurn = null
@@ -556,7 +564,9 @@ class GameSession(
         wrapLine?.let { say(it, SessionPhase.ROUND_END) }
         if (inputs.mode.value == GameMode.VOICE) say("${game.outro()} ${scoreLine()}", SessionPhase.ROUND_END)
         (game as? WordChainGame)?.let { longestChain = maxOf(longestChain, it.chainLength) }
-        _state.update { it.copy(roundsPlayed = it.roundsPlayed + round.game, currentPlayer = null, display = null, shortDisplay = null) }
+        _state.update {
+            it.copy(roundsPlayed = it.roundsPlayed + round.game, currentPlayer = null, display = null, shortDisplay = null, chainWords = emptyList())
+        }
         currentGame = null
         chain = null
         pendingTurn = null
@@ -582,7 +592,9 @@ class GameSession(
                 if (sayPendingAnnouncement() && (inputs.screenAvailable.value || arrivalImminent())) return null
             }
             val prompt = if (interrupted) turn.prompt.ifBlank { turn.reprompt } else turn.prompt
-            _state.update { it.copy(currentPlayer = turn.player, display = turn.display, shortDisplay = turn.shortDisplay, partial = null) }
+            _state.update {
+                it.copy(currentPlayer = turn.player, display = turn.display, shortDisplay = turn.shortDisplay, partial = null, chainWords = chainWords())
+            }
             val result = interruptible {
                 if (prompt.isNotBlank()) {
                     _state.update { it.copy(phase = SessionPhase.ASKING, caption = prompt, mic = MicState.SPEAKING) }

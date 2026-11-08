@@ -37,10 +37,12 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nolleo.app.R
@@ -355,6 +357,83 @@ fun AnswerCountdown(deadlineMs: Long, nowMs: () -> Long, modifier: Modifier = Mo
     Row(modifier, verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Sp.s)) {
         Text("$seconds", style = MaterialTheme.typography.displayLarge, color = if (seconds <= 3) c.danger else c.ink)
         Text("초 안에 말해요", style = MaterialTheme.typography.titleMedium, color = c.muted, modifier = Modifier.padding(bottom = Sp.m))
+    }
+}
+
+/**
+ * 끝말잇기에서 이어진 낱말 한 줄 — `… 기차 → 차례 → 예절 → 절약`. 마지막 낱말(지금 이을 말)만 테두리 칸에 진하게.
+ * 많아야 [maxWords] 개, 창이 좁으면 앞쪽 낱말부터 빼서 한 줄에 들어가는 만큼만(줄을 넘기거나 잘리지 않게). 앞이 더 있으면 "…".
+ * 주행 중 음성 화면과 정차 중 끝말잇기가 같이 쓴다.
+ */
+@Composable
+fun WordChainRow(words: List<String>, modifier: Modifier = Modifier, maxWords: Int = 4) {
+    if (words.isEmpty()) return
+    val c = Nl.colors
+    val shown = words.takeLast(maxWords)
+    val gap = Sp.s
+    Layout(
+        modifier = modifier,
+        content = {
+            // [0] 줄임표, 그 뒤로 낱말 칸과 화살표가 번갈아: 칸0, →, 칸1, →, 칸2 …
+            Text("…", style = MaterialTheme.typography.titleLarge, color = c.muted)
+            shown.forEachIndexed { i, w ->
+                if (i > 0) Text("→", style = MaterialTheme.typography.titleLarge, color = c.muted)
+                val last = i == shown.lastIndex
+                Box(
+                    Modifier
+                        .heightIn(min = 72.dp)
+                        .then(if (last) Modifier.border(1.dp, c.line, Radius.tile) else Modifier)
+                        .background(if (last) c.card else c.sunk, Radius.tile)
+                        .padding(horizontal = Sp.l, vertical = Sp.m),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        w,
+                        style = if (last) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineSmall,
+                        color = if (last) c.ink else c.muted,
+                        maxLines = 1,
+                    )
+                }
+            }
+        },
+    ) { measurables, constraints ->
+        val loose = Constraints(maxHeight = constraints.maxHeight)
+        val placeables = measurables.map { it.measure(loose) }
+        val gapPx = gap.roundToPx()
+        val ellipsis = placeables[0]
+        val tiles = shown.indices.map { i -> placeables[1 + i * 2] }
+        val arrows = (1 until shown.size).map { i -> placeables[i * 2] }
+        // 뒤에서부터 k 개 낱말이 들어가는지: 칸 + 사이 화살표 + 간격 (+ 앞에 낱말이 더 있으면 줄임표)
+        fun widthOf(k: Int): Int {
+            val from = shown.size - k
+            var w = (from until shown.size).sumOf { tiles[it].width }
+            w += (from + 1 until shown.size).sumOf { arrows[it - 1].width }
+            var items = k + (k - 1)
+            if (words.size > k) {
+                w += ellipsis.width
+                items++
+            }
+            return w + gapPx * (items - 1)
+        }
+        var k = shown.size
+        while (k > 1 && widthOf(k) > constraints.maxWidth) k--
+        val from = shown.size - k
+        val row = buildList {
+            if (words.size > k) add(ellipsis)
+            for (i in from until shown.size) {
+                if (i > from) add(arrows[i - 1])
+                add(tiles[i])
+            }
+        }
+        val width = (row.sumOf { it.width } + gapPx * (row.size - 1)).coerceAtMost(constraints.maxWidth)
+        val height = row.maxOf { it.height }
+        layout(width, height) {
+            var x = 0
+            row.forEach { p ->
+                p.placeRelative(x, (height - p.height) / 2)
+                x += p.width + gapPx
+            }
+        }
     }
 }
 

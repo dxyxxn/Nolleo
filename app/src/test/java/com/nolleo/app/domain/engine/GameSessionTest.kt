@@ -536,6 +536,28 @@ class GameSessionTest {
     }
 
     @Test
+    fun wordChainRound_showsChainWordsAboveTheTurn_andClearsThemAfterTheRound() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val rec = Recorder()
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.WORD_CHAIN, 2))
+        val seen = mutableListOf<Pair<List<String>, String?>>()
+        val collector = launch { s.state.collect { seen += it.chainWords to it.display } }
+        val job = launch { s.run() }
+        advanceTimeBy(120_000)
+        val chains = seen.map { it.first }.filter { it.isNotEmpty() }
+        val longest = chains.maxBy { it.size }
+        assertTrue("놀레오·운전자 낱말이 쌓여야 함: $longest", longest.size >= 3)
+        // 낱말 줄은 앞에서부터 늘기만 한다 (한 판 안)
+        assertTrue(chains.all { longest.take(it.size) == it })
+        // 낱말은 위 줄에 있으므로 화면 글은 무엇으로 시작할지만 ("자동차 → …" 처럼 낱말을 되풀이하지 않음)
+        assertTrue(seen.filter { it.first.isNotEmpty() }.mapNotNull { it.second }.all { "→" !in it && it.endsWith("시작하는 말") })
+        assertTrue("판이 끝나면 낱말 줄을 비움", s.state.value.chainWords.isEmpty())
+        job.cancel()
+        collector.cancel()
+    }
+
+    @Test
     fun wordChainRound_appAndPlayersAlternate() = runTest {
         val env = Env(this)
         val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
