@@ -73,7 +73,6 @@
 - 디자인 후속:
   - 실차의 주간/야간 전환 신호가 시스템 야간 모드(`UI_MODE_NIGHT`)로 오는지 확인한다.
   - Pleos 디자인 에셋(Figma)의 시스템 색 토큰과 우리 팔레트를 대조한다.
-- **소리 크기 표시**(11/8 질문 "음성파형 표시 가능한가"): Pleos TTS·STT 리스너의 `onUpdatedRms(rms)`(Android 폴백은 `onRmsChanged`)로 마이크를 따로 열지 않고 만들 수 있다. 주행 중에는 움직이는 그림이 금지라 지금의 정적 3종 표시를 두고, 정차 중 끝말잇기에서만 몇 칸짜리 크기 막대(초당 몇 번만 갱신)를 먼저 시험한다. 값 범위·호출 간격부터 에뮬레이터·실차에서 잰다.
 - 서버 TTS/STT(HYBRID) 품질 비교: `local.properties`에 Client ID/Secret만 넣으면 전환된다.
 - 앱 안에서 버전을 확인해 `market://detail?package=com.nolleo.app`로 안내한다(DEV_GUIDE §11.2).
 
