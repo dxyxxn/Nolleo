@@ -110,6 +110,7 @@ fun HomeScreen(container: AppContainer, modifier: Modifier = Modifier) {
                     timerMinutes = home.timerMinutes,
                     onSelect = coordinator::selectDestination,
                     onTimer = coordinator::selectTimer,
+                    fillHeight = wide,
                     modifier = m,
                 )
             }
@@ -150,7 +151,7 @@ private fun Banner(title: String, detail: String?, actions: @Composable () -> Un
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleLarge, color = c.ink, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (detail != null) Text(detail, style = MaterialTheme.typography.bodyLarge, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (detail != null) Text(detail, style = MaterialTheme.typography.bodyMedium, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             actions()
         }
@@ -171,6 +172,7 @@ private fun DestinationCard(
     timerMinutes: Int,
     onSelect: (DestinationChoice) -> Unit,
     onTimer: (Int) -> Unit,
+    fillHeight: Boolean,
     modifier: Modifier,
 ) {
     val c = Nl.colors
@@ -210,11 +212,14 @@ private fun DestinationCard(
             onSelect = onTimer,
             modifier = Modifier.padding(start = Sp.l, top = Sp.xs),
         )
+        // 안내 한 줄은 카드 아래 가운데 — 넓은 창(카드 두 장 나란히, 높이 같음)에서는 맨 아래로 내려
+        // 오른쪽 카드의 "주행 중에는 음성으로 …" 와 같은 높이에 둔다 (11/8 사용자 요청)
+        if (fillHeight) Spacer(Modifier.weight(1f))
         Text(
             "남은 시간에 맞춰 판을 나눠요",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.labelSmall,
             color = c.muted,
-            modifier = Modifier.padding(top = Sp.s, start = Sp.l),
+            modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = Sp.s),
         )
     }
 }
@@ -261,7 +266,7 @@ private fun GameCard(
             Row(Modifier.fillMaxWidth().padding(start = SettingLabelWidth), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
                 Text(
                     "좌석 센서가 동승자 ${suggested}명을 감지했어요",
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = c.muted,
                     modifier = Modifier.weight(1f),
                     maxLines = 2,
@@ -284,7 +289,7 @@ private fun GameCard(
         }
         Text(
             "주행 중에는 음성으로, 정차 중에는 화면으로 놀아요",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.labelSmall,
             color = c.muted,
             modifier = Modifier.align(Alignment.CenterHorizontally),
         )
@@ -300,7 +305,7 @@ private fun ColumnScope.PlanSummary(preview: PlanPreview?, demo: Boolean, choice
     val c = Nl.colors
     if (preview == null) {
         // 최근 목적지의 예상 시간(내비 requestTrip)을 아직 받지 못함
-        Text("예상 시간을 확인하고 있어요. 받으면 남은 시간에 맞춰 판을 짜 드려요.", style = MaterialTheme.typography.titleSmall, color = c.muted)
+        Text("예상 시간을 확인하고 있어요. 받으면 남은 시간에 맞춰 판을 짜 드려요.", style = MaterialTheme.typography.bodyLarge, color = c.muted)
         return
     }
     Text(preview.text, style = MaterialTheme.typography.headlineLarge, color = c.ink)
@@ -310,10 +315,10 @@ private fun ColumnScope.PlanSummary(preview: PlanPreview?, demo: Boolean, choice
         preview.plan.rounds.take(6).joinToString(" · ") { "${it.index + 1}판 ${it.game.label}" } +
             if (preview.plan.roundCount > 6) " …" else ""
     }
-    Text(rounds, style = MaterialTheme.typography.bodyLarge, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    Text(rounds, style = MaterialTheme.typography.bodyMedium, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
     val rest = SessionPlanner.restBetweenRoundsSec(preview.plan)?.let { "판 사이 약 ${TripUnits.formatDuration(it)} 쉬어요" }
     val line = listOfNotNull(rest, if (demo) "데모 모드: 판당 ${preview.plan.rounds.first().questionCount}문제" else null).joinToString(" · ")
-    if (line.isNotEmpty()) Text(line, style = MaterialTheme.typography.bodyLarge, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    if (line.isNotEmpty()) Text(line, style = MaterialTheme.typography.bodyMedium, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
 }
 
 /** 랜덤일 때 판 구성 대신 보이는 줄 */

@@ -230,11 +230,11 @@ fun ChoiceRow(
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleLarge, color = c.ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (subtitle != null) {
-                Text(subtitle, style = MaterialTheme.typography.bodyLarge, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, style = MaterialTheme.typography.labelSmall, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
         if (trailing != null) {
-            Text(trailing, style = MaterialTheme.typography.bodyLarge, color = if (selected) c.ink else c.muted, maxLines = 1)
+            Text(trailing, style = MaterialTheme.typography.bodyMedium, color = if (selected) c.ink else c.muted, maxLines = 1)
         }
     }
 }
