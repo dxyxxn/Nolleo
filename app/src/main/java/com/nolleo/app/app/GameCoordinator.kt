@@ -4,7 +4,9 @@ import com.nolleo.app.core.SdkStatus
 import com.nolleo.app.core.SourceMode
 import com.nolleo.app.core.log.AppLog
 import com.nolleo.app.core.navi.DestinationPreset
+import com.nolleo.app.core.navi.NaviHelperTripSource
 import com.nolleo.app.core.navi.TripEvent
+import com.nolleo.app.core.navi.TripTarget
 import com.nolleo.app.core.navi.TripUnits
 import com.nolleo.app.core.speech.AnswerInput
 import com.nolleo.app.core.speech.FocusChange
@@ -58,27 +60,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class DriverProfile(val id: Int, val name: String)
-
-data class HomeState(
-    val presetId: String? = null,
-    /** 내비에 이미 설정된 목적지로 출발 */
-    val useNaviRoute: Boolean = false,
-    val driverId: Int = 1,
-    val passengerCount: Int = 1,
-    val choice: GameChoice = GameChoice.ALTERNATE,
-    /** 판 간격 (여유 있게 / 자주 / 쉬지 않고) */
-    val pacing: RoundPacing = RoundPacing.RELAXED,
-) {
-    /**
-     * 내비 길 안내가 새로 잡히면 그 목적지를 기본으로 고르고, 길 안내가 끝나면 프리셋으로 돌아간다.
-     * [autoSelect] = false(디버그 패널 여정=시뮬, 시연용)면 카드만 보여 주고 고르지는 않는다 — 고르면 시뮬 여정이 아니게 된다.
-     */
-    fun withNaviRoute(available: Boolean, autoSelect: Boolean = true): HomeState = when {
-        available && autoSelect && !useNaviRoute -> copy(useNaviRoute = true)
-        !available && useNaviRoute -> copy(useNaviRoute = false)
-        else -> this
-    }
-}
 
 data class PlanPreview(val text: String, val plan: SessionPlan, val remainSec: Int, val destinationName: String)
 
@@ -165,12 +146,28 @@ class GameCoordinator(private val c: AppContainer) {
         regionCode = c.locationRepository.regionCode,
     )
 
-    /** 홈 화면 플랜 미리보기 ("4시간 10분 → 5판") */
-    val planPreview: StateFlow<PlanPreview?> = combine(_home, c.naviTrip.activeNaviDestination, _settings) { h, navi, s ->
-        val (remain, name) = when {
-            h.useNaviRoute && navi?.remainTimeSec != null -> navi.remainTimeSec to navi.destinationName
-            else -> DestinationPreset.byId(h.presetId)?.let { it.estimatedSec to it.poiName } ?: return@combine null
+    /**
+     * 홈 `목적지` 목록에 지금 보일 줄 — 현재 경로(내비 길 안내, 여정=시뮬이면 시뮬 경로), 경로가 없을 때의 내비 최근 목적지(최대 3곳).
+     * "목적지 없이"는 늘 있다.
+     */
+    val destinationOptions: StateFlow<DestinationOptions> = combine(
+        _settings, c.naviTrip.activeNaviDestination, c.naviTrip.recentDestinations, c.naviTrip.tripEstimates,
+    ) { s, navi, recents, estimates ->
+        when {
+            s.tripMode == SourceMode.SIM -> {
+                val p = DestinationPreset.byId(s.simPresetId) ?: DestinationPreset.DEFAULT
+                DestinationOptions(route = RouteOption(p.poiName, p.estimatedSec, simulatedTitle = p.title))
+            }
+            navi?.remainTimeSec != null -> DestinationOptions(route = RouteOption(navi.destinationName, navi.remainTimeSec))
+            else -> DestinationOptions(
+                recents = recents.take(NaviHelperTripSource.MAX_ESTIMATES).map { RecentOption(it, estimates[it.key]) },
+            )
         }
+    }.stateIn(scope, SharingStarted.Eagerly, DestinationOptions())
+
+    /** 홈 화면 플랜 미리보기 ("4시간 10분 → 5판"). 최근 목적지의 예상 시간을 아직 모르면 null */
+    val planPreview: StateFlow<PlanPreview?> = combine(_home, destinationOptions, _settings) { h, options, s ->
+        val (remain, name) = h.timeAndName(options) ?: return@combine null
         val plan = SessionPlanner.plan(remain, h.choice, s.demoMode, h.pacing)
         PlanPreview(SessionPlanner.previewText(remain, plan, TripUnits::formatDuration), plan, remain, name)
     }.stateIn(scope, SharingStarted.Eagerly, null)
@@ -216,12 +213,12 @@ class GameCoordinator(private val c: AppContainer) {
             _settings.value = s
             applySettings(previous = null, s)
             _home.value = HomeState(
-                presetId = s.lastPresetId,
+                timerMinutes = s.lastTimerMinutes.takeIf { it in HomeState.TIMER_MINUTES } ?: HomeState.DEFAULT_TIMER_MINUTES,
                 driverId = s.lastDriverId,
                 passengerCount = s.lastPassengerCount.coerceIn(0, 3),
                 choice = s.lastChoice,
                 pacing = s.lastPacing,
-            ).withNaviRoute(c.naviTrip.activeNaviDestination.value != null, autoSelect = s.tripMode != SourceMode.SIM)
+            ).withRouteAppeared(destinationOptions.value.route != null)
             c.content.load()
             val saved = c.preferences.loadSession()
             if (saved != null && c.clock.wallMs() - saved.savedAtWallMs < RESTORE_MAX_AGE_MS) {
@@ -238,7 +235,7 @@ class GameCoordinator(private val c: AppContainer) {
         observeFocus()
         observeFocusRequest()
         observeTrip()
-        observeNaviRoute()
+        observeRouteAvailability()
         observeTbt()
         observePauseFocusPolicy()
         // 출발 등으로 화면 게임을 벗어나면 화면 게임 읽기를 즉시 멈춘다
@@ -246,7 +243,7 @@ class GameCoordinator(private val c: AppContainer) {
         // 시뮬 여정은 주차 중에, 그리고 쉬어 가기를 묻는 동안 멈춘다 — 30배속이라 질문하는 15초에 11 km 를 지나
         // 권한 쉼 장소를 수락 전에 지나쳐 버리기 때문 (실제 내비는 해당 없음)
         combine(driveState, restCare.state) { d, rest -> d != DriveState.PARKED && rest !is RestCareController.State.Offered }
-            .onEach { c.simTrip.moving.value = it }
+            .onEach { c.tripRepository.setMoving(it) }
             .launchIn(scope)
     }
 
@@ -275,8 +272,10 @@ class GameCoordinator(private val c: AppContainer) {
 
     // ── 홈 ──────────────────────────────────────────────────────
 
-    fun selectPreset(id: String) = _home.update { it.copy(presetId = id, useNaviRoute = false) }
-    fun selectNaviRoute() = _home.update { it.copy(useNaviRoute = true) }
+    fun selectDestination(choice: DestinationChoice) = _home.update { it.copy(destination = choice) }
+
+    /** "목적지 없이"의 시간 칸을 누르면 그 시간으로 "목적지 없이"를 고른다 */
+    fun selectTimer(minutes: Int) = _home.update { it.copy(destination = DestinationChoice.Timer, timerMinutes = minutes) }
     fun selectDriver(id: Int) = _home.update { it.copy(driverId = id) }
     fun setPassengers(count: Int) = _home.update { it.copy(passengerCount = count.coerceIn(0, 3)) }
     fun selectChoice(choice: GameChoice) = _home.update { it.copy(choice = choice) }
@@ -302,7 +301,7 @@ class GameCoordinator(private val c: AppContainer) {
         }
         val h = _home.value
         val preview = planPreview.value ?: run {
-            _message.value = "목적지를 먼저 골라 주세요."
+            _message.value = "예상 시간을 확인하고 있어요. 잠시 후 다시 눌러 주세요."
             return
         }
         // 남은 시간이 도착 여유(5분) 이하면 출발하자마자 "곧 도착"으로 끝난다
@@ -310,20 +309,20 @@ class GameCoordinator(private val c: AppContainer) {
             _message.value = SessionPlanner.TOO_CLOSE_MESSAGE
             return
         }
-        // 내비 목적지를 골랐어도 그 사이 길 안내가 끝났으면 프리셋으로 간다 (planPreview 와 같은 기준)
-        val useNavi = h.useNaviRoute && c.naviTrip.activeNaviDestination.value?.remainTimeSec != null
-        val preset = DestinationPreset.byId(h.presetId)
+        // 미리보기와 같은 기준으로 고른 것 (고른 줄이 그 사이 사라졌으면 대신한 줄)
+        val target = tripTarget(h, preview) ?: return
+        val noDestination = target is TripTarget.Timer
         val demo = _settings.value.demoMode
         val players = buildPlayers(h)
         activeDriverId = h.driverId
-        updateSettings { it.copy(lastPresetId = h.presetId ?: it.lastPresetId, lastDriverId = h.driverId, lastPassengerCount = h.passengerCount, lastChoice = h.choice, lastPacing = h.pacing) }
+        updateSettings { it.copy(lastTimerMinutes = h.timerMinutes, lastDriverId = h.driverId, lastPassengerCount = h.passengerCount, lastChoice = h.choice, lastPacing = h.pacing) }
         c.scriptedSpeech.rewind()
         prepareSessionStart()
         launchStart {
             val baseline = c.preferences.loadBaseline(h.driverId)
                 ?: if (demo) DEMO_BASELINE.also { AppLog.i(TAG, "demo: seeded driver baseline ${it.latencyEmaMs.toLong()}ms") } else null
             arrived.value = false
-            if (useNavi) c.tripRepository.adoptNaviRoute() else preset?.let { c.tripRepository.beginTrip(it) }
+            c.tripRepository.begin(target)
             val session = GameSession(
                 speech = speechPort,
                 clock = c.clock,
@@ -337,10 +336,26 @@ class GameCoordinator(private val c: AppContainer) {
                 inputs = inputs,
                 callbacks = callbacks,
                 destinationName = preview.destinationName,
-                presetId = if (useNavi) null else preset?.id,
+                presetId = (target as? TripTarget.Simulated)?.preset?.id,
+                noDestination = noDestination,
             )
-            AppLog.i(TAG, "session start → ${preview.text}")
+            AppLog.i(TAG, "session start (${target.javaClass.simpleName}) → ${preview.text}")
             launchSession(session)
+        }
+    }
+
+    /** 홈에서 고른 것 → 여정. 여정=시뮬이면 현재 경로는 시뮬 경로다 */
+    private fun tripTarget(h: HomeState, preview: PlanPreview): TripTarget? {
+        val options = destinationOptions.value
+        return when (val d = h.effective(options)) {
+            DestinationChoice.CurrentRoute ->
+                if (options.route?.simulatedTitle != null) {
+                    TripTarget.Simulated(DestinationPreset.byId(_settings.value.simPresetId) ?: DestinationPreset.DEFAULT)
+                } else {
+                    TripTarget.NaviRoute
+                }
+            is DestinationChoice.Recent -> options.recents.firstOrNull { it.place.key == d.key }?.let { TripTarget.Place(it.place, preview.remainSec) }
+            DestinationChoice.Timer -> TripTarget.Timer(preview.destinationName, preview.remainSec)
         }
     }
 
@@ -382,9 +397,18 @@ class GameCoordinator(private val c: AppContainer) {
             val baseline = c.preferences.loadBaseline(activeDriverId) ?: if (snap.demo) DEMO_BASELINE else null
             val monitor = DrowsinessMonitor(baseline, drowsyConfig(snap.demo)).also { it.restore(snap.drowsy) }
             arrived.value = false
-            DestinationPreset.byId(snap.presetId)?.let { c.tripRepository.beginTrip(it) } ?: c.tripRepository.adoptNaviRoute()
-            // 시뮬 여정은 저장할 때의 남은 시간부터 이어 간다 (앱이 꺼져 있던 동안은 흐르지 않은 것으로 본다)
-            if (c.tripRepository.activeKind.value == TripSourceKind.SIMULATED) snap.simRemainSec?.let(c.simTrip::jumpToRemain)
+            val preset = DestinationPreset.byId(snap.presetId)
+            val timerTotal = snap.timerTotalSec
+            c.tripRepository.begin(
+                when {
+                    preset != null -> TripTarget.Simulated(preset)
+                    timerTotal != null -> TripTarget.Timer(snap.destinationName, timerTotal)
+                    // 최근 목적지로 시작한 여정도 내비에 길 안내가 남아 있으므로 그대로 쓴다
+                    else -> TripTarget.NaviRoute
+                },
+            )
+            // 시뮬·타이머 여정은 저장할 때의 남은 시간부터 이어 간다 (앱이 꺼져 있던 동안은 흐르지 않은 것으로 본다)
+            snap.simRemainSec?.let(c.tripRepository::jumpToRemain)
             val session = GameSession(
                 speech = speechPort,
                 clock = c.clock,
@@ -399,6 +423,7 @@ class GameCoordinator(private val c: AppContainer) {
                 callbacks = callbacks,
                 destinationName = snap.destinationName,
                 presetId = snap.presetId,
+                noDestination = snap.noDestination,
                 restore = snap,
             )
             // 복원된 세션은 자동 재생하지 않는다 — 사용자가 "계속"을 눌러야 한다 (DEV_GUIDE §7.3)
@@ -501,8 +526,7 @@ class GameCoordinator(private val c: AppContainer) {
         _stage1CardVisible.value = false
         restCare.clear()
         resetTbtPause()
-        // 세션 중에는 내비 상태 변화를 홈에 반영하지 않았다 → 끝난 지금 맞춘다 (길 안내가 끝났으면 프리셋으로; 새로 고르지는 않는다)
-        _home.update { it.withNaviRoute(c.naviTrip.activeNaviDestination.value != null, autoSelect = false) }
+        // 홈의 선택은 그대로 둔다 — 그 사이 길 안내가 끝났거나 새로 생겼으면 HomeState.effective 가 보일 줄로 맞춘다
     }
 
     /**
@@ -647,16 +671,15 @@ class GameCoordinator(private val c: AppContainer) {
         }.launchIn(scope)
     }
 
-    /** 내비 앱에서 길 안내를 시작·종료하면 홈의 목적지 선택에 바로 반영한다 (게임 중에는 건드리지 않음) */
-    private fun observeNaviRoute() {
-        c.naviTrip.activeNaviDestination.map { it != null }.distinctUntilChanged().onEach { available ->
+    /**
+     * 현재 경로가 새로 생기면(내비 앱에서 길 안내 시작, 디버그 패널 여정=시뮬) 홈에서 그것을 고른다 (게임 중에는 건드리지 않음).
+     * 없어지면 HomeState.effective 가 "목적지 없이"(또는 다른 보일 줄)로 맞춘다.
+     */
+    private fun observeRouteAvailability() {
+        destinationOptions.map { it.route != null }.distinctUntilChanged().onEach { available ->
+            AppLog.i(TAG, if (available) "current route available → 홈에서 현재 경로" else "no current route → 최근 목적지·목적지 없이")
             if (_session.value != null) return@onEach
-            val before = _home.value.useNaviRoute
-            val autoSelect = _settings.value.tripMode != SourceMode.SIM
-            _home.update { it.withNaviRoute(available, autoSelect) }
-            if (before != _home.value.useNaviRoute) {
-                AppLog.i(TAG, if (available) "navi route detected → 홈에서 내비 목적지 선택" else "navi route ended → 프리셋으로")
-            }
+            _home.update { it.withRouteAppeared(available) }
         }.launchIn(scope)
     }
 
@@ -734,10 +757,12 @@ class GameCoordinator(private val c: AppContainer) {
         scope.launch { c.preferences.saveSession(full) }
     }
 
-    /** 세션이 모르는 앱 쪽 정보(운전자 프로필 id, 시뮬 여정의 남은 시간)를 붙인다 */
+    /** 세션이 모르는 앱 쪽 정보(운전자 프로필 id, 시뮬·타이머 여정의 남은 시간, 타이머의 전체 시간)를 붙인다 */
     private fun fullSnapshot(snapshot: SessionSnapshot): SessionSnapshot {
-        val simRemain = if (c.tripRepository.activeKind.value == TripSourceKind.SIMULATED) c.tripRepository.snapshot.value?.remainTimeSec else null
-        return snapshot.copy(driverProfileId = activeDriverId, simRemainSec = simRemain)
+        val kind = c.tripRepository.activeKind.value
+        val localRemain = if (kind != TripSourceKind.REAL_NAVI) c.tripRepository.snapshot.value?.remainTimeSec else null
+        val timerTotal = if (kind == TripSourceKind.TIMER) c.timerTrip.totalSec else null
+        return snapshot.copy(driverProfileId = activeDriverId, simRemainSec = localRemain, timerTotalSec = timerTotal)
     }
 
     fun onForeground() {
@@ -763,6 +788,9 @@ class GameCoordinator(private val c: AppContainer) {
     fun setDemoMode(on: Boolean) = updateSettings { it.copy(demoMode = on) }
     fun setCarMode(m: SourceMode) = updateSettings { it.copy(carMode = m) }
     fun setTripMode(m: SourceMode) = updateSettings { it.copy(tripMode = m) }
+
+    /** 시뮬 경로 고르기 (여정=시뮬일 때 홈 "현재 경로") */
+    fun setSimPreset(id: String) = updateSettings { it.copy(simPresetId = id) }
     fun setLocationMode(m: SourceMode) = updateSettings { it.copy(locationMode = m) }
     fun setSpeechMode(m: SpeechMode) = updateSettings { it.copy(speechMode = m) }
     fun setAnswerInput(input: AnswerInput) = updateSettings { it.copy(answerInput = input) }
@@ -784,7 +812,7 @@ class GameCoordinator(private val c: AppContainer) {
     fun simRegion(code: String?) {
         c.locationRepository.manualRegion.value = code
     }
-    fun simJumpRemain(sec: Int) = c.simTrip.jumpToRemain(sec)
+    fun simJumpRemain(sec: Int) = c.tripRepository.jumpToRemain(sec)
     fun simTriggerTbt() = c.simTrip.triggerTbt()
     fun simStage2() = _session.value?.requestStage2()
     fun simRestArrival() = restCare.arrive("디버그 패널")

@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.nolleo.app.core.SourceMode
 import com.nolleo.app.core.log.AppLog
+import com.nolleo.app.core.navi.DestinationPreset
 import com.nolleo.app.core.navi.SimulatedTripSource
 import com.nolleo.app.core.speech.AnswerInput
 import com.nolleo.app.core.speech.SpeechMode
@@ -31,7 +32,10 @@ data class AppSettings(
     val speechMode: SpeechMode = SpeechMode.AUTO,
     val answerInput: AnswerInput = AnswerInput.MIC,
     val simTimeScale: Float = SimulatedTripSource.DEFAULT_TIME_SCALE,
-    val lastPresetId: String? = null,
+    /** 디버그 패널의 시뮬 경로 (여정=시뮬일 때 홈 "현재 경로") */
+    val simPresetId: String = DestinationPreset.DEFAULT.id,
+    /** 홈 "목적지 없이"의 마지막 시간(분) — 고를 수 있는 값인지는 GameCoordinator 가 HomeState.TIMER_MINUTES 로 확인한다 */
+    val lastTimerMinutes: Int = 60,
     val lastDriverId: Int = 1,
     val lastPassengerCount: Int = 1,
     val lastChoice: GameChoice = GameChoice.ALTERNATE,
@@ -54,7 +58,9 @@ class AppPreferences(context: Context) {
         val SPEECH = stringPreferencesKey("speech_mode")
         val ANSWER = stringPreferencesKey("answer_input")
         val SCALE = floatPreferencesKey("sim_time_scale")
-        val PRESET = stringPreferencesKey("last_preset")
+        // 11/8 까지 홈 프리셋이었던 키를 시뮬 경로에 그대로 쓴다 (같은 id)
+        val SIM_PRESET = stringPreferencesKey("last_preset")
+        val TIMER_MINUTES = intPreferencesKey("timer_minutes")
         val DRIVER = intPreferencesKey("last_driver")
         val PASSENGERS = intPreferencesKey("last_passengers")
         val CHOICE = stringPreferencesKey("last_choice")
@@ -73,7 +79,8 @@ class AppPreferences(context: Context) {
             speechMode = p[Keys.SPEECH].toEnum(SpeechMode.AUTO),
             answerInput = p[Keys.ANSWER].toEnum(AnswerInput.MIC),
             simTimeScale = p[Keys.SCALE] ?: SimulatedTripSource.DEFAULT_TIME_SCALE,
-            lastPresetId = p[Keys.PRESET],
+            simPresetId = p[Keys.SIM_PRESET]?.takeIf { DestinationPreset.byId(it) != null } ?: DestinationPreset.DEFAULT.id,
+            lastTimerMinutes = p[Keys.TIMER_MINUTES] ?: 60,
             lastDriverId = p[Keys.DRIVER] ?: 1,
             lastPassengerCount = p[Keys.PASSENGERS] ?: 1,
             lastChoice = p[Keys.CHOICE].toEnum(GameChoice.ALTERNATE),
@@ -91,7 +98,8 @@ class AppPreferences(context: Context) {
                 p[Keys.SPEECH] = s.speechMode.name
                 p[Keys.ANSWER] = s.answerInput.name
                 p[Keys.SCALE] = s.simTimeScale
-                s.lastPresetId?.let { p[Keys.PRESET] = it }
+                p[Keys.SIM_PRESET] = s.simPresetId
+                p[Keys.TIMER_MINUTES] = s.lastTimerMinutes
                 p[Keys.DRIVER] = s.lastDriverId
                 p[Keys.PASSENGERS] = s.lastPassengerCount
                 p[Keys.CHOICE] = s.lastChoice.name

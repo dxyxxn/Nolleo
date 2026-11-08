@@ -18,22 +18,18 @@ data class RouteWaypoint(
 )
 
 /**
- * 홈 화면의 프리셋 목적지. 실제 내비(NaviHelper.requestRoute)와 시뮬레이션 여정이 같은 정보를 쓴다.
- *
- * poiId: 샘플(pleos-sample-navi-app data/sample/NaviTestData.kt)의 실제 값을 재사용한다.
- * 샘플에는 수도권 POI 2개뿐이라 장거리 프리셋은 poiId 를 비워 좌표·주소로 요청한다 — 에뮬레이터 순정 내비가 정상 수락함
- * (WORK_STATUS 기록). onError 면 TripRepository 가 시뮬레이션으로 넘어간다.
+ * 시뮬레이션 경로 (디버그 패널에서 고름, 여정=시뮬일 때 홈 "현재 경로" 자리에 보인다). 시연용이다 —
+ * 에뮬레이터는 차가 움직이지 않아 실제 내비 여정은 남은 시간이 줄지 않는다. 11/8 부터 홈에는 프리셋을 두지 않는다
+ * (실제 사용은 현재 경로·내비 최근 목적지·목적지 없이 시간).
+ * 경로·쉼 장소·지나는 지역은 에뮬레이터 순정 내비가 같은 목적지로 준 경로를 옮긴 것이다.
  */
 data class DestinationPreset(
     val id: String,
+    /** "서울 → 부산" */
     val title: String,
-    val subtitle: String,
     val poiName: String,
     val latitude: Double,
     val longitude: Double,
-    val poiId: String,
-    val poiSubId: String,
-    val address: String,
     val estimatedMinutes: Int,
     val timeline: List<RouteWaypoint>,
     /** 시뮬레이션에서 "분기점 안내 300 m" TBT 를 낼 시점(분) */
@@ -55,13 +51,9 @@ data class DestinationPreset(
         val SEOUL_BUSAN = DestinationPreset(
             id = "busan",
             title = "서울 → 부산",
-            subtitle = "부산역 · 약 4시간 10분",
             poiName = "부산역",
             latitude = 35.115225,
             longitude = 129.042243,
-            poiId = "",
-            poiSubId = "0",
-            address = "부산광역시 동구 중앙대로 206",
             estimatedMinutes = 250,
             // 에뮬레이터 순정 내비의 부산역 경로(378 km)와 같은 길: 영동선 → 중부내륙선 → 대구 → 청도 → 부산
             timeline = listOf(
@@ -95,13 +87,9 @@ data class DestinationPreset(
         val SEOUL_GANGNEUNG = DestinationPreset(
             id = "gangneung",
             title = "서울 → 강릉",
-            subtitle = "강릉역 · 약 2시간 40분",
             poiName = "강릉역",
             latitude = 37.7642,
             longitude = 128.8996,
-            poiId = "",
-            poiSubId = "0",
-            address = "강원특별자치도 강릉시 용지로 176",
             estimatedMinutes = 160,
             timeline = listOf(
                 SEOUL_START,
@@ -124,13 +112,9 @@ data class DestinationPreset(
         val SEOUL_JEONJU = DestinationPreset(
             id = "jeonju",
             title = "서울 → 전주",
-            subtitle = "전주 한옥마을 · 약 2시간 50분",
             poiName = "전주한옥마을",
             latitude = 35.8147,
             longitude = 127.1526,
-            poiId = "",
-            poiSubId = "0",
-            address = "전북특별자치도 전주시 완산구 기린대로 99",
             estimatedMinutes = 170,
             timeline = listOf(
                 SEOUL_START,
@@ -152,17 +136,13 @@ data class DestinationPreset(
             ),
         )
 
-        /** 시연용 짧은 여정 — 샘플 NaviTestData 의 실제 POI(소프트웨어드림센터) 재사용 */
+        /** 시연용 짧은 여정 — 샘플 NaviTestData 의 POI(소프트웨어드림센터) 좌표 */
         val NEARBY_DEMO = DestinationPreset(
             id = "nearby",
             title = "근처 10분",
-            subtitle = "시연용 · 소프트웨어드림센터",
             poiName = "소프트웨어드림센터",
             latitude = 37.41275833,
             longitude = 127.09481944,
-            poiId = "36khp2hdj2cfcm5nqhe3",
-            poiSubId = "0",
-            address = "경기도 성남시 수정구 창업로40번길 6",
             estimatedMinutes = 10,
             timeline = listOf(
                 RouteWaypoint(0, "seoul", "서울 강남", 37.48544722, 127.03636666),
@@ -174,6 +154,9 @@ data class DestinationPreset(
         )
 
         val ALL = listOf(SEOUL_BUSAN, SEOUL_GANGNEUNG, SEOUL_JEONJU, NEARBY_DEMO)
+
+        /** 디버그 패널에서 고르기 전의 시뮬 경로 (3분 시연의 서울 → 부산) */
+        val DEFAULT = SEOUL_BUSAN
 
         fun byId(id: String?): DestinationPreset? = ALL.firstOrNull { it.id == id }
     }

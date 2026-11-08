@@ -13,6 +13,7 @@ import com.nolleo.app.core.location.LocationRepository
 import com.nolleo.app.core.log.AppLog
 import com.nolleo.app.core.navi.NaviHelperTripSource
 import com.nolleo.app.core.navi.SimulatedTripSource
+import com.nolleo.app.core.navi.TimerTripSource
 import com.nolleo.app.core.navi.TripRepository
 import com.nolleo.app.core.speech.AndroidSpeechEngine
 import com.nolleo.app.core.speech.AudioFocusHelper
@@ -51,10 +52,11 @@ class AppContainer(val application: Application) {
         log = { AppLog.i("ModeArbiter", it) },
     )
 
-    // ── 여정 (NaviHelper) ───────────────────────────────────────
-    val naviTrip = NaviHelperTripSource(application)
+    // ── 여정 (NaviHelper · 시간 · 시연용 시뮬레이션) ─────────────────
+    val naviTrip = NaviHelperTripSource(application, appScope)
     val simTrip = SimulatedTripSource(appScope)
-    val tripRepository = TripRepository(naviTrip, simTrip, appScope)
+    val timerTrip = TimerTripSource(appScope)
+    val tripRepository = TripRepository(naviTrip, simTrip, timerTrip, appScope)
 
     // ── 위치 (FusedLocation) ────────────────────────────────────
     val fusedLocation = FusedLocationSource(application)

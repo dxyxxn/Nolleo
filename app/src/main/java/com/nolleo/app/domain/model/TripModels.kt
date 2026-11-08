@@ -1,6 +1,6 @@
 package com.nolleo.app.domain.model
 
-enum class TripSourceKind(val label: String) { REAL_NAVI("내비 연동"), SIMULATED("시뮬레이션 여정") }
+enum class TripSourceKind(val label: String) { REAL_NAVI("내비 연동"), SIMULATED("시뮬레이션 여정"), TIMER("시간 여정") }
 
 /** NaviHelper NavigationStatus 의 도메인 사본 (SDK 비의존). */
 enum class NaviStatus { INACTIVE, INITIALIZING, FREE_DRIVE, ROUTE_DRIVE }

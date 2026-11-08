@@ -36,6 +36,7 @@ import com.nolleo.app.app.AppContainer
 import com.nolleo.app.app.RestCareController
 import com.nolleo.app.core.SourceMode
 import com.nolleo.app.core.log.AppLog
+import com.nolleo.app.core.navi.DestinationPreset
 import com.nolleo.app.core.navi.TripUnits
 import com.nolleo.app.core.speech.AnswerInput
 import com.nolleo.app.core.speech.ScriptedSpeechEngine
@@ -132,6 +133,12 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
             Line("NaviHelper: ${naviStatus.label} · 마지막 이벤트 ${naviEvent ?: "-"}")
             Line("남은 ${trip?.remainTimeSec?.let(TripUnits::formatDuration) ?: "-"} · ${trip?.remainDistanceM?.let(TripUnits::formatDistance) ?: "-"} · TBT ${trip?.nextTurn?.let { "${it.typeName} ${it.distanceM}m" } ?: "-"}")
             ModeRow(settings.tripMode) { coordinator.setTripMode(it) }
+            Line("시뮬 경로 (여정=시뮬일 때 홈의 현재 경로 — 시연용)")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DestinationPreset.ALL.forEach { p ->
+                    DevButton(p.title + if (settings.simPresetId == p.id) " ✓" else "") { coordinator.setSimPreset(p.id) }
+                }
+            }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DevButton("남은 5분으로") { coordinator.simJumpRemain(5 * 60) }
                 DevButton("남은 30분으로") { coordinator.simJumpRemain(30 * 60) }

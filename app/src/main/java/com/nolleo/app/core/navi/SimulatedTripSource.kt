@@ -62,7 +62,7 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
 
     override fun start() = Unit
 
-    override fun requestRoute(preset: DestinationPreset) {
+    fun requestRoute(preset: DestinationPreset) {
         stopTimers()
         this.preset = preset
         elapsedTripSec = 0.0

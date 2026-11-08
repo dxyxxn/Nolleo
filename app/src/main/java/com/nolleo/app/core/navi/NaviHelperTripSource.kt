@@ -10,10 +10,13 @@ import ai.pleos.playground.navi.data.CurrentLocationInfo
 import ai.pleos.playground.navi.data.DestinationArrivedInfo
 import ai.pleos.playground.navi.data.DestinationInfo
 import ai.pleos.playground.navi.data.DrivingInfo
+import ai.pleos.playground.navi.data.RecentDestinationInfo
 import ai.pleos.playground.navi.data.RouteInfo
 import ai.pleos.playground.navi.data.RouteStartInfo
 import ai.pleos.playground.navi.data.RouteStateInfo
 import ai.pleos.playground.navi.data.TBTInfo
+import ai.pleos.playground.navi.data.TripInfo
+import ai.pleos.playground.navi.data.TripRequest
 import ai.pleos.playground.navi.data.WaypointArrivedInfo
 import ai.pleos.playground.navi.data.WaypointChangedInfo
 import ai.pleos.playground.navi.helper.NaviHelper
@@ -29,6 +32,9 @@ import com.nolleo.app.domain.rest.RouteRestStop
 import com.nolleo.app.domain.rest.RouteRestStops
 import com.nolleo.app.domain.rest.TbtItem
 import com.nolleo.app.domain.model.TurnHint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -36,6 +42,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 /**
  * NaviHelper SDK — 남은 시간·경로·안내 시점 (DEV_GUIDE §8.2).
@@ -44,8 +51,14 @@ import kotlinx.coroutines.flow.update
  *
  * 조회 API(get*Info)는 값을 반환하지 않고 대응 콜백(onXxxInfo)으로 결과가 온다.
  * requestRoute 성공 호출 ≠ 탐색 완료 → onRouteStarted / onRoutingCompleted / onError 로 확인.
+ *
+ * 홈의 최근 목적지: getRecentDestinationInfo → onRecentDestinationInfo, 곳마다 requestTrip → onTripInfo 로 예상 시간
+ * (길 안내는 시작하지 않는다 — 11/8 에뮬레이터 확인). 이 응답들은 우리 요청이 아니어도(다른 앱의 요청) 모든 연결 앱에 오고
+ * 요청 번호가 없다 → 예상 시간은 한 번에 하나만 묻고, 응답의 목적지 좌표로 어느 곳의 답인지 맞춘다.
+ *
+ * @param scope 콜백(바인더 스레드)을 메인으로 옮기고 예상 시간 요청의 시간 제한을 잰다
  */
-class NaviHelperTripSource(context: Context) : TripSource {
+class NaviHelperTripSource(context: Context, private val scope: CoroutineScope) : TripSource {
 
     private val appContext = context.applicationContext
 
@@ -74,6 +87,19 @@ class NaviHelperTripSource(context: Context) : TripSource {
     private val _naviStatus = MutableStateFlow<NaviStatus?>(null)
     val naviStatus: StateFlow<NaviStatus?> = _naviStatus.asStateFlow()
     private val navStatus: NaviStatus? get() = _naviStatus.value
+
+    /** 내비 최근 목적지 (내비 순서, 쓸 수 있는 곳만) — 홈 목적지 목록 */
+    private val _recentDestinations = MutableStateFlow<List<NaviPlace>>(emptyList())
+    val recentDestinations: StateFlow<List<NaviPlace>> = _recentDestinations.asStateFlow()
+
+    /** 최근 목적지별 예상 시간(초) — [NaviPlace.key] → requestTrip 의 eta */
+    private val _tripEstimates = MutableStateFlow<Map<String, Int>>(emptyMap())
+    val tripEstimates: StateFlow<Map<String, Int>> = _tripEstimates.asStateFlow()
+
+    // 예상 시간 요청은 메인에서만 다룬다 (콜백은 scope 로 옮겨 온다)
+    private val estimateQueue = ArrayDeque<NaviPlace>()
+    private var estimating: NaviPlace? = null
+    private var estimateTimeout: Job? = null
 
     /** 마지막 TBT 목록의 경로 위 휴게소·졸음쉼터(그때 기준 거리)와 그때의 남은 거리 — 이후 남은 거리가 준 만큼 앞당긴다 */
     private var tbtStops: List<RouteRestStop>? = null
@@ -224,6 +250,24 @@ class NaviHelperTripSource(context: Context) : TripSource {
             // TODO(phase2): routeStateInfo.trafficStatus (TrafficCongestionType.HEAVY) → 정체 구간 자동 일시정지
         }
 
+        override fun onRecentDestinationInfo(recentDestinationInfoList: List<RecentDestinationInfo>) {
+            val places = NaviPlace.clean(
+                recentDestinationInfoList.map { NaviPlace(it.name, it.address, it.latitude, it.longitude, it.poiId, it.poiSubId) },
+            )
+            AppLog.i(TAG, "onRecentDestinationInfo ${recentDestinationInfoList.size}곳 → 쓸 수 있는 곳 ${places.size}곳")
+            AppLog.sensitive(TAG, "recent", places.joinToString { it.name })
+            scope.launch {
+                _recentDestinations.value = places
+                requestEstimates(places.take(MAX_ESTIMATES))
+            }
+        }
+
+        override fun onTripInfo(tripInfo: TripInfo) {
+            val dest = runCatching { tripInfo.summary.routePoints.lastOrNull() }.getOrNull()
+            val sec = TripUnits.durationSec(tripInfo.eta, TripUnits.distanceM(tripInfo.distance))
+            scope.launch { onEstimate(dest?.latitude, dest?.longitude, sec) }
+        }
+
         override fun onCautionPointInfo(cautionPointList: List<CautionPoint>) {
             // TODO(phase2): 주의 구간(급커브·사고다발) 접근 시 자동 일시정지
         }
@@ -250,6 +294,7 @@ class NaviHelperTripSource(context: Context) : TripSource {
                     runCall("getRouteStateInfo") { h.getRouteStateInfo() }
                     runCall("getDestinationInfo") { h.getDestinationInfo() }
                     runCall("getCurrentLocationInfo") { h.getCurrentLocationInfo() }
+                    runCall("getRecentDestinationInfo") { h.getRecentDestinationInfo() }
                 },
                 onFailed = { t ->
                     AppLog.w(TAG, "NaviHelper connection failed", t)
@@ -266,7 +311,8 @@ class NaviHelperTripSource(context: Context) : TripSource {
         }
     }
 
-    override fun requestRoute(preset: DestinationPreset) {
+    /** 홈에서 고른 최근 목적지로 길 안내를 요청한다 (출발을 눌렀을 때만 — 고르기만 해서는 내비를 바꾸지 않는다) */
+    fun requestRoute(place: NaviPlace) {
         val h = helper
         if (h == null || _status.value != SdkStatus.Available) {
             _events.tryEmit(TripEvent.Error("NaviHelper 미연결"))
@@ -275,27 +321,70 @@ class NaviHelperTripSource(context: Context) : TripSource {
         tbtStops = null
         remainAtTbt = null
         _snapshot.value = TripSnapshot(
-            destinationName = preset.poiName,
+            destinationName = place.name,
             remainTimeSec = null,
             remainDistanceM = null,
             navStatus = navStatus,
             nextTurn = null,
             addressHint = _addressHint.value,
+            destination = place.point,
         )
-        AppLog.i(TAG, "requestRoute ${preset.poiName} (poiId=${preset.poiId.ifEmpty { "<none>" }})")
+        AppLog.i(TAG, "requestRoute (poiId=${place.poiId.ifEmpty { "<none>" }})")
+        AppLog.sensitive(TAG, "requestRoute.place", place.name)
         runCall("requestRoute") {
             // Kotlin named argument 필수 — Java 예제와 data class 선언의 인자 순서가 다르다 (DEV_GUIDE §8.2)
             h.requestRoute(
                 RouteInfo(
-                    latitude = preset.latitude,
-                    longitude = preset.longitude,
-                    poiName = preset.poiName,
-                    poiId = preset.poiId,
-                    poiSubId = preset.poiSubId,
-                    address = preset.address,
+                    latitude = place.latitude,
+                    longitude = place.longitude,
+                    poiName = place.name,
+                    poiId = place.poiId,
+                    // 최근 목적지는 poiSubId 가 null 로 온다(에뮬레이터) — RouteInfo 는 null 을 받지 않는다
+                    poiSubId = place.poiSubId ?: "0",
+                    address = place.address,
                 ),
             )
         }
+    }
+
+    /** 최근 목적지 다시 조회 (결과는 onRecentDestinationInfo → 곳마다 예상 시간). 앱이 다시 보일 때·세션이 끝날 때 */
+    fun refreshRecentDestinations() {
+        if (_status.value != SdkStatus.Available) return
+        runCall("getRecentDestinationInfo") { helper?.getRecentDestinationInfo() }
+    }
+
+    /** 예상 시간을 한 곳씩 묻는다 — 응답에 요청 번호가 없어서 겹쳐 물으면 어느 곳의 답인지 모른다 */
+    private fun requestEstimates(places: List<NaviPlace>) {
+        estimateQueue.clear()
+        estimateQueue.addAll(places.filter { it.key != estimating?.key })
+        if (estimating == null) sendNextEstimate()
+    }
+
+    private fun sendNextEstimate() {
+        val next = estimateQueue.removeFirstOrNull() ?: return
+        val h = helper ?: return
+        estimating = next
+        runCall("requestTrip") { h.requestTrip(TripRequest(next.latitude, next.longitude, next.poiId, next.name, next.poiSubId)) }
+        estimateTimeout?.cancel()
+        estimateTimeout = scope.launch {
+            delay(ESTIMATE_TIMEOUT_MS)
+            AppLog.w(TAG, "requestTrip: ${ESTIMATE_TIMEOUT_MS / 1000}초 안에 onTripInfo 없음 → 다음 곳")
+            estimating = null
+            sendNextEstimate()
+        }
+    }
+
+    /** onTripInfo (메인). 응답의 목적지가 지금 묻는 곳이 아니면 다른 앱의 요청에 대한 답이다 → 무시 */
+    private fun onEstimate(latitude: Double?, longitude: Double?, sec: Int) {
+        val asked = estimating ?: return
+        if (latitude != null && longitude != null && !NaviPlace.sameSpot(asked, latitude, longitude)) return
+        estimateTimeout?.cancel()
+        estimating = null
+        if (sec > 0) {
+            _tripEstimates.update { it + (asked.key to sec) }
+            AppLog.i(TAG, "onTripInfo → 예상 ${TripUnits.formatDuration(sec)}")
+        }
+        sendNextEstimate()
     }
 
     /** 내비에 이미 설정된 경로를 그대로 여정으로 쓴다 (경로 요청 없이 정보만 갱신) */
@@ -390,6 +479,10 @@ class NaviHelperTripSource(context: Context) : TripSource {
 
     companion object {
         private const val TAG = "NaviHelper"
+
+        /** 홈에 보이는 최근 목적지 수 — 예상 시간도 이만큼만 묻는다 */
+        const val MAX_ESTIMATES = 3
+        private const val ESTIMATE_TIMEOUT_MS = 5_000L
 
         /** 분기/진출입/회전/교차로 — 운전에 집중해야 하는 안내 (P1 자동 일시정지 대상) */
         fun TurnType.needsAttention(): Boolean = when (this) {

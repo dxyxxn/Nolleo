@@ -36,7 +36,10 @@ sealed interface TripEvent {
     data class Error(val reason: String) : TripEvent
 }
 
-/** 구현: [NaviHelperTripSource](실제, 심사 대상) / [SimulatedTripSource](빈 곳을 메우는 시뮬레이션). */
+/**
+ * 구현: [NaviHelperTripSource](실제, 심사 대상) / [TimerTripSource](경로 없이 시간만) /
+ * [SimulatedTripSource](시연용 시뮬레이션 경로). 여정을 시작하는 방법은 소스마다 달라 [TripRepository.begin] 이 고른다.
+ */
 interface TripSource {
     val kind: TripSourceKind
     val status: StateFlow<SdkStatus>
@@ -44,6 +47,20 @@ interface TripSource {
     val events: SharedFlow<TripEvent>
 
     fun start()
-    fun requestRoute(preset: DestinationPreset)
     fun stop()
+}
+
+/** 홈에서 고른 여정 — [TripRepository.begin] */
+sealed interface TripTarget {
+    /** 내비에 이미 잡혀 있는 길 안내를 그대로 쓴다 (경로 요청 없음) */
+    data object NaviRoute : TripTarget
+
+    /** 내비 최근 목적지 — 출발할 때 그곳으로 길 안내를 요청한다. [estimatedSec] 는 출발 전에 받은 예상 시간(대신 셀 때 쓴다) */
+    data class Place(val place: NaviPlace, val estimatedSec: Int) : TripTarget
+
+    /** 목적지 없이 정한 시간만큼 */
+    data class Timer(val name: String, val totalSec: Int) : TripTarget
+
+    /** 시연용 시뮬레이션 경로 (디버그 패널 여정=시뮬) */
+    data class Simulated(val preset: DestinationPreset) : TripTarget
 }

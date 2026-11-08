@@ -25,8 +25,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nolleo.app.R
 import com.nolleo.app.app.AppContainer
+import com.nolleo.app.app.DestinationChoice
+import com.nolleo.app.app.DestinationOptions
+import com.nolleo.app.app.HomeState
 import com.nolleo.app.app.PlanPreview
-import com.nolleo.app.core.navi.DestinationPreset
 import com.nolleo.app.core.navi.TripUnits
 import com.nolleo.app.domain.engine.SessionPlanner
 import com.nolleo.app.domain.model.GameChoice
@@ -45,7 +47,8 @@ import com.nolleo.app.ui.theme.Sp
 
 /**
  * IDLE: 여정 설정. 화면을 두 덩어리로만 나눈다 —
- * 왼쪽 `목적지` 목록(하나 고르기), 오른쪽 `오늘의 게임` 카드(미리보기 + 운전·함께·게임·간격 선택 막대 + 출발 버튼 하나).
+ * 왼쪽 `목적지` 목록(현재 경로 · 내비 최근 목적지 · 목적지 없이 시간, 하나 고르기),
+ * 오른쪽 `오늘의 게임` 카드(미리보기 + 운전·함께·게임·간격 선택 막대 + 출발 버튼 하나).
  * 좁은 창은 위아래로 놓고 스크롤.
  */
 @Composable
@@ -55,7 +58,7 @@ fun HomeScreen(container: AppContainer, modifier: Modifier = Modifier) {
     val preview by coordinator.planPreview.collectAsStateWithLifecycle()
     val restorable by coordinator.restorable.collectAsStateWithLifecycle()
     val detected by coordinator.detectedPassengers.collectAsStateWithLifecycle()
-    val naviDest by container.naviTrip.activeNaviDestination.collectAsStateWithLifecycle()
+    val options by coordinator.destinationOptions.collectAsStateWithLifecycle()
     val ux by container.carRepository.ux.collectAsStateWithLifecycle()
     val message by coordinator.message.collectAsStateWithLifecycle()
     val settings by coordinator.settings.collectAsStateWithLifecycle()
@@ -102,12 +105,11 @@ fun HomeScreen(container: AppContainer, modifier: Modifier = Modifier) {
 
             val destination: @Composable (Modifier) -> Unit = { m ->
                 DestinationCard(
-                    selectedId = home.presetId,
-                    useNavi = home.useNaviRoute,
-                    naviName = naviDest?.destinationName,
-                    naviRemain = naviDest?.remainTimeSec,
-                    onPreset = coordinator::selectPreset,
-                    onNavi = coordinator::selectNaviRoute,
+                    options = options,
+                    selected = home.effective(options),
+                    timerMinutes = home.timerMinutes,
+                    onSelect = coordinator::selectDestination,
+                    onTimer = coordinator::selectTimer,
                     modifier = m,
                 )
             }
@@ -155,37 +157,59 @@ private fun Banner(title: String, detail: String?, actions: @Composable () -> Un
     }
 }
 
+/**
+ * 목적지 목록 (최대 5줄 — 주행 중 긴 목록 금지):
+ *  - 현재 경로: 내비에 잡힌 길 안내 (디버그 패널 여정=시뮬이면 시뮬 경로)
+ *  - 최근 목적지: 길 안내가 없을 때만 내비 최근 목적지 3곳 — 출발을 누를 때 그곳으로 길 안내를 건다
+ *    (길 안내 중에는 숨긴다: 고르면 운전자의 길 안내를 바꾸게 된다)
+ *  - 목적지 없이: 정한 시간만큼 (30분 · 1시간 · 1시간 반 · 2시간)
+ */
 @Composable
 private fun DestinationCard(
-    selectedId: String?,
-    useNavi: Boolean,
-    naviName: String?,
-    naviRemain: Int?,
-    onPreset: (String) -> Unit,
-    onNavi: () -> Unit,
+    options: DestinationOptions,
+    selected: DestinationChoice,
+    timerMinutes: Int,
+    onSelect: (DestinationChoice) -> Unit,
+    onTimer: (Int) -> Unit,
     modifier: Modifier,
 ) {
     val c = Nl.colors
     NlCard(modifier, spacing = Sp.xs) {
         Text("목적지", style = MaterialTheme.typography.titleMedium, color = c.ink, modifier = Modifier.padding(bottom = Sp.s))
-        if (naviName != null && naviRemain != null) {
+        options.route?.let { r ->
             ChoiceRow(
-                title = "내비 목적지: $naviName",
-                subtitle = "길 안내 그대로",
-                trailing = TripUnits.formatDuration(naviRemain),
-                selected = useNavi,
-                onClick = onNavi,
+                title = r.simulatedTitle ?: "현재 경로: ${r.destinationName}",
+                subtitle = if (r.simulatedTitle != null) "시뮬 여정 · ${r.destinationName}" else "내비 길 안내 그대로",
+                trailing = r.remainSec?.let { if (r.simulatedTitle != null) "약 ${TripUnits.formatDuration(it)}" else TripUnits.formatDuration(it) },
+                selected = selected == DestinationChoice.CurrentRoute,
+                onClick = { onSelect(DestinationChoice.CurrentRoute) },
             )
         }
-        DestinationPreset.ALL.forEach { p ->
+        options.recents.forEach { o ->
+            val choice = DestinationChoice.Recent(o.place.key)
             ChoiceRow(
-                title = p.title,
-                subtitle = p.poiName,
-                trailing = "약 ${TripUnits.formatDuration(p.estimatedSec)}",
-                selected = !useNavi && selectedId == p.id,
-                onClick = { onPreset(p.id) },
+                title = o.place.name,
+                subtitle = listOf("최근 목적지", o.place.address).filter { it.isNotBlank() }.joinToString(" · "),
+                trailing = o.estimatedSec?.let { "약 ${TripUnits.formatDuration(it)}" } ?: "시간 확인 중",
+                selected = selected == choice,
+                onClick = { onSelect(choice) },
             )
         }
+        ChoiceRow(
+            title = "목적지 없이",
+            subtitle = "정한 시간만큼 놀아요",
+            trailing = HomeState.timerLabel(timerMinutes),
+            selected = selected == DestinationChoice.Timer,
+            onClick = { onSelect(DestinationChoice.Timer) },
+        )
+        // 시간 칸을 누르면 그 시간으로 "목적지 없이"를 고른다
+        SegmentedControl(
+            options = HomeState.TIMER_MINUTES,
+            selected = timerMinutes,
+            label = HomeState::timerLabel,
+            onSelect = onTimer,
+            modifier = Modifier.padding(start = Sp.l, top = Sp.xs),
+        )
         Text(
             "남은 시간에 맞춰 판을 나눠요",
             style = MaterialTheme.typography.labelSmall,
@@ -272,7 +296,8 @@ private fun GameCard(
 private fun ColumnScope.PlanSummary(preview: PlanPreview?, demo: Boolean) {
     val c = Nl.colors
     if (preview == null) {
-        Text("목적지를 고르면 남은 시간에 맞춰 판을 짜 드려요.", style = MaterialTheme.typography.bodyLarge, color = c.muted)
+        // 최근 목적지의 예상 시간(내비 requestTrip)을 아직 받지 못함
+        Text("예상 시간을 확인하고 있어요. 받으면 남은 시간에 맞춰 판을 짜 드려요.", style = MaterialTheme.typography.bodyLarge, color = c.muted)
         return
     }
     Text(preview.text, style = MaterialTheme.typography.headlineMedium, color = c.ink)
