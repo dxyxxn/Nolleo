@@ -35,6 +35,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nolleo.app.app.AppContainer
 import com.nolleo.app.app.RestCareController
 import com.nolleo.app.app.ScreenGameKind
+import com.nolleo.app.app.ScreenQuizController
+import com.nolleo.app.app.ScreenWordChainController
 import com.nolleo.app.core.navi.TripUnits
 import com.nolleo.app.domain.engine.SessionPlanner
 import com.nolleo.app.ui.common.Chip
@@ -48,7 +50,8 @@ import com.nolleo.app.ui.theme.Sp
 
 /**
  * SCREEN 모드: 정차 중 화면 게임 목록 — 열 수 있는 게임 3개(사자성어 · 지역 퀴즈 · 끝말잇기)와 준비 중 2개(틀린 그림 찾기 · 노래방).
- * 지역 퀴즈·끝말잇기는 주행 중 음성 판과 따로 노는 터치 게임이다(점수·진행이 이어지지 않음). 하단 "정차 중에만 열려요".
+ * 사자성어·지역 퀴즈는 보기를 누르는 게임, 끝말잇기는 말로 잇는 게임이다. 모두 주행 중 음성 판과 따로 논다
+ * (점수·진행이 이어지지 않음). 하단 "정차 중에만 열려요".
  */
 @Composable
 fun ScreenGameScreen(
@@ -96,21 +99,22 @@ fun ScreenGameScreen(
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (openGame != null) {
-                val quiz = container.coordinator.screenQuiz(openGame)
+                val game = container.coordinator.screenGame(openGame)
                 val close = {
-                    quiz.close()
+                    game.close()
                     onOpenGame(null)
                 }
                 BackHandler(onBack = close)
-                if (!quiz.isAvailable) {
-                    Text("${openGame.title} 콘텐츠를 불러오지 못했어요.", style = MaterialTheme.typography.titleLarge, color = c.ink)
-                } else {
-                    ScreenQuizPanel(quiz, onClose = close)
+                when {
+                    !game.isAvailable ->
+                        Text("${openGame.title} 콘텐츠를 불러오지 못했어요.", style = MaterialTheme.typography.titleLarge, color = c.ink)
+                    game is ScreenWordChainController -> WordChainPanel(game, container.clock::elapsedMs, onClose = close)
+                    game is ScreenQuizController -> ScreenQuizPanel(game, onClose = close)
                 }
             } else {
                 GameCards(container, onOpen = { kind ->
                     onOpenGame(kind)
-                    container.coordinator.screenQuiz(kind).open()
+                    container.coordinator.screenGame(kind).open()
                 })
             }
         }
@@ -144,7 +148,7 @@ private fun GameCards(container: AppContainer, onOpen: (ScreenGameKind) -> Unit)
         GameCard("지역 퀴즈", "지금 지나는 곳 문제를 보기에서 골라요", { onOpen(ScreenGameKind.REGION) }, m) { RegionVisual(regionName) }
     }
     val word: @Composable (Modifier) -> Unit = { m ->
-        GameCard("끝말잇기", "이어질 말을 넷 중에 골라요 · 두음법칙까지", { onOpen(ScreenGameKind.WORD) }, m) { ChainVisual() }
+        GameCard("끝말잇기", "놀레오와 말로 이어 가요 · 두음법칙까지", { onOpen(ScreenGameKind.WORD) }, m) { ChainVisual() }
     }
     val soon: @Composable (Modifier) -> Unit = { m ->
         Row(m, horizontalArrangement = Arrangement.spacedBy(Sp.xl)) {

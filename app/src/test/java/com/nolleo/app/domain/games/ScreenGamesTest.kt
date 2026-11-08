@@ -1,6 +1,5 @@
 package com.nolleo.app.domain.games
 
-import com.nolleo.app.data.ContentParser
 import com.nolleo.app.domain.model.GameContent
 import com.nolleo.app.domain.model.IdiomChar
 import com.nolleo.app.domain.model.IdiomItem
@@ -8,13 +7,11 @@ import com.nolleo.app.domain.model.Question
 import com.nolleo.app.domain.model.RegionInfo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 import kotlin.random.Random
 
-/** 정차 중 화면 게임(지역 퀴즈·끝말잇기·사자성어 틀) 규칙 */
+/** 정차 중 보기 고르기 게임(지역 퀴즈·사자성어 틀) 규칙 */
 class ScreenGamesTest {
 
     private fun region(code: String, name: String) =
@@ -85,48 +82,6 @@ class ScreenGamesTest {
         assertTrue(quiz.afterAnswer(q, true).first().startsWith("딩동댕!"))
         assertTrue(quiz.afterAnswer(q, false).first().startsWith("아쉬워요. 정답은"))
         assertEquals("힌트 ${q.id}", quiz.afterAnswer(q, true).last())
-    }
-
-    /** 앱과 같은 출제용 사전(금칙어를 거른 words_ko_play.json) */
-    private val words: WordDictionary by lazy {
-        val blocklist = WordBlocklist.parse(File("src/main/assets/content/words_blocklist.txt").readText(Charsets.UTF_8))
-        val play = ContentParser.parsePlayWords(File("src/main/assets/content/words_ko_play.json").readText(Charsets.UTF_8))
-            .filterNot { blocklist.blocks(it.first) }
-        WordDictionary(play.map { it.first }, play.toMap())
-    }
-
-    @Test
-    fun wordChain_exactlyOneChoiceContinues_andChainFollowsTheAnswer() {
-        val game = WordChainScreenGame(words, Random(5))
-        var previousAnswer: String? = null
-        repeat(30) { i ->
-            val q = game.next()
-            assertNotNull(q)
-            q!!
-            val word = q.prompt.substringAfter("'").substringBefore("'")
-            if (previousAnswer != null) assertEquals("이전 정답에서 이어 가야 함", previousAnswer, word)
-            val starts = Hangul.allowedStarts(word.last())
-            assertEquals(4, q.choices.toSet().size)
-            assertEquals("맞는 보기는 하나: ${q.choices}", 1, q.choices.count { it.first() in starts })
-            assertTrue(q.answer.first() in starts)
-            game.answer(q, if (i % 3 == 0) (q.answerIndex + 1) % 4 else q.answerIndex)
-            previousAnswer = q.answer
-        }
-    }
-
-    @Test
-    fun wordChain_streakCountsAndResetsOnMiss() {
-        val game = WordChainScreenGame(words, Random(6))
-        val q1 = game.next()!!
-        game.answer(q1, q1.answerIndex)
-        val q2 = game.next()!!
-        game.answer(q2, q2.answerIndex)
-        assertEquals(2, game.streak)
-        assertEquals("2개째 이어 가는 중", game.progress())
-        val q3 = game.next()!!
-        game.answer(q3, (q3.answerIndex + 1) % 4)
-        assertEquals(0, game.streak)
-        assertEquals(20, game.score)
     }
 
     @Test

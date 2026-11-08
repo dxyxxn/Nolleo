@@ -7,8 +7,8 @@ import com.nolleo.app.domain.model.Question
 import kotlin.random.Random
 
 /**
- * 정차 중 화면 게임 한 문제 — 모든 화면 게임(사자성어·지역 퀴즈·끝말잇기)을 "읽어 주고 보기 중에서 고르기"로 다룬다.
- * 주행 중 음성 판과는 따로 논다(점수·진행이 음성 판에 이어지지 않음).
+ * 정차 중 보기 고르기 게임(사자성어·지역 퀴즈) 한 문제 — "읽어 주고 보기 중에서 고르기".
+ * 주행 중 음성 판과는 따로 논다(점수·진행이 음성 판에 이어지지 않음). 정차 중 끝말잇기는 말로 잇는다(WordChainPlay).
  */
 data class ScreenQuestion(
     val id: String,
@@ -20,10 +20,8 @@ data class ScreenQuestion(
     val answerIndex: Int,
     /** 문제를 읽어 줄 문장 */
     val speech: String,
-    /** 고른 뒤 결과 아래 한 줄 (지역 퀴즈 힌트, 끝말잇기 두음법칙 안내) */
+    /** 고른 뒤 결과 아래 한 줄 (지역 퀴즈 힌트) */
     val note: String? = null,
-    /** 고른 뒤 크게 보여 줄 줄 (끝말잇기: "사과 → 과자") */
-    val revealLine: String? = null,
     /** 사자성어면 한자 훈·음·유래 풀이 */
     val idiom: IdiomItem? = null,
 ) {
@@ -47,7 +45,7 @@ interface ScreenGame {
     /** 고른 뒤 읽어 줄 말 */
     fun afterAnswer(question: ScreenQuestion, correct: Boolean): List<String>
 
-    /** 상태 줄에 덧붙일 진행 (끝말잇기: "3개째 이어 가는 중") */
+    /** 상태 줄에 덧붙일 진행 */
     fun progress(): String? = null
 
     companion object {
@@ -55,7 +53,7 @@ interface ScreenGame {
     }
 }
 
-/** 점수 셈은 세 게임이 같다 */
+/** 점수 셈은 게임마다 같다 */
 abstract class ScoredScreenGame : ScreenGame {
     final override var score: Int = 0
         private set
@@ -183,77 +181,5 @@ class RegionScreenQuiz(
     companion object {
         const val CHOICES = 4
         private val TWO_CHOICES = Regex("(\\S+)일까요,\\s*(\\S+)일까요\\?\\s*$")
-    }
-}
-
-/**
- * 끝말잇기(정차 중) — 화면에 나온 낱말 다음에 이어질 말을 네 개 중에서 고른다. 맞는 보기는 하나뿐
- * (마지막 음절 또는 두음법칙 음절로 시작). 틀린 보기는 그 음절이 끝이나 가운데에 들어 있는 말을 먼저 골라 헷갈리게 한다.
- * 맞혀도 틀려도 정답 낱말에서 이어 간다. 이을 말이 없으면 새 낱말로 다시 시작한다.
- */
-class WordChainScreenGame(
-    private val dictionary: WordDictionary,
-    private val random: Random = Random.Default,
-) : ScoredScreenGame() {
-
-    override val revealMinMs: Long = 4_000L
-    private val used = linkedSetOf<String>()
-    private var current: String? = null
-
-    /** 지금 몇 개째 맞혀 이어 가는지 (틀리면 0) */
-    var streak: Int = 0
-        private set
-
-    val isAvailable: Boolean get() = dictionary.size >= CHOICES
-
-    override fun progress(): String? = if (streak > 0) "${streak}개째 이어 가는 중" else null
-
-    override fun next(): ScreenQuestion? {
-        var word = current ?: dictionary.randomStarter(random, WordChainGame.STARTERS) ?: return null
-        var answer = dictionary.pickNext(word.last(), used + word, random, avoidDeadEnd = true)
-        if (answer == null) {
-            // 이을 말이 없음 → 새 낱말로 다시
-            used.clear()
-            word = dictionary.randomStarter(random, WordChainGame.STARTERS.filter { it != word }) ?: return null
-            answer = dictionary.pickNext(word.last(), setOf(word), random, avoidDeadEnd = true) ?: return null
-        }
-        current = word
-        used += word
-        val syllable = word.last()
-        val starts = Hangul.allowedStarts(syllable)
-        val wrong = dictionary.lookAlikes(syllable, starts, exclude = used + answer, count = CHOICES - 1, random = random)
-        if (wrong.size < CHOICES - 1) return null
-        val choices = (wrong + answer).shuffled(random)
-        val phrase = Hangul.startsWithPhrase(syllable)
-        return ScreenQuestion(
-            id = "$word>$answer",
-            lead = "끝말잇기 · ${phrase} 시작하는 말",
-            prompt = "'$word' 다음에 이어질 말은?",
-            choices = choices,
-            answerIndex = choices.indexOf(answer),
-            speech = "'$word'! $phrase 시작하는 말을 골라 봐요.",
-            // 정답이 다른 첫 음절(두음법칙 양방향)이면 그 음절을, 아니면 표준 두음법칙 음절을 알려 준다
-            note = (answer.first().takeIf { it != syllable } ?: Hangul.dueum(syllable))
-                ?.let { "두음법칙으로 '$it'${Hangul.euro(it.toString()).drop(1)} 시작해도 돼요" },
-            revealLine = "$word → $answer",
-        )
-    }
-
-    override fun answer(question: ScreenQuestion, index: Int): Boolean {
-        val ok = record(index == question.answerIndex)
-        streak = if (ok) streak + 1 else 0
-        // 맞혀도 틀려도 정답 낱말에서 이어 간다
-        current = question.answer
-        used += question.answer
-        return ok
-    }
-
-    override fun afterAnswer(question: ScreenQuestion, correct: Boolean): List<String> {
-        val word = question.answer
-        return listOf(if (correct) "딩동댕! '$word'." else "아쉬워요. 이어지는 말은 ${Hangul.ieyo("'$word'")}.")
-    }
-
-    companion object {
-        const val CHOICES = 4
     }
 }

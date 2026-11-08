@@ -29,6 +29,9 @@ class WordChainGame(
     val chainLength: Int get() = used.size
     val currentWord: String? get() = lastWord
 
+    /** 지금까지 나온 낱말 순서대로 (정차 중 끝말잇기 화면) */
+    val words: List<String> get() = used.toList()
+
     override fun rotation(players: List<Player>): List<Player> = listOf(Player.APP) + players
 
     override fun intro(players: List<Player>, questionCount: Int): String =

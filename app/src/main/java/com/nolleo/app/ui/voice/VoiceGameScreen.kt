@@ -38,12 +38,15 @@ import com.nolleo.app.domain.engine.MicState
 import com.nolleo.app.domain.engine.SessionPhase
 import com.nolleo.app.domain.engine.SessionPlanner
 import com.nolleo.app.domain.engine.SessionState
+import com.nolleo.app.domain.model.GameKind
 import com.nolleo.app.domain.model.GameMode
 import com.nolleo.app.domain.model.PauseReason
 import com.nolleo.app.domain.model.TripSourceKind
 import com.nolleo.app.domain.model.UxState
 import com.nolleo.app.domain.rest.RestStopSuggestion
+import com.nolleo.app.ui.common.AnswerCountdown
 import com.nolleo.app.ui.common.Avatar
+import com.nolleo.app.ui.common.MicIndicator
 import com.nolleo.app.ui.common.isWideLayout
 import com.nolleo.app.ui.common.BandCard
 import com.nolleo.app.ui.common.Chip
@@ -115,7 +118,7 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 ) {
                     when {
                         paused -> PausedBlock(reasons)
-                        else -> CenterBlock(s, ux, trip?.remainTimeSec, noDestination)
+                        else -> CenterBlock(s, ux, trip?.remainTimeSec, noDestination, container.clock::elapsedMs)
                     }
                 }
 
@@ -154,7 +157,7 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun CenterBlock(s: SessionState, ux: UxState, remainSec: Int?, noDestination: Boolean) {
+private fun CenterBlock(s: SessionState, ux: UxState, remainSec: Int?, noDestination: Boolean, nowMs: () -> Long) {
     val c = Nl.colors
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Sp.xl)) {
         when (s.phase) {
@@ -210,6 +213,11 @@ private fun CenterBlock(s: SessionState, ux: UxState, remainSec: Int?, noDestina
                     maxLines = if (ux.limitStringLength) 1 else 3,
                     overflow = TextOverflow.Ellipsis,
                 )
+                // 끝말잇기: 듣는 동안 답을 시작해야 하는 남은 초를 가운데 크게 (말을 시작하면 사라짐)
+                val deadline = s.listenDeadlineMs
+                if (s.roundGame == GameKind.WORD_CHAIN && s.mic == MicState.LISTENING && deadline != null) {
+                    AnswerCountdown(deadline, nowMs)
+                }
                 MicIndicator(s.mic)
                 val line = s.lastAnswer
                 if (line != null && !ux.noVoiceTranscription) {
@@ -241,27 +249,6 @@ private fun screenSentence(spoken: String): String = spoken.replace("! ", ". ").
 @Composable
 private fun BigText(text: String) {
     Text(text, style = MaterialTheme.typography.headlineLarge, color = Nl.colors.ink, textAlign = TextAlign.Center, maxLines = 3)
-}
-
-/** 정적 상태 3종 (대기 / 듣는 중 / 말하는 중) — 애니메이션 없음 */
-@Composable
-private fun MicIndicator(mic: MicState) {
-    val c = Nl.colors
-    val (icon, label, tint) = when (mic) {
-        MicState.LISTENING -> Triple(R.drawable.ic_mic, "듣는 중", c.success)
-        MicState.SPEAKING -> Triple(R.drawable.ic_speaker, "말하는 중", c.ink)
-        MicState.IDLE -> Triple(R.drawable.ic_hourglass, "대기", c.muted)
-    }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Sp.m),
-        modifier = Modifier
-            .background(c.sunk, Radius.pill)
-            .padding(start = Sp.xl, end = Sp.xxl, top = Sp.m, bottom = Sp.m),
-    ) {
-        Icon(painterResource(icon), contentDescription = label, tint = tint, modifier = Modifier.size(40.dp))
-        Text(label, style = MaterialTheme.typography.titleMedium, color = c.ink)
-    }
 }
 
 @Composable

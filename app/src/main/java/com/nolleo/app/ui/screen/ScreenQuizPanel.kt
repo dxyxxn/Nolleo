@@ -42,7 +42,7 @@ import com.nolleo.app.ui.theme.Radius
 import com.nolleo.app.ui.theme.Sp
 
 /**
- * 정차 중 화면 게임 한 판(사자성어·지역 퀴즈·끝말잇기)을 그린다. 창 크기와 상관없이 가운데 맞춘 위아래 배치 —
+ * 정차 중 보기 고르기 게임 한 판(사자성어·지역 퀴즈)을 그린다. (끝말잇기는 [WordChainPanel]) 창 크기와 상관없이 가운데 맞춘 위아래 배치 —
  * 머리 줄(← 목록 · 제목·점수·상태 · 다시 듣기) → 문제 → 보기(2열) → 고르면 풀이 카드(가운데 "다음 문제").
  * 11/8 사용자 요청: 넓은 창도 좌우 나눔 대신 가운데 위아래로, 좁은 창은 "다음 문제" 버튼을 가운데로.
  */
@@ -144,7 +144,7 @@ private fun ChoiceTile(text: String, look: TileLook, onClick: () -> Unit, enable
     }
 }
 
-/** 고른 뒤 풀이 카드 — 가운데 맞춤: 결과 → (끝말잇기 이어진 말 / 사자성어 한자 풀이·유래 / 지역 퀴즈 힌트) → 다음 문제 */
+/** 고른 뒤 풀이 카드 — 가운데 맞춤: 결과 → (사자성어 한자 풀이·유래 / 지역 퀴즈 힌트) → 다음 문제 */
 @Composable
 private fun ColumnScope.Reveal(q: ScreenQuestion, state: ScreenQuizController.UiState, onNext: () -> Unit) {
     val c = Nl.colors
@@ -154,7 +154,6 @@ private fun ColumnScope.Reveal(q: ScreenQuestion, state: ScreenQuizController.Ui
         color = if (state.pickedCorrect) c.success else c.danger,
         textAlign = TextAlign.Center,
     )
-    q.revealLine?.let { Text(it, style = MaterialTheme.typography.headlineMedium, color = c.ink, textAlign = TextAlign.Center) }
     val idiom = q.idiom
     if (idiom != null) {
         if (idiom.chars.isNotEmpty()) {

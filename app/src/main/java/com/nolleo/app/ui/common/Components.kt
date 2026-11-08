@@ -25,8 +25,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nolleo.app.R
+import com.nolleo.app.domain.engine.MicState
 import com.nolleo.app.ui.theme.Nl
 import com.nolleo.app.ui.theme.Radius
 import com.nolleo.app.ui.theme.Sp
@@ -308,3 +312,50 @@ fun Logo(modifier: Modifier = Modifier, size: Dp = 48.dp) {
         modifier = modifier.size(size).clip(Radius.chip).border(1.dp, Nl.colors.line, Radius.chip),
     )
 }
+
+/** 마이크 상태 3종 (대기 / 듣는 중 / 말하는 중) — 정적 표시, 애니메이션 없음. 음성 화면과 정차 중 끝말잇기가 같이 쓴다 */
+@Composable
+fun MicIndicator(mic: MicState) {
+    val c = Nl.colors
+    val (icon, label, tint) = when (mic) {
+        MicState.LISTENING -> Triple(R.drawable.ic_mic, "듣는 중", c.success)
+        MicState.SPEAKING -> Triple(R.drawable.ic_speaker, "말하는 중", c.ink)
+        MicState.IDLE -> Triple(R.drawable.ic_hourglass, "대기", c.muted)
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Sp.m),
+        modifier = Modifier
+            .background(c.sunk, Radius.pill)
+            .padding(start = Sp.xl, end = Sp.xxl, top = Sp.m, bottom = Sp.m),
+    ) {
+        Icon(painterResource(icon), contentDescription = label, tint = tint, modifier = Modifier.size(40.dp))
+        Text(label, style = MaterialTheme.typography.titleMedium, color = c.ink)
+    }
+}
+
+/**
+ * 끝말잇기에서 답을 시작해야 하는 남은 시간 — 남은 초를 크게(11/8 사용자 요청: 제한 시간을 화면 가운데에).
+ * 숫자만 1초마다 바뀌고 움직이는 효과는 없다(주행 중 애니메이션 금지, DEV_GUIDE §6.1). 0 이 되면 0 에 머문다.
+ * @param deadlineMs [nowMs] 와 같은 시계(경과 ms, AppContainer.clock)로 잰 마감 시각
+ */
+@Composable
+fun AnswerCountdown(deadlineMs: Long, nowMs: () -> Long, modifier: Modifier = Modifier) {
+    val c = Nl.colors
+    var seconds by remember(deadlineMs) { mutableIntStateOf(secondsLeft(deadlineMs, nowMs())) }
+    LaunchedEffect(deadlineMs) {
+        while (true) {
+            val left = deadlineMs - nowMs()
+            seconds = secondsLeft(deadlineMs, deadlineMs - left)
+            if (left <= 0) break
+            // 다음 초가 바뀌는 때까지 기다린다 (1초에 한 번만 다시 그림)
+            kotlinx.coroutines.delay((left % 1_000).takeIf { it > 0 } ?: 1_000)
+        }
+    }
+    Row(modifier, verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(Sp.s)) {
+        Text("$seconds", style = MaterialTheme.typography.displayLarge, color = if (seconds <= 3) c.danger else c.ink)
+        Text("초 안에 말해요", style = MaterialTheme.typography.titleMedium, color = c.muted, modifier = Modifier.padding(bottom = Sp.m))
+    }
+}
+
+private fun secondsLeft(deadlineMs: Long, nowMs: Long): Int = ((deadlineMs - nowMs + 999) / 1_000).toInt().coerceAtLeast(0)

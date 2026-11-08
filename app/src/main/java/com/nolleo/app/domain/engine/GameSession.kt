@@ -617,11 +617,22 @@ class GameSession(
 
     private suspend fun listenNow(turn: Turn): AnswerResult {
         val t0 = clock.elapsedMs()
-        _state.update { it.copy(phase = SessionPhase.LISTENING, mic = MicState.LISTENING) }
-        val events = speech.listen(turn.hint).onEach { e ->
-            if (e is SttEvent.Partial) _state.update { it.copy(partial = e.text) }
+        _state.update {
+            it.copy(phase = SessionPhase.LISTENING, mic = MicState.LISTENING, listenDeadlineMs = t0 + AnswerCollector.FIRST_SPEECH_TIMEOUT_MS)
         }
-        val result = AnswerCollector.collect(events, t0, clock)
+        val result = try {
+            val events = speech.listen(turn.hint).onEach { e ->
+                when (e) {
+                    // 말을 시작하면 남은 초 표시는 거둔다 (그 뒤는 말이 끝날 때까지 기다림)
+                    is SttEvent.SpeechDetected -> _state.update { it.copy(listenDeadlineMs = null) }
+                    is SttEvent.Partial -> _state.update { it.copy(partial = e.text, listenDeadlineMs = if (e.text.isBlank()) it.listenDeadlineMs else null) }
+                    else -> Unit
+                }
+            }
+            AnswerCollector.collect(events, t0, clock)
+        } finally {
+            _state.update { it.copy(listenDeadlineMs = null) }
+        }
         callbacks.log("answer ${turn.player.name}: latency=${result.latencyMs}ms timedOut=${result.timedOut}${result.error?.let { " error=$it" } ?: ""}")
         return result
     }

@@ -13,15 +13,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** 정차 중 화면 게임 종류 (열 수 있는 것만 — 틀린 그림 찾기·노래방은 아직 카드만) */
-enum class ScreenGameKind(val title: String) {
-    IDIOM("사자성어"),
-    REGION("지역 퀴즈"),
-    WORD("끝말잇기"),
-}
-
 /**
- * 정차 중 화면 게임 하나(사자성어·지역 퀴즈·끝말잇기)의 진행 — 규칙은 [ScreenGame] 이 정하고 여기서는 소리와 넘김만 맡는다.
+ * 정차 중 보기 고르기 게임 하나(사자성어·지역 퀴즈)의 진행 — 규칙은 [ScreenGame] 이 정하고 여기서는 소리와 넘김만 맡는다.
+ * (끝말잇기는 말로 잇는 [ScreenWordChainController])
  *
  *  1. 문제를 화면에 보여 주고 TTS 로 읽어 준다.
  *  2. 보기를 고르면 맞았는지 보여 주고 결과(사자성어는 정답·유래, 지역 퀴즈는 정답·힌트)를 읽어 준다.
@@ -36,10 +30,10 @@ enum class ScreenGameKind(val title: String) {
 class ScreenQuizController(
     private val c: AppContainer,
     private val scope: CoroutineScope,
-    val kind: ScreenGameKind,
+    override val kind: ScreenGameKind,
     private val tag: String,
     private val factory: () -> ScreenGame?,
-) {
+) : ScreenGameController {
 
     data class UiState(
         val question: ScreenQuestion? = null,
@@ -53,7 +47,7 @@ class ScreenQuizController(
         val score: Int = 0,
         val answered: Int = 0,
         val correct: Int = 0,
-        /** 게임별 진행 (끝말잇기: "3개째 이어 가는 중") */
+        /** 게임별 진행 (지역 퀴즈: 어느 지역 문제인지 등) */
         val progress: String? = null,
     ) {
         val revealed: Boolean get() = picked != null
@@ -68,19 +62,17 @@ class ScreenQuizController(
     /** 끊긴 발화의 finally 가 새 발화의 상태를 덮어쓰지 않게 하는 세대 번호 */
     private var generation = 0
 
-    /** 이 게임이 오디오 포커스를 요청해 들고 있다 (포커스 변경은 [onFocusChange] 로 받는다) */
-    var holdsFocus: Boolean = false
+    override var holdsFocus: Boolean = false
         private set
 
     private fun gameOrNull(): ScreenGame? = game ?: factory()?.also { game = it }
 
-    /** 콘텐츠가 있어 게임을 열 수 있는지 */
-    val isAvailable: Boolean get() = gameOrNull() != null
+    override val isAvailable: Boolean get() = gameOrNull() != null
 
     // ── 사용자 동작 ──────────────────────────────────────────────
 
     /** 카드를 눌러 열기: 고르기 전 문제가 있으면 그 문제를 다시 읽고, 없거나 이미 골랐으면 새 문제를 낸다 */
-    fun open() {
+    override fun open() {
         val g = gameOrNull() ?: return
         val s = _state.value
         AppLog.i(tag, "open (answered=${s.answered})")
@@ -128,13 +120,12 @@ class ScreenQuizController(
         if (s.revealed) speakReveal(s.pickedCorrect) else speakQuestion()
     }
 
-    /** "← 목록"·뒤로: 읽기를 멈추고 게임 목록으로 (점수·풀던 문제는 남긴다) */
-    fun close() = stop("close")
+    override fun close() = stop("close")
 
     // ── 코디네이터가 부르는 정리 ────────────────────────────────
 
     /** 읽기·자동 넘김을 멈추고 포커스를 반납한다. 아무것도 안 하고 있으면 그냥 돌아간다. */
-    fun stop(reason: String) {
+    override fun stop(reason: String) {
         // 끝난 Job 이 남아 있어도 "활동 중"으로 보지 않는다 — 음성 게임이 막 시작한 발화를 stopAll 로 끊지 않게
         val active = speechJob?.isActive == true
         if (!active && !holdsFocus) return
@@ -145,14 +136,14 @@ class ScreenQuizController(
     }
 
     /** 새 세션: 점수와 문제를 처음부터 */
-    fun reset() {
+    override fun reset() {
         stop("reset")
         game = null
         _state.value = UiState()
     }
 
     /** 이 게임이 포커스를 들고 있을 때의 포커스 변경. LOSS 류는 즉시 멈추고, GAIN 이 와도 저절로 이어 읽지 않는다. */
-    fun onFocusChange(change: FocusChange, ownTts: Boolean) {
+    override fun onFocusChange(change: FocusChange, ownTts: Boolean) {
         when (change) {
             FocusChange.LOSS_TRANSIENT, FocusChange.LOSS -> {
                 if (ownTts) {

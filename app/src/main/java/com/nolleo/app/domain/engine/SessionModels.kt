@@ -82,6 +82,8 @@ data class SessionState(
     val caption: String? = null,
     val mic: MicState = MicState.IDLE,
     val partial: String? = null,
+    /** 듣는 중 답을 시작해야 하는 마감 시각(Clock.elapsedMs 기준) — 끝말잇기 화면의 남은 초. 말을 시작하면 null */
+    val listenDeadlineMs: Long? = null,
     val lastAnswer: AnswerLine? = null,
     val scores: Map<Int, Int> = emptyMap(),
     val correctCounts: Map<Int, Int> = emptyMap(),

@@ -21,7 +21,6 @@ import com.nolleo.app.domain.drowsy.DrowsinessMonitor
 import com.nolleo.app.domain.engine.GameSession
 import com.nolleo.app.domain.games.IdiomScreenGame
 import com.nolleo.app.domain.games.RegionScreenQuiz
-import com.nolleo.app.domain.games.WordChainScreenGame
 import com.nolleo.app.domain.engine.SessionCallbacks
 import com.nolleo.app.domain.engine.SessionInputs
 import com.nolleo.app.domain.engine.SessionPhase
@@ -103,8 +102,8 @@ class GameCoordinator(private val c: AppContainer) {
     val message: StateFlow<String?> = _message.asStateFlow()
 
     /**
-     * 정차 중 화면 게임 — 사자성어·지역 퀴즈(지금 있는 시/도)·끝말잇기(이어질 말 고르기). 주행 중 음성 판과 따로 놀고,
-     * 세션 동안 게임마다 점수를 유지한다.
+     * 정차 중 화면 게임 — 사자성어·지역 퀴즈(지금 있는 시/도)는 보기 고르기, 끝말잇기는 말로 잇기(음성 판과 같은 규칙).
+     * 주행 중 음성 판과 따로 놀고, 세션 동안 게임마다 점수·진행을 유지한다.
      */
     val idiomQuiz = ScreenQuizController(c, scope, ScreenGameKind.IDIOM, "IdiomQuiz") {
         c.content.content.value?.idioms?.let { IdiomScreenGame(it) }?.takeIf { it.isAvailable }
@@ -112,14 +111,12 @@ class GameCoordinator(private val c: AppContainer) {
     val regionQuiz = ScreenQuizController(c, scope, ScreenGameKind.REGION, "RegionQuiz") {
         c.content.content.value?.let { RegionScreenQuiz(it, { c.locationRepository.regionCode.value }) }?.takeIf { it.isAvailable }
     }
-    val wordQuiz = ScreenQuizController(c, scope, ScreenGameKind.WORD, "WordQuiz") {
-        c.content.dictionary.value?.let { WordChainScreenGame(it) }?.takeIf { it.isAvailable }
-    }
-    val screenQuizzes: List<ScreenQuizController> = listOf(idiomQuiz, regionQuiz, wordQuiz)
+    val wordChain = ScreenWordChainController(c, scope) { _session.value?.players ?: buildPlayers(_home.value) }
+    private val screenGames: List<ScreenGameController> = listOf(idiomQuiz, regionQuiz, wordChain)
 
-    fun screenQuiz(kind: ScreenGameKind): ScreenQuizController = screenQuizzes.first { it.kind == kind }
+    fun screenGame(kind: ScreenGameKind): ScreenGameController = screenGames.first { it.kind == kind }
 
-    private fun stopScreenQuizzes(reason: String) = screenQuizzes.forEach { it.stop(reason) }
+    private fun stopScreenGames(reason: String) = screenGames.forEach { it.stop(reason) }
 
     private val arrived = MutableStateFlow(false)
     private var sessionJob: Job? = null
@@ -193,7 +190,7 @@ class GameCoordinator(private val c: AppContainer) {
     private val speechPort = object : SpeechPort {
         override suspend fun speak(text: String) {
             // 음성 게임이 말하기 시작하면 화면 게임의 읽기는 먼저 멈추고 포커스를 넘긴다
-            stopScreenQuizzes("음성 게임 발화")
+            stopScreenGames("음성 게임 발화")
             if (!ensureFocus()) return
             c.speechRouter.speak(text)
         }
@@ -246,7 +243,7 @@ class GameCoordinator(private val c: AppContainer) {
         observeTbt()
         observePauseFocusPolicy()
         // 출발 등으로 화면 게임을 벗어나면 화면 게임 읽기를 즉시 멈춘다
-        gameMode.onEach { m -> if (m != GameMode.SCREEN) stopScreenQuizzes("mode=${m.name}") }.launchIn(scope)
+        gameMode.onEach { m -> if (m != GameMode.SCREEN) stopScreenGames("mode=${m.name}") }.launchIn(scope)
         // 시뮬 여정은 주차 중에, 그리고 쉬어 가기를 묻는 동안 멈춘다 — 30배속이라 질문하는 15초에 11 km 를 지나
         // 권한 쉼 장소를 수락 전에 지나쳐 버리기 때문 (실제 내비는 해당 없음)
         combine(driveState, restCare.state) { d, rest -> d != DriveState.PARKED && rest !is RestCareController.State.Offered }
@@ -454,7 +451,7 @@ class GameCoordinator(private val c: AppContainer) {
         _stage1CardVisible.value = false
         restCare.clear()
         resetTbtPause()
-        screenQuizzes.forEach { it.reset() }
+        screenGames.forEach { it.reset() }
         if (!keepPauses) mode.clearPauses()
         _session.value = session
         mode.sessionActive.value = true
@@ -531,7 +528,7 @@ class GameCoordinator(private val c: AppContainer) {
         mode.sessionActive.value = false
         mode.clearPauses()
         c.tripRepository.endTrip()
-        stopScreenQuizzes("session end")
+        stopScreenGames("session end")
         // 통화 중(일시 손실)에 끝내도 요청을 거둔다 — 남겨 두면 통화 뒤 포커스가 돌아와 다른 미디어가 계속 작게 들린다
         c.audioFocus.abandon(force = true)
         _stage1CardVisible.value = false
@@ -604,8 +601,8 @@ class GameCoordinator(private val c: AppContainer) {
     private fun observeFocus() {
         c.audioFocus.changes.onEach { change ->
             val ownTts = c.speechRouter.ttsKind.value == SpeechEngineKind.PLEOS && c.speechRouter.pleosSpeaking.value
-            // 정차 중 화면 게임이 읽는 중: 그 읽기만 멈춘다 (음성 판이 없으니 세션을 일시정지·종료하지 않는다)
-            val reading = screenQuizzes.firstOrNull { it.holdsFocus }
+            // 정차 중 화면 게임이 소리를 내는 중: 그 게임만 멈춘다 (음성 판이 없으니 세션을 일시정지·종료하지 않는다)
+            val reading = screenGames.firstOrNull { it.holdsFocus }
             if (reading != null) {
                 reading.onFocusChange(change, ownTts)
                 return@onEach
@@ -764,7 +761,7 @@ class GameCoordinator(private val c: AppContainer) {
 
     fun onBackground() {
         visible = false
-        stopScreenQuizzes("background")
+        stopScreenGames("background")
         val s = _session.value ?: return
         val phase = sessionState.value?.phase
         backgroundInterrupted = mode.voiceRoundActive.value ||

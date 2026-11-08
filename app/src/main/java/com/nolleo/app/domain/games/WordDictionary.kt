@@ -44,7 +44,7 @@ class ValidWords private constructor(private val sorted: Array<String>) {
 
 /**
  * 끝말잇기 사전.
- *  - **출제용**([playWords], words_ko_play.json): 앱이 자기 차례에 말하는 낱말·화면 끝말잇기 보기. 어휘 등급([levels])이 있다.
+ *  - **출제용**([playWords], words_ko_play.json): 앱이 자기 차례에 말하는 낱말. 어휘 등급([levels])이 있다.
  *  - **검증용**([attachValidation], words_ko_valid.txt): 플레이어가 말한 낱말을 인정할지 판정. 크니까 첫 판을 시작할 때
  *    백그라운드에서 붙인다. 붙기 전에는 출제용으로 판정한다(없으면 한 번 되묻고 관대하게 인정 — [WordChainGame]).
  *  - 두음법칙은 [Hangul.allowedStarts] 하나로 판정과 막다른 음절 계산을 함께 한다.
@@ -128,7 +128,7 @@ class WordDictionary(playWords: Collection<String>, levels: Map<String, WordLeve
             Hangul.allowedStarts(word.last()).any { s -> byFirst[s].orEmpty().any { it !in used && it != word } }
 
     /**
-     * 이어 말할 낱말 하나 (화면 끝말잇기 정답·대본 응답 힌트). [avoidDeadEnd] 면 막다른 말은 빼고,
+     * 이어 말할 낱말 하나 (대본 응답 힌트). [avoidDeadEnd] 면 막다른 말은 빼고,
      * 그런 말밖에 없으면 null.
      */
     fun pickNext(lastSyllable: Char, used: Set<String>, random: Random, avoidDeadEnd: Boolean = true, difficultyCap: Int = 3): String? {
@@ -157,17 +157,6 @@ class WordDictionary(playWords: Collection<String>, levels: Map<String, WordLeve
         starters.filter(easy).randomOrNull(random)?.let { return it }
         val pool = play.filter(usable)
         return pool.filter(easy).ifEmpty { starters }.ifEmpty { pool }.randomOrNull(random)
-    }
-
-    /**
-     * 화면 끝말잇기의 오답 보기: [starts] 로 시작하지 않는 출제용 낱말. [syllable] 이 끝이나 가운데에 든 말(예: '과' → 결과·효과)을
-     * 두 개까지 먼저 넣어 헷갈리게 하고, 나머지는 아무 말로 채운다.
-     */
-    fun lookAlikes(syllable: Char, starts: Set<Char>, exclude: Set<String>, count: Int, random: Random): List<String> {
-        val ok = { w: String -> w.first() !in starts && w !in exclude }
-        val tricky = play.filter { ok(it) && syllable in it }.shuffled(random).take(2)
-        val rest = play.filter(ok).shuffled(random).take(count + 2)
-        return (tricky + rest).distinct().take(count)
     }
 
     /** 대본 엔진의 "{wrong}" 답: 요구 음절로 시작하지 않는 아무 출제용 낱말 */
