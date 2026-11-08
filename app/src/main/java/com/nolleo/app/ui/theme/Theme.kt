@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.sp
  * 색(11/8 사용자 선택 "옐로"): 글은 거의 검정, 바탕은 연회색·흰 카드. 밤(시스템 야간 모드)에는 차콜 바탕·흰 글.
  * 노랑은 **주 버튼과 고른 표시, 꼭 봐야 하는 안내 카드에만** 쓰고 나머지는 중립색이다. 노랑 위의 글은 항상 검정.
  * 정답·오답 두 상태색은 화면 게임의 답 표시와 음성 화면의 진행·듣는 중 표시에만 쓴다. 보라색은 쓰지 않는다.
+ * 흰 카드는 바탕보다 살짝 짙은 1dp 테두리([NlPalette.edge])로 바탕과 가르고, 가는 줄([NlPalette.line])도 조금 진하게 했다
+ * (11/8 사용자 선택 — "전체적으로 옅은 느낌", 비교 사진을 보고 반영). 밤에는 카드보다 살짝 밝은 테두리.
  *
  * 대비(WCAG): 낮 — 글 #16181D / 흰 카드 17:1, 보조 글 #5B616E / 바탕 #F3F4F6 5.6:1, 노랑 #FFC53D 위 검정 글 12:1,
  * 정답 #1B7F43 위 흰 글 5.0:1, 오답 #C62828 위 흰 글 5.6:1. 밤 — 글 #F1F3F5 / 카드 #1A1D22 15:1, 보조 글 #A7AEB9 7.6:1,
@@ -41,6 +43,8 @@ data class NlPalette(
     val segmentOn: Color,
     /** 1dp 구분선·테두리 */
     val line: Color,
+    /** 흰 카드와 회색 바탕의 경계선 — 바탕보다 살짝 짙게(밤에는 카드보다 살짝 밝게). 카드 테두리 1dp */
+    val edge: Color,
     val ink: Color,
     /** 보조 글 (4.5:1 이상) */
     val muted: Color,
@@ -81,7 +85,8 @@ val DayPalette = NlPalette(
     card = Color(0xFFFFFFFF),
     sunk = Color(0xFFE9EBEF),
     segmentOn = Color(0xFFFFFFFF),
-    line = Ink.copy(alpha = 0.10f),
+    line = Ink.copy(alpha = 0.16f),
+    edge = Color(0xFFD9DCE1),
     ink = Ink,
     muted = Color(0xFF5B616E),
     faint = Color(0xFF7D838E),
@@ -109,7 +114,8 @@ val NightPalette = NlPalette(
     card = Color(0xFF1A1D22),
     sunk = Color(0xFF25292F),
     segmentOn = Color(0xFF41474F),
-    line = Color.White.copy(alpha = 0.10f),
+    line = Color.White.copy(alpha = 0.16f),
+    edge = Color(0xFF2C3138),
     ink = Color(0xFFF1F3F5),
     muted = Color(0xFFA7AEB9),
     faint = Color(0xFF6E7580),

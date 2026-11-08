@@ -1,6 +1,7 @@
 package com.nolleo.app.ui.voice
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -114,7 +115,8 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
 
                 // 문제·차례·마이크 상태를 흰 카드 하나에 모아 한눈에 읽히게 한다
                 Box(
-                    Modifier.weight(1f).fillMaxWidth().background(c.card, Radius.card).padding(horizontal = Sp.xxl, vertical = Sp.xl),
+                    Modifier.weight(1f).fillMaxWidth().background(c.card, Radius.card).border(1.dp, c.edge, Radius.card)
+                        .padding(horizontal = Sp.xxl, vertical = Sp.xl),
                     contentAlignment = Alignment.Center,
                 ) {
                     when {

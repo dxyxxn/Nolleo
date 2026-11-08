@@ -167,6 +167,7 @@ fun <T> SegmentedControl(
                     .heightIn(min = MinTouch)
                     .then(if (on) Modifier.shadow(2.dp, Radius.chip) else Modifier)
                     .background(if (on) c.segmentOn else Color.Transparent, Radius.chip)
+                    .then(if (on) Modifier.border(1.dp, c.line, Radius.chip) else Modifier)
                     .pressable({ onSelect(option) }, Radius.chip, enabled, Role.RadioButton)
                     .padding(horizontal = Sp.s),
                 contentAlignment = Alignment.Center,
@@ -263,7 +264,7 @@ fun NlCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        modifier.background(Nl.colors.card, Radius.card).padding(padding),
+        modifier.background(Nl.colors.card, Radius.card).border(1.dp, Nl.colors.edge, Radius.card).padding(padding),
         verticalArrangement = Arrangement.spacedBy(spacing),
         horizontalAlignment = horizontalAlignment,
         content = content,
