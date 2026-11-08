@@ -63,6 +63,9 @@ class AndroidSpeechEngine(
     private val pending = AtomicReference<CancellableContinuation<Unit>?>(null)
     private val utteranceCounter = AtomicInteger(0)
 
+    /** 지금 기다리는 발화의 ID — 끊은 발화의 늦은 콜백이 다음 발화의 대기를 끝내지 않게 대조한다 */
+    @Volatile private var currentUtteranceId: String? = null
+
     fun initialize() {
         initTts()
         refreshSttAvailability()
@@ -94,12 +97,12 @@ class AndroidSpeechEngine(
                 )
                 engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) = Unit
-                    override fun onDone(utteranceId: String?) = finish()
+                    override fun onDone(utteranceId: String?) = finish(utteranceId)
 
                     @Deprecated("Deprecated in Java")
-                    override fun onError(utteranceId: String?) = finish()
-                    override fun onError(utteranceId: String?, errorCode: Int) = finish()
-                    override fun onStop(utteranceId: String?, interrupted: Boolean) = finish()
+                    override fun onError(utteranceId: String?) = finish(utteranceId)
+                    override fun onError(utteranceId: String?, errorCode: Int) = finish(utteranceId)
+                    override fun onStop(utteranceId: String?, interrupted: Boolean) = finish(utteranceId)
                 })
                 AppLog.i(TAG, "Android TTS ready (${engines.joinToString { it.name }})")
                 _ttsStatus.value = SdkStatus.Available
@@ -125,7 +128,14 @@ class AndroidSpeechEngine(
         _sttStatus.value = if (granted) SdkStatus.Available else SdkStatus.Unavailable("마이크 퍼미션 필요")
     }
 
-    private fun finish() {
+    /** 엔진 콜백: 지금 기다리는 발화의 것만 받는다 */
+    private fun finish(utteranceId: String?) {
+        if (utteranceId != currentUtteranceId) return
+        finishPending()
+    }
+
+    private fun finishPending() {
+        currentUtteranceId = null
         val cont = pending.getAndSet(null) ?: return
         if (cont.isActive) cont.resume(Unit)
     }
@@ -133,19 +143,20 @@ class AndroidSpeechEngine(
     override suspend fun speak(text: String) {
         val engine = tts ?: return
         if (_ttsStatus.value != SdkStatus.Available) return
-        val done = withTimeoutOrNull(6_000L + text.length * 250L) {
+        // 시간 제한에 걸리면 invokeOnCancellation 이 발화를 멈춘다
+        withTimeoutOrNull(SpeechTiming.ttsTimeoutMs(text)) {
             suspendCancellableCoroutine<Unit> { cont ->
+                val id = "gd-${utteranceCounter.incrementAndGet()}"
                 pending.set(cont)
+                currentUtteranceId = id
                 cont.invokeOnCancellation {
-                    pending.compareAndSet(cont, null)
+                    if (pending.compareAndSet(cont, null)) currentUtteranceId = null
                     runCatching { engine.stop() }
                 }
-                val id = "gd-${utteranceCounter.incrementAndGet()}"
                 val result = engine.speak(text, TextToSpeech.QUEUE_FLUSH, Bundle(), id)
-                if (result != TextToSpeech.SUCCESS) finish()
+                if (result != TextToSpeech.SUCCESS) finishPending()
             }
         }
-        if (done == null) runCatching { engine.stop() }
     }
 
     override fun listen(timeoutMs: Long, hint: ListenHint): Flow<SttEvent> = callbackFlow {
@@ -221,7 +232,7 @@ class AndroidSpeechEngine(
     override fun stop() {
         runCatching { tts?.stop() }
         mainHandler.post { runCatching { recognizer?.cancel() } }
-        finish()
+        finishPending()
     }
 
     override fun release() {

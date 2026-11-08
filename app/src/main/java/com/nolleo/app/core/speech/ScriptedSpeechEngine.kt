@@ -68,9 +68,14 @@ class ScriptedSpeechEngine(private val clock: Clock) : SpeechEngine {
     fun setScript(script: AnswerScript?) {
         _script.value = script
         _manualOnly.value = script == null
+        rewind()
+        AppLog.i(TAG, "script = ${script?.name ?: "manual"}")
+    }
+
+    /** 대본을 처음부터 (새 세션을 시작할 때 — 시연 대본은 출발부터 순서대로 간다) */
+    fun rewind() {
         cursor = 0
         passengerCursor = 0
-        AppLog.i(TAG, "script = ${script?.name ?: "manual"}")
     }
 
     fun submitManual(answer: ManualAnswer) {

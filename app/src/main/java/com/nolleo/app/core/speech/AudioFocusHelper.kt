@@ -21,6 +21,10 @@ enum class FocusChange { GAIN, LOSS, LOSS_TRANSIENT, LOSS_TRANSIENT_CAN_DUCK }
  * 게임 음성은 USAGE_MEDIA / CONTENT_TYPE_SPEECH 로 음성 세션 시작 시 AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK 을 1회 요청하고,
  * 세션 종료·일시정지·Suspend(백그라운드) 시 abandon 한다. 포커스 변경 콜백은 [changes] 로 내보내고
  * 처리(일시정지·재출제)는 GameCoordinator 가 한다.
+ *
+ * 상태는 둘이다.
+ *  - [hasFocus]: 지금 포커스를 받은 상태 (일시 손실이면 false)
+ *  - [requestHeld]: 포커스 스택에 우리 요청이 남아 있음 (일시 손실이어도 true — 그래야 GAIN 을 다시 받는다)
  */
 class AudioFocusHelper(context: Context) {
 
@@ -28,6 +32,9 @@ class AudioFocusHelper(context: Context) {
 
     private val _hasFocus = MutableStateFlow(false)
     val hasFocus: StateFlow<Boolean> = _hasFocus.asStateFlow()
+
+    private val _requestHeld = MutableStateFlow(false)
+    val requestHeld: StateFlow<Boolean> = _requestHeld.asStateFlow()
 
     private val _changes = MutableSharedFlow<FocusChange>(extraBufferCapacity = 8)
     val changes: SharedFlow<FocusChange> = _changes.asSharedFlow()
@@ -63,18 +70,20 @@ class AudioFocusHelper(context: Context) {
         val granted = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         AppLog.i(TAG, "request GAIN_TRANSIENT_MAY_DUCK (MEDIA/SPEECH) → ${if (granted) "GRANTED" else "FAILED($result)"}")
         _hasFocus.value = granted
+        if (granted) _requestHeld.value = true
         return granted
     }
 
     /**
      * @param force 일시 손실(LOSS_TRANSIENT)로 [hasFocus] 가 이미 false 여도 요청을 거둔다 — 다시 GAIN 을 받지 않을 때
-     *  (화면 게임은 손실 뒤 저절로 이어 읽지 않으므로 요청을 남겨 둘 이유가 없다)
+     *  (화면 게임은 손실 뒤 저절로 이어 읽지 않고, 세션이 끝나면 기다릴 GAIN 이 없다)
      */
     fun abandon(force: Boolean = false) {
         if (!_hasFocus.value && !force) return
         runCatching { audioManager?.abandonAudioFocusRequest(request) }
         AppLog.i(TAG, "abandon focus")
         _hasFocus.value = false
+        _requestHeld.value = false
     }
 
     /** 포커스 손실 후 상태만 정리 (요청은 유지 — GAIN 을 다시 받기 위해) */

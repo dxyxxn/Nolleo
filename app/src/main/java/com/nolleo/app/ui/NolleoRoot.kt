@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +42,12 @@ fun NolleoRoot(container: AppContainer, vm: MainViewModel) {
     val debugOpen by vm.debugOpen.collectAsStateWithLifecycle()
     val openGame by vm.openScreenGame.collectAsStateWithLifecycle()
 
+    // 출발(SCREEN→VOICE·PAUSED)하거나 세션이 끝나면 열어 둔 화면 게임을 닫는다 — 다음 정차·새 세션은 게임 목록부터
+    val closeScreenGame = session == null || mode == GameMode.VOICE || mode == GameMode.PAUSED
+    LaunchedEffect(closeScreenGame) {
+        if (closeScreenGame) vm.setOpenScreenGame(null)
+    }
+
     Box(Modifier.fillMaxSize().background(Nl.colors.ground).safeDrawingPadding()) {
         Column(Modifier.fillMaxSize()) {
             TitleBar(onLongPress = { vm.setDebugOpen(true) })
@@ -49,11 +56,7 @@ fun NolleoRoot(container: AppContainer, vm: MainViewModel) {
             when {
                 session == null && summary != null -> SummaryScreen(container, summary!!, body)
                 mode == GameMode.SCREEN -> ScreenGameScreen(container, openGame, vm::setOpenScreenGame, body)
-                mode == GameMode.VOICE || mode == GameMode.PAUSED -> {
-                    // 출발(SCREEN→VOICE)하면 화면 게임을 즉시 닫는다
-                    if (openGame != null) vm.setOpenScreenGame(null)
-                    VoiceGameScreen(container, body)
-                }
+                mode == GameMode.VOICE || mode == GameMode.PAUSED -> VoiceGameScreen(container, body)
                 else -> HomeScreen(container, body)
             }
         }

@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.resume
 import ai.pleos.playground.stt.constant.ErrorType as SttErrorType
@@ -72,6 +73,13 @@ class PleosSpeechEngine(
     private val pendingSpeak = AtomicReference<CancellableContinuation<Unit>?>(null)
     private val sttSink = AtomicReference<ProducerScope<SttEvent>?>(null)
 
+    /**
+     * 우리가 끊은 발화의 종료 콜백(onStop·onDone·onError)이 아직 오지 않은 수.
+     * Pleos `stop()` 은 비동기라, 끊은 발화의 onStop 이 곧바로 시작한 다음 발화의 대기를 끝내 버릴 수 있다 →
+     * 그만큼은 무시한다. 다음 발화의 onStart 가 오면 0 으로 되돌린다 (그 뒤에 오는 종료 콜백은 새 발화의 것).
+     */
+    private val staleCallbacks = AtomicInteger(0)
+
     @Volatile private var stopRequested = false
     @Volatile private var needsPreRoll = true
     @Volatile private var speechDetected = false
@@ -82,6 +90,7 @@ class PleosSpeechEngine(
         override fun onReady() = Unit
 
         override fun onStart() {
+            staleCallbacks.set(0)
             _isSpeaking.value = true
         }
 
@@ -242,14 +251,14 @@ class PleosSpeechEngine(
             delay(PRE_ROLL_MS)
             needsPreRoll = false
         }
-        val finished = withTimeoutOrNull(estimateMs(text)) {
+        // 시간 제한에 걸리면 아래 invokeOnCancellation 이 발화를 멈춘다
+        val finished = withTimeoutOrNull(SpeechTiming.ttsTimeoutMs(text)) {
             suspendCancellableCoroutine { cont ->
                 stopRequested = false
                 pendingSpeak.set(cont)
                 cont.invokeOnCancellation {
                     stopRequested = true
-                    pendingSpeak.compareAndSet(cont, null)
-                    runCatching { engine.stop() }
+                    if (pendingSpeak.compareAndSet(cont, null)) stopEngine(engine)
                     _isSpeaking.value = false
                 }
                 try {
@@ -260,16 +269,20 @@ class PleosSpeechEngine(
                 }
             }
         }
-        if (finished == null) {
-            AppLog.w(TAG, "TTS onDone not received in time → stop")
-            stopRequested = true
-            runCatching { engine.stop() }
-            pendingSpeak.set(null)
-            _isSpeaking.value = false
-        }
+        if (finished == null) AppLog.w(TAG, "TTS onDone not received in time → stopped")
+    }
+
+    /** 말하는 중인 발화를 끊는다 — 그 발화의 종료 콜백은 늦게 오므로 [staleCallbacks] 로 걸러 낸다 */
+    private fun stopEngine(engine: TextToSpeech) {
+        staleCallbacks.incrementAndGet()
+        runCatching { engine.stop() }
     }
 
     private fun finishSpeak(reason: String) {
+        if (staleCallbacks.getAndUpdate { if (it > 0) it - 1 else 0 } > 0) {
+            AppLog.i(TAG, "TTS $reason from an utterance we stopped → ignored")
+            return
+        }
         _isSpeaking.value = false
         if (reason == "interrupted") AppLog.w(TAG, "TTS interrupted by system")
         val cont = pendingSpeak.getAndSet(null) ?: return
@@ -303,9 +316,11 @@ class PleosSpeechEngine(
 
     override fun stop() {
         stopRequested = true
-        runCatching { tts?.stop() }
+        val pending = pendingSpeak.getAndSet(null)
+        val engine = tts
+        if (pending != null && engine != null) stopEngine(engine) else runCatching { engine?.stop() }
         runCatching { stt?.stop() }
-        pendingSpeak.getAndSet(null)?.let { if (it.isActive) it.resume(Unit) }
+        pending?.let { if (it.isActive) it.resume(Unit) }
         sttSink.getAndSet(null)?.close()
         _isSpeaking.value = false
     }
@@ -325,8 +340,6 @@ class PleosSpeechEngine(
         _ttsStatus.value = SdkStatus.Idle
         _sttStatus.value = SdkStatus.Idle
     }
-
-    private fun estimateMs(text: String): Long = 6_000L + text.length * 250L
 
     companion object {
         private const val TAG = "PleosSpeech"

@@ -77,7 +77,7 @@ data class DestinationPreset(
                 RouteWaypoint(250, "busan", "부산역", 35.115225, 129.042243),
             ),
             tbtAtMin = listOf(45, 160),
-            defaultTimeScale = 30f,
+            defaultTimeScale = SimulatedTripSource.DEFAULT_TIME_SCALE,
             routeKm = 378.0,
             // 11/7 에뮬레이터 내비 TBT (TURN_ENTER_SERVICEAREA·TURN_RESTAREA, 구간 거리 누적)
             restStops = listOf(
@@ -111,7 +111,7 @@ data class DestinationPreset(
                 RouteWaypoint(160, "gangwon", "강릉역", 37.7642, 128.8996),
             ),
             tbtAtMin = listOf(30, 100),
-            defaultTimeScale = 30f,
+            defaultTimeScale = SimulatedTripSource.DEFAULT_TIME_SCALE,
             routeKm = 195.0,
             restStops = listOf(
                 SimRestStop("경기광주휴게소", SA, 31.9), SimRestStop("대신졸음쉼터", SH, 46.9), SimRestStop("양평휴게소", SA, 57.9),
@@ -141,7 +141,7 @@ data class DestinationPreset(
                 RouteWaypoint(170, "jeonbuk", "전주 한옥마을", 35.8147, 127.1526),
             ),
             tbtAtMin = listOf(40, 115),
-            defaultTimeScale = 30f,
+            defaultTimeScale = SimulatedTripSource.DEFAULT_TIME_SCALE,
             routeKm = 195.0,
             restStops = listOf(
                 SimRestStop("기흥휴게소", SA, 20.49), SimRestStop("오산졸음쉼터", SH, 29.79), SimRestStop("안성휴게소", SA, 46.79),

@@ -42,6 +42,12 @@ data class ListenHint(
     val yesNo: Boolean = false,
 )
 
+/** 엔진 공통 시간 규칙 */
+object SpeechTiming {
+    /** TTS 완료 콜백을 기다리는 최대 시간 — 이보다 길면 콜백을 놓친 것으로 보고 발화를 멈춘다 */
+    fun ttsTimeoutMs(text: String): Long = 6_000L + text.length * 250L
+}
+
 /** 음성 엔진(Pleos·Android·대본) 공통 인터페이스 (+ 대본용 hint, 상태). */
 interface SpeechEngine {
     val kind: SpeechEngineKind

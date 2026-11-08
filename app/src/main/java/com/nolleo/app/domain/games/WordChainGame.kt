@@ -108,12 +108,20 @@ class WordChainGame(
 
     /** STT 문장에서 단어 하나를 뽑는다: 요구 음절로 시작하는 토큰 우선, 존댓말 어미 제거 */
     fun extractWord(answer: String, required: Char?): String {
-        val tokens = answer.split(Regex("\\s+")).map { AnswerMatcher.stripPoliteSuffix(AnswerMatcher.normalize(it)) }
-            .filter { it.isNotEmpty() }
+        val tokens = answer.split(Regex("\\s+")).map(::wordForm).filter { it.isNotEmpty() }
         if (tokens.isEmpty()) return ""
         val starts = required?.let { Hangul.allowedStarts(it) }.orEmpty()
-        return tokens.firstOrNull { it.first() in starts }
-            ?: AnswerMatcher.stripPoliteSuffix(AnswerMatcher.normalize(answer)).ifEmpty { tokens.last() }
+        return tokens.firstOrNull { it.first() in starts } ?: wordForm(answer).ifEmpty { tokens.last() }
+    }
+
+    /**
+     * 존댓말 어미("요"·"이에요" …)를 뗀 꼴. 단 "동요"·"필요"처럼 "요"까지가 낱말이면 원형을 쓴다 —
+     * 사전에 원형만 있으면 원형, 그 밖에는 뗀 꼴 (퀴즈 판정의 [AnswerMatcher.variants] 와 같은 생각).
+     */
+    private fun wordForm(text: String): String {
+        val raw = AnswerMatcher.normalize(text)
+        val stripped = AnswerMatcher.stripPoliteSuffix(raw)
+        return if (stripped != raw && raw in dictionary && stripped !in dictionary) raw else stripped
     }
 
     override fun judge(turn: Turn, answer: String?, attempt: Int): Judgement {

@@ -207,7 +207,7 @@ class GameCoordinator(private val c: AppContainer) {
         scope.launch {
             val s = c.preferences.loadSettings()
             _settings.value = s
-            applySettings(s)
+            applySettings(previous = null, s)
             _home.value = HomeState(
                 presetId = s.lastPresetId,
                 driverId = s.lastDriverId,
@@ -229,6 +229,7 @@ class GameCoordinator(private val c: AppContainer) {
         }
         restCare.onRested = { _session.value?.onRestFinished() }
         observeFocus()
+        observeFocusRequest()
         observeTrip()
         observeNaviRoute()
         observeTbt()
@@ -242,19 +243,26 @@ class GameCoordinator(private val c: AppContainer) {
             .launchIn(scope)
     }
 
-    private fun applySettings(s: AppSettings) {
+    /**
+     * 바뀐 설정만 적용한다. 응답 입력이 그대로인데 대본을 다시 읽으면 대본 순서가 처음으로 돌아가고,
+     * 배율이 그대로인데 덮어쓰면 프리셋 배율(근처 10분 = 2배속)로 시작한 여정이 저장된 배율로 바뀐다.
+     * @param previous null = 앱 시작 (모두 적용)
+     */
+    private fun applySettings(previous: AppSettings?, s: AppSettings) {
         c.carRepository.mode.value = s.carMode
         c.tripRepository.mode.value = s.tripMode
         c.locationRepository.mode.value = s.locationMode
         c.speechRouter.mode.value = s.speechMode
-        setAnswerInputInternal(s.answerInput)
-        c.simTrip.timeScale.value = s.simTimeScale
+        if (previous?.answerInput != s.answerInput) setAnswerInputInternal(s.answerInput)
+        if (previous?.simTimeScale != s.simTimeScale) c.simTrip.timeScale.value = s.simTimeScale
     }
 
     private fun updateSettings(transform: (AppSettings) -> AppSettings) {
-        val next = transform(_settings.value)
+        val previous = _settings.value
+        val next = transform(previous)
+        if (next == previous) return
         _settings.value = next
-        applySettings(next)
+        applySettings(previous, next)
         scope.launch { c.preferences.saveSettings(next) }
     }
 
@@ -297,6 +305,7 @@ class GameCoordinator(private val c: AppContainer) {
         val players = buildPlayers(h)
         activeDriverId = h.driverId
         updateSettings { it.copy(lastPresetId = h.presetId ?: it.lastPresetId, lastDriverId = h.driverId, lastPassengerCount = h.passengerCount, lastChoice = h.choice, lastPacing = h.pacing) }
+        c.scriptedSpeech.rewind()
         // 끝말잇기 검증용 사전(약 19만 어)은 첫 판을 시작할 때 백그라운드에서 붙인다 — 세션 시작을 기다리게 하지 않는다
         scope.launch { c.content.loadValidWords() }
         scope.launch {
@@ -439,7 +448,8 @@ class GameCoordinator(private val c: AppContainer) {
         mode.clearPauses()
         c.tripRepository.endTrip()
         stopScreenQuizzes("session end")
-        c.audioFocus.abandon()
+        // 통화 중(일시 손실)에 끝내도 요청을 거둔다 — 남겨 두면 통화 뒤 포커스가 돌아와 다른 미디어가 계속 작게 들린다
+        c.audioFocus.abandon(force = true)
         _stage1Card.value = null
         restCare.clear()
         AppLog.i(TAG, if (showSummary) "session ended → summary" else "session ended → home")
@@ -515,37 +525,44 @@ class GameCoordinator(private val c: AppContainer) {
                 reading.onFocusChange(change, ownTts)
                 return@onEach
             }
-            if (_session.value == null) return@onEach
-            when (change) {
-                FocusChange.LOSS_TRANSIENT -> {
-                    if (ownTts) {
-                        // Pleos TTS 는 Speech Service 경유로 자체 포커스를 잡는다 → 우리 발화로 인한 손실은 무시
-                        AppLog.i(TAG, "LOSS_TRANSIENT during own Pleos TTS → self-induced, ignore")
-                        c.audioFocus.markLost()
-                    } else {
-                        AppLog.i(TAG, "LOSS_TRANSIENT (통화·Gleo) → 즉시 중단 + PAUSED")
-                        mode.addPause(PauseReason.AUDIO_FOCUS)
-                    }
+            val s = _session.value ?: return@onEach
+            when (SessionFocusPolicy.decide(change, ownTts, PauseReason.AUDIO_FOCUS in mode.pauseReasons.value)) {
+                SessionFocusPolicy.Action.IGNORE_SELF_INDUCED -> {
+                    // Pleos TTS 는 Speech Service 경유로 자체 포커스를 잡는다 → 우리 발화로 인한 손실은 무시
+                    AppLog.i(TAG, "${change.name} during own Pleos TTS → self-induced, ignore")
+                    c.audioFocus.markLost()
                 }
-                FocusChange.LOSS -> {
-                    if (ownTts) {
-                        AppLog.i(TAG, "LOSS during own Pleos TTS → self-induced, ignore")
-                        c.audioFocus.markLost()
-                    } else {
-                        AppLog.w(TAG, "AUDIOFOCUS_LOSS → 세션 종료(상태 저장)")
-                        _session.value?.let { s -> scope.launch { c.preferences.saveSession(s.snapshot()) } }
-                        endSession()
-                    }
+                SessionFocusPolicy.Action.PAUSE_UNTIL_GAIN -> {
+                    AppLog.i(TAG, "LOSS_TRANSIENT (통화·Gleo) → 즉시 중단 + PAUSED")
+                    mode.addPause(PauseReason.AUDIO_FOCUS)
                 }
-                FocusChange.GAIN -> {
-                    if (PauseReason.AUDIO_FOCUS in mode.pauseReasons.value) {
-                        AppLog.i(TAG, "GAIN → 1초 뒤 같은 문제 다시")
-                        c.speechRouter.markNewStream()
-                        mode.removePause(PauseReason.AUDIO_FOCUS)
-                    }
+                SessionFocusPolicy.Action.PAUSE_UNTIL_USER -> {
+                    // 영구 손실 뒤에는 GAIN 이 오지 않는다 → "계속"으로 풀리는 사유로 멈추고 요청을 거둔다 (자동 재개 없음)
+                    AppLog.w(TAG, "AUDIOFOCUS_LOSS → 일시정지(상태 저장), 계속을 누르면 이어서")
+                    mode.replacePause(PauseReason.AUDIO_FOCUS, PauseReason.AUDIO_UNAVAILABLE)
+                    c.audioFocus.abandon(force = true)
+                    saveSnapshot(s)
                 }
-                FocusChange.LOSS_TRANSIENT_CAN_DUCK -> AppLog.i(TAG, "CAN_DUCK → 계속 (게임은 발화자라 duck 대상 아님)")
+                SessionFocusPolicy.Action.RESUME -> {
+                    AppLog.i(TAG, "GAIN → 1초 뒤 같은 문제 다시")
+                    c.speechRouter.markNewStream()
+                    mode.removePause(PauseReason.AUDIO_FOCUS)
+                }
+                SessionFocusPolicy.Action.CONTINUE ->
+                    if (change == FocusChange.LOSS_TRANSIENT_CAN_DUCK) AppLog.i(TAG, "CAN_DUCK → 계속 (게임은 발화자라 duck 대상 아님)")
             }
+        }.launchIn(scope)
+    }
+
+    /**
+     * 통화 일시정지(AUDIO_FOCUS)는 GAIN 으로만 풀린다. 그런데 포커스 요청이 사라지면(정차 중 화면 게임이 같은 요청을
+     * 거둠 등) GAIN 이 오지 않아 "계속" 없이 멈춘 채 남는다 → 그때는 "계속"으로 풀리는 사유로 바꾼다.
+     */
+    private fun observeFocusRequest() {
+        c.audioFocus.requestHeld.onEach { held ->
+            if (held || _session.value == null || PauseReason.AUDIO_FOCUS !in mode.pauseReasons.value) return@onEach
+            AppLog.i(TAG, "focus request dropped during AUDIO_FOCUS pause → 계속을 누르면 이어서")
+            mode.replacePause(PauseReason.AUDIO_FOCUS, PauseReason.AUDIO_UNAVAILABLE)
         }.launchIn(scope)
     }
 
@@ -648,7 +665,13 @@ class GameCoordinator(private val c: AppContainer) {
         mode.addPause(PauseReason.BACKGROUND)
         c.speechRouter.stopAll()
         c.audioFocus.abandon()
-        scope.launch { c.preferences.saveSession(s.snapshot()) }
+        saveSnapshot(s)
+    }
+
+    /** 중단(백그라운드·포커스 영구 손실)에 대비해 지금 상태를 저장한다 — 이어서 하기의 원본 */
+    private fun saveSnapshot(s: GameSession) {
+        val snapshot = s.snapshot()
+        scope.launch { c.preferences.saveSession(snapshot) }
     }
 
     fun onForeground() {
@@ -671,6 +694,11 @@ class GameCoordinator(private val c: AppContainer) {
     fun setSpeechMode(m: SpeechMode) = updateSettings { it.copy(speechMode = m) }
     fun setAnswerInput(input: AnswerInput) = updateSettings { it.copy(answerInput = input) }
     fun setSimTimeScale(scale: Float) = updateSettings { it.copy(simTimeScale = scale) }
+
+    /** 슬라이더를 끄는 동안에는 바로 반영만 한다 — 저장은 손을 뗄 때 [setSimTimeScale] */
+    fun previewSimTimeScale(scale: Float) {
+        c.simTrip.timeScale.value = scale
+    }
 
     private fun setAnswerInputInternal(input: AnswerInput) {
         c.speechRouter.answerInput.value = input

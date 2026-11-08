@@ -153,6 +153,29 @@ class WordChainGameTest {
     }
 
     @Test
+    fun extractWord_keepsWordsThatEndWithYo() {
+        // "요"까지가 낱말이면 어미로 떼지 않는다 (출제용 사전에 동요·필요·대중가요 등 13개)
+        val g = WordChainGame(WordDictionary(listOf("동요", "필요", "대중가요", "사과", "요리")), Random(1))
+        assertEquals("동요", g.extractWord("동요", '동'))
+        assertEquals("필요", g.extractWord("필요요", '필'))
+        assertEquals("대중가요", g.extractWord("대중가요", '대'))
+        assertEquals("동요", g.extractWord("동요요", '동'))
+        // 사전에 없는 꼴은 지금처럼 어미를 뗀다
+        assertEquals("사과", g.extractWord("사과요", '사'))
+        assertEquals("사과", g.extractWord("사과예요", '사'))
+    }
+
+    @Test
+    fun yoEndingWord_isAcceptedInJudge() {
+        val g = WordChainGame(WordDictionary(listOf("기차", "차표", "표지", "지도", "도요", "동요", "요리")), Random(1))
+        g.restoreState(mapOf("used" to "기차", "lastWord" to "고동"))
+        val turn = g.nextTurn(TurnContext(driver, kid, null, 3))!!
+        val j = g.judge(turn, "동요", 1)
+        assertEquals(Outcome.CORRECT, j.outcome)
+        assertEquals("동요", g.currentWord)
+    }
+
+    @Test
     fun stateRoundTrip() {
         val g = game()
         startChain(g)

@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.nolleo.app.core.SourceMode
 import com.nolleo.app.core.log.AppLog
+import com.nolleo.app.core.navi.SimulatedTripSource
 import com.nolleo.app.core.speech.AnswerInput
 import com.nolleo.app.core.speech.SpeechMode
 import com.nolleo.app.domain.drowsy.DriverBaseline
@@ -29,7 +30,7 @@ data class AppSettings(
     val locationMode: SourceMode = SourceMode.AUTO,
     val speechMode: SpeechMode = SpeechMode.AUTO,
     val answerInput: AnswerInput = AnswerInput.MIC,
-    val simTimeScale: Float = 30f,
+    val simTimeScale: Float = SimulatedTripSource.DEFAULT_TIME_SCALE,
     val lastPresetId: String? = null,
     val lastDriverId: Int = 1,
     val lastPassengerCount: Int = 1,
@@ -71,7 +72,7 @@ class AppPreferences(context: Context) {
             locationMode = p[Keys.LOCATION].toEnum(SourceMode.AUTO),
             speechMode = p[Keys.SPEECH].toEnum(SpeechMode.AUTO),
             answerInput = p[Keys.ANSWER].toEnum(AnswerInput.MIC),
-            simTimeScale = p[Keys.SCALE] ?: 30f,
+            simTimeScale = p[Keys.SCALE] ?: SimulatedTripSource.DEFAULT_TIME_SCALE,
             lastPresetId = p[Keys.PRESET],
             lastDriverId = p[Keys.DRIVER] ?: 1,
             lastPassengerCount = p[Keys.PASSENGERS] ?: 1,

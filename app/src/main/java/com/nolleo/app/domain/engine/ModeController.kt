@@ -58,6 +58,9 @@ class ModeController(
 
     fun removePause(reason: PauseReason) = _pauseReasons.update { it - reason }
 
+    /** 한 번에 바꾼다 — 따로 빼고 넣으면 그 사이 잠깐 사유가 비어 VOICE 로 판정될 수 있다 */
+    fun replacePause(old: PauseReason, new: PauseReason) = _pauseReasons.update { it - old + new }
+
     fun clearPauses() {
         _pauseReasons.value = emptySet()
     }

@@ -197,33 +197,49 @@ class GameSession(
 
     private data class Decision(val value: Boolean?)
 
-    /** 네/아니요 질문: 음성(STT) 또는 화면 버튼 중 먼저 온 답. 모르면 null */
+    /**
+     * 네/아니요 질문: 음성(STT) 또는 화면 버튼 중 먼저 온 답. 모르면 null.
+     * 일시정지로 끊기면 문제 차례와 같이 재개 1초 뒤 다시 묻는다(그동안 누른 버튼 답은 받는다).
+     * 정차·도착으로 판을 마무리하게 되면 그때까지의 버튼 답(없으면 null).
+     */
     private suspend fun askYesNo(prompt: String): Boolean? {
-        if (!awaitVoice()) return null
         restDecision.value = null
         awaitingRestDecision = true
         try {
-            val hint = ListenHint(correctAnswer = "네", wrongAnswer = "아니요", forDriver = true, yesNo = true)
-            val result = interruptible {
-                _state.update { it.copy(phase = SessionPhase.ASKING, caption = prompt, mic = MicState.SPEAKING) }
-                speech.speak(prompt)
-                restDecision.value?.let { return@interruptible Decision(it) }
-                val t0 = clock.elapsedMs()
-                _state.update { it.copy(phase = SessionPhase.LISTENING, mic = MicState.LISTENING) }
-                val heard = flow {
-                    val r = AnswerCollector.collect(speech.listen(AnswerCollector.FIRST_SPEECH_TIMEOUT_MS, hint), t0, clock)
-                    r.text?.let { callbacks.logSensitive("heard(쉼터 안내)", it) }
-                    emit(YesNo.parse(r.text))
+            var interrupted = false
+            while (true) {
+                val voice = awaitVoiceOrRestDecision()
+                restDecision.value?.let { return it }
+                if (!voice) return null
+                if (interrupted) {
+                    delay(RESUME_DELAY_MS)
+                    if (inputs.mode.value != GameMode.VOICE) continue
                 }
-                Decision(merge(heard, restDecision.filterNotNull()).first())
+                val result = interruptible { askYesNoOnce(prompt) }
+                // speech.stop() 은 부르지 않는다: Pleos TTS 의 stop 은 비동기라 바로 이어지는 안내 말("좋아요…")을 끊는다.
+                // 버튼이 먼저 온 경우의 듣기는 merge 가 흐름을 취소하면서 멈춘다.
+                _state.update { it.copy(mic = MicState.IDLE, partial = null) }
+                if (result != null) return result.value ?: restDecision.value
+                interrupted = true
+                callbacks.log("쉬어 가기 질문이 끊김 (mode=${inputs.mode.value}) → 재개 시 다시 묻기")
             }
-            // speech.stop() 은 부르지 않는다: Pleos TTS 의 stop 은 비동기라 바로 이어지는 안내 말("좋아요…")을 끊는다.
-            // 버튼이 먼저 온 경우의 듣기는 merge 가 흐름을 취소하면서 멈춘다.
-            _state.update { it.copy(mic = MicState.IDLE, partial = null) }
-            return result?.value ?: restDecision.value
         } finally {
             awaitingRestDecision = false
         }
+    }
+
+    private suspend fun askYesNoOnce(prompt: String): Decision {
+        _state.update { it.copy(phase = SessionPhase.ASKING, caption = prompt, mic = MicState.SPEAKING) }
+        speech.speak(prompt)
+        restDecision.value?.let { return Decision(it) }
+        val t0 = clock.elapsedMs()
+        _state.update { it.copy(phase = SessionPhase.LISTENING, mic = MicState.LISTENING) }
+        val heard = flow {
+            val r = AnswerCollector.collect(speech.listen(AnswerCollector.FIRST_SPEECH_TIMEOUT_MS, YES_NO_HINT), t0, clock)
+            r.text?.let { callbacks.logSensitive("heard(쉼터 안내)", it) }
+            emit(YesNo.parse(r.text))
+        }
+        return Decision(merge(heard, restDecision.filterNotNull()).first())
     }
 
     /**
@@ -352,6 +368,16 @@ class GameSession(
         return result.first == GameMode.VOICE && !arrival(result.third)
     }
 
+    /** [awaitVoice] 와 같되, 멈춘 동안 화면의 "쉬어 가기"/"괜찮아요" 버튼 답이 오면 바로 돌아간다 */
+    private suspend fun awaitVoiceOrRestDecision(): Boolean {
+        if (inputs.mode.value == GameMode.VOICE) return true
+        _state.update { it.copy(mic = MicState.IDLE) }
+        val (m, remain) = combine(inputs.mode, inputs.screenAvailable, inputs.remainSec, restDecision) { m, s, r, d ->
+            Triple(m, r, s || arrival(r) || d != null)
+        }.first { (m, _, leave) -> m == GameMode.VOICE || leave }
+        return m == GameMode.VOICE && !arrival(remain)
+    }
+
     private fun arrival(remain: Int?): Boolean = remain != null && remain <= SessionPlanner.END_BUFFER_SEC
 
     private fun arrivalImminent(): Boolean = arrival(inputs.remainSec.value)
@@ -427,7 +453,7 @@ class GameSession(
             var heard = first.text
             if (judgement.outcome == Outcome.RETRY) {
                 say(judgement.feedback, SessionPhase.FEEDBACK)
-                val second = listenOnly(turn)
+                val second = listenAgain(turn)
                 heard = second?.text
                 judgement = game.judge(turn, second?.text, 2)
             }
@@ -477,9 +503,12 @@ class GameSession(
         callbacks.onSnapshot(snapshot(turnInRound = 0, nextRound = true))
     }
 
-    /** 출제 → 듣기. 일시정지로 끊기면 같은 문제를 다시 낸다. @return (첫 응답, 일시정지로 끊긴 적 있음) / null = 판 마무리 */
-    private suspend fun askAndListen(turn: Turn): Pair<AnswerResult, Boolean>? {
-        var interrupted = false
+    /**
+     * 출제 → 듣기. 일시정지로 끊기면 같은 문제를 다시 낸다. @return (첫 응답, 일시정지로 끊긴 적 있음) / null = 판 마무리
+     * @param alreadyInterrupted 이미 끊긴 뒤에 부름 — 재개 1초 뒤 문제부터 다시 낸다
+     */
+    private suspend fun askAndListen(turn: Turn, alreadyInterrupted: Boolean = false): Pair<AnswerResult, Boolean>? {
+        var interrupted = alreadyInterrupted
         var fatalRetries = 0
         while (true) {
             if (!awaitVoice()) return null
@@ -513,11 +542,14 @@ class GameSession(
         }
     }
 
-    private suspend fun listenOnly(turn: Turn): AnswerResult? {
+    /** 재질문("다시 한번 말해 줄래요?") 뒤 두 번째 듣기. 끊기면 재개 뒤 같은 문제를 다시 내고 듣는다. null = 판 마무리 */
+    private suspend fun listenAgain(turn: Turn): AnswerResult? {
         if (!awaitVoice()) return null
         val result = interruptible { listenNow(turn) }
         _state.update { it.copy(mic = MicState.IDLE) }
-        return result
+        if (result != null) return result
+        callbacks.log("두 번째 듣기가 끊김 (mode=${inputs.mode.value}) → 재개 시 같은 문제")
+        return askAndListen(turn, alreadyInterrupted = true)?.first
     }
 
     private suspend fun listenNow(turn: Turn): AnswerResult {
@@ -684,5 +716,7 @@ class GameSession(
     companion object {
         /** 일시정지 해제(GAIN 등) 후 같은 문제를 다시 낼 때까지 (1초 뒤 재출제) */
         const val RESUME_DELAY_MS = 1_000L
+
+        private val YES_NO_HINT = ListenHint(correctAnswer = "네", wrongAnswer = "아니요", forDriver = true, yesNo = true)
     }
 }

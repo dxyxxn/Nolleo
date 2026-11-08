@@ -49,7 +49,7 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
     val position: StateFlow<SimPosition?> = _position.asStateFlow()
 
     /** 실제 1초 = 여정 [timeScale] 초 */
-    val timeScale = MutableStateFlow(30f)
+    val timeScale = MutableStateFlow(DEFAULT_TIME_SCALE)
 
     /** 주차(휴게소 등) 중에는 여정 시간이 흐르지 않는다 — 실제 내비의 남은 시간도 정차 중엔 그대로다 */
     val moving = MutableStateFlow(true)
@@ -207,5 +207,8 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
         private const val TAG = "SimTrip"
         private const val TICK_MS = 5_000L
         private const val TBT_HOLD_MS = 8_000L
+
+        /** 기본 배율: 실제 1분 = 여정 30분 (설정의 기본값이자 장거리 프리셋의 배율) */
+        const val DEFAULT_TIME_SCALE = 30f
     }
 }

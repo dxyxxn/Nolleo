@@ -230,6 +230,66 @@ class GameSessionTest {
     }
 
     @Test
+    fun stage2_questionInterruptedByPause_isAskedAgainAfterResume() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { if (it.yesNo) "네" else it.correctAnswer }
+        val rec = Recorder().apply { restSuggestion = osan }
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 6), DriverBaseline(1500.0, 0.9, 10))
+        s.requestStage2()
+        val job = launch { s.run() }
+        while (speech.spoken.none { it.contains("잠깐 쉬어 갈까요?") }) advanceTimeBy(100)
+        env.mode.value = GameMode.PAUSED // 질문하는 중 일시정지(TBT·버튼·Gleo)
+        advanceTimeBy(10_000)
+        assertTrue("멈춘 동안에는 답 없음으로 끝내지 않는다", rec.restDecisions.isEmpty())
+        env.mode.value = GameMode.VOICE
+        advanceTimeBy(10_000)
+        assertEquals("재개하면 다시 묻는다", 2, speech.spoken.count { it.contains("잠깐 쉬어 갈까요?") })
+        assertEquals(listOf(true), rec.restDecisions)
+        job.cancel()
+    }
+
+    @Test
+    fun stage2_screenButtonWhilePaused_answersRightAway() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { if (it.yesNo) "네" else it.correctAnswer }
+        val rec = Recorder().apply { restSuggestion = osan }
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 6), DriverBaseline(1500.0, 0.9, 10))
+        s.requestStage2()
+        val job = launch { s.run() }
+        while (speech.spoken.none { it.contains("잠깐 쉬어 갈까요?") }) advanceTimeBy(100)
+        env.mode.value = GameMode.PAUSED
+        advanceTimeBy(3_000)
+        assertTrue("멈춘 동안에도 질문은 버튼 답을 기다린다", s.answerRestSuggestion(true))
+        advanceTimeBy(1_000)
+        assertEquals("재개를 기다리지 않고 바로 받아들인다", listOf(true), rec.restDecisions)
+        job.cancel()
+    }
+
+    @Test
+    fun secondListenInterruptedByPause_reasksSameQuestion() = runTest {
+        val env = Env(this)
+        var answers = 0
+        // 첫 답은 사전에 없는 말 → "다시 한번 말해 줄래요?" → 두 번째 듣기
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { hint ->
+            val word = hint.correctAnswer ?: return@FakeSpeech null
+            if (answers++ == 0) "${word.first()}뭐뭐" else word
+        }
+        val rec = Recorder()
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.WORD_CHAIN, 2))
+        val job = launch { s.run() }
+        while (speech.spoken.none { it == "다시 한번 말해 줄래요?" }) advanceTimeBy(100)
+        advanceTimeBy(600) // 재질문을 다 말하고 두 번째로 듣는 중
+        env.mode.value = GameMode.PAUSED
+        advanceTimeBy(5_000)
+        env.mode.value = GameMode.VOICE
+        advanceTimeBy(5_000)
+        val retryAt = speech.spoken.indexOf("다시 한번 말해 줄래요?")
+        assertTrue("재개하면 같은 문제를 다시 낸다", speech.spoken.drop(retryAt + 1).any { it.contains("아빠 차례예요") })
+        assertTrue("무응답으로 넘기지 않는다", speech.spoken.none { it.startsWith("시간이 다 됐어요") })
+        job.cancel()
+    }
+
+    @Test
     fun afterRest_greetsBeforeNextTurn_andResetsDifficulty() = runTest {
         val env = Env(this)
         val speech = FakeSpeech(env.clock, listOf(1500L)) { if (it.yesNo) "네" else it.correctAnswer }

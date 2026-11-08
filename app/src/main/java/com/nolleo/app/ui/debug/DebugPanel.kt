@@ -138,7 +138,13 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
                 DevButton("TBT 분기점 300m") { coordinator.simTriggerTbt() }
             }
             Line("시뮬 배율: 실제 1분 = 여정 ${scale.toInt()}분")
-            Slider(value = scale, onValueChange = { coordinator.setSimTimeScale(it) }, valueRange = 1f..60f, modifier = Modifier.fillMaxWidth())
+            Slider(
+                value = scale,
+                onValueChange = coordinator::previewSimTimeScale,
+                onValueChangeFinished = { coordinator.setSimTimeScale(container.simTrip.timeScale.value) },
+                valueRange = 1f..60f,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
 
         Section("위치 — ${reading.source.label}: ${content?.region(reading.regionCode)?.name ?: "-"}") {
