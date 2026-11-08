@@ -2,7 +2,7 @@
 
 > 날짜별 파일이 아니라 이 한 파일을 계속 갱신한다(2026-11-06 작성 시작, 마지막 갱신 2026-11-08). 11/7 까지는 `docs/state/2026-11-06_work-status.md` 였다.
 
-- 브랜치: `main` — 프로토타입 작업 브랜치를 사용자가 main 으로 합쳐 `origin`(github.com/dxyxxn/HMC-Contest)에 push. 이때 히스토리가 다시 쓰여 아래 커밋 해시는 현재 main 기준이다. 11/8 검토 문서 기반 리팩토링(`refactor/review-fixes`, 1.21)은 같은 날 사용자 요청으로 main 에 합쳤다(fast-forward 라 해시 그대로). 같은 날 홈 목적지 개편(1.22)·출발 뒤 다시 앞으로(1.23)도 `feature/home-destinations` 에서 작업해 사용자 요청으로 main 에 합쳤다(fast-forward). 11/8 저녁 main 을 `origin` 에 push 했다.
+- 브랜치: `main` — 프로토타입 작업 브랜치를 사용자가 main 으로 합쳐 `origin`(github.com/dxyxxn/Nolleo — 11/8 저장소 이름이 HMC-Contest 에서 바뀌어 로컬 원격 주소도 새 주소로 바꿈)에 push. 이때 히스토리가 다시 쓰여 아래 커밋 해시는 현재 main 기준이다. 11/8 검토 문서 기반 리팩토링(`refactor/review-fixes`, 1.21)은 같은 날 사용자 요청으로 main 에 합쳤다(fast-forward 라 해시 그대로). 같은 날 홈 목적지 개편(1.22)·출발 뒤 다시 앞으로(1.23)도 `feature/home-destinations` 에서 작업해 사용자 요청으로 main 에 합쳤다(fast-forward). 11/8 저녁 main 을 `origin` 에 push 했고, 합친 두 브랜치는 로컬에서 지웠다(원격에는 main 만 있음).
 - 기준 지시서: 처음 받은 프로토타입 구현 지시서(Claude Code 용)는 11/8 사용자 요청으로 저장소에서 지웠다(1.16). 이 문서의 옛 기록에 나오는 "지시서" 는 그 문서를 말한다 — 내용은 git 기록(`3d06bbc` 까지)에서 볼 수 있다. 코드 주석의 지시서 표기는 같은 날 정리했다(1.17).
 - 변수: 팀명 `돈도아연`(영문으로 적을 때 DonDoAYeon — 11/8 확정) · 패키지 `com.nolleo.app` · 앱 이름 `놀레오`(영문 Nolleo, 부제 "가는 길이 놀이가 되는 가족 게임" — 11/7 변경, 1.13; 앱 안 제목 줄은 11/8 부터 로고 + `Nolleo` 만) · APK `apk/돈도아연_놀레오_release.apk`(11/8 확정) · Pleos Client ID/Secret 없음 → TTS/STT `Mode.ON_DEVICE`
 - 검증 환경: Pleos Connect Emulator v2.1.0 AVD(cold boot, 2560×1440), Gradle 9.6.0 / AGP 9.5.0 / built-in Kotlin 2.2.10 / compileSdk 37
