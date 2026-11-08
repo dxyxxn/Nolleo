@@ -61,10 +61,10 @@
 - intent-filter를 두고, 7초 안에 `APP_ACTION_RESPONSE` 브로드캐스트를 보낸다(DEV_GUIDE §9).
 
 ## 7. 그 밖의 2차 작업 후보
-- **출발 전 예상 시간을 실제 내비 값으로**: 홈 프리셋의 "약 4시간 10분"은 고정값이다.
-  - `NaviHelper.requestTrip(TripRequest(lat, lng, poiId, poiName, poiSubId))`를 부르면 길 안내를 시작하지 않고 `onTripInfo(TripInfo(distance m, eta 초, …))`로 예상 시간을 받는다.
-  - 퍼미션은 `NAVI_ROUTE`로 이미 선언돼 있다(샘플 `NaviTestData.tripRequest`).
-  - 그러면 미리보기 "N시간 → M판"을 실제 교통을 반영한 값으로 바꿀 수 있다.
+- **홈 목적지 후속** (11/8 홈을 현재 경로 · 내비 최근 목적지 · 목적지 없이로 바꾼 뒤 — FEATURE_GUIDE §3.2):
+  - 집·회사 즐겨찾기: `NaviHelper.getBookmarkInfo` → `onBookmarkInfo`(`BookmarkType.HOME/OFFICE`)로 등록된 것만 최근 목적지 앞에 넣는다. 퍼미션은 `NAVI_ROUTE` 그대로. 에뮬레이터는 집·회사가 등록돼 있지 않아(빈 이름·0 좌표) 1차에 넣지 않았다.
+  - 실차 내비가 `requestTrip` 에 답하지 않으면 최근 목적지가 `시간 확인 중`으로 남아 그 줄로 출발할 수 없다. 지금 위치(FusedLocation)와의 직선거리로 대략의 시간을 셈하는 대안을 실차 확인 뒤 정한다.
+  - 목적지 없이: 지금은 다른 여정처럼 남은 5분에 결과를 정리한다(30분이면 약 25분 논다). 정한 시간을 끝까지 쓰게 할지 정한다.
 - **Vehicle SDK 리스너를 화면이 보일 때만 등록**: 샘플 README("관찰하는 화면이 멈추면 unregister")와 DEV_GUIDE §5.4 기준이다. 지금은 브레이크·좌석 리스너가 앱 수명 동안 등록돼 있다(좌석은 홈에서만 쓴다).
 - 운전자 프로필 확장: 이름 직접 입력은 정차 중에만 받고, 좌석 착좌·운전석 프로필과 연동한다.
 - 동승자 이름 커스터마이즈, 아이 연령대별 난이도.
@@ -77,7 +77,7 @@
 - 앱 안에서 버전을 확인해 `market://detail?package=com.nolleo.app`로 안내한다(DEV_GUIDE §11.2).
 
 ## 8. 구조 리팩토링 후보 (2차 PT 뒤 다시 판단)
-11/8 검토 문서(로컬 `docs/REFACTORING_REVIEW.md`, 저장소에는 없음)에서 **하지 않기로 한** 큰 재구성이다. 결함은 1.21(WORK_STATUS)에서 작게 고쳤고, 아래는 사용자에게 보이는 이득 없이 시연 흐름 전체를 건드려 미뤘다. 2차 기능을 넣으며 그 영역이 커질 때 다시 본다.
+11/8 검토 문서(로컬 `.cache/REFACTORING_REVIEW.md`, 저장소에는 없음)에서 **하지 않기로 한** 큰 재구성이다. 결함은 1.21(WORK_STATUS)에서 작게 고쳤고, 아래는 사용자에게 보이는 이득 없이 시연 흐름 전체를 건드려 미뤘다. 2차 기능을 넣으며 그 영역이 커질 때 다시 본다.
 - `GameCoordinator`·`AppContainer` 분해 — 홈·시작·저장·포커스·TBT·휴식·설정·디버그를 한 곳이 조정하고, 화면·컨트롤러가 컨테이너 전체를 받는다. 그래서 Coordinator·컨트롤러는 단위 테스트가 없다(판단 부분만 작은 함수로 빼서 시험 중).
 - `GameSession` 분해(차례 실행 `TurnRunner` 와 세션 진행 나누기).
 - 세션 상태 기계(Idle/Starting/Running/Stopping)·구독 소유권 재배치, 음성 요청의 `Completed/Cancelled/Failed` 결과 타입(서버 TTS/STT 를 붙일 때), 쉬어 가기 상태 기계를 순수 로직/효과로 나누기, 길 안내 일시정지 정책 추출(구간별 신호 §3 과 함께), 화면 `UiState`/presenter, 위치 입력 타입·저장소 인터페이스, 사전 로딩 상태 기계(사전을 내려받게 바뀔 때), 게임별 타입 저장 모델(화면 게임 복원 등 저장 범위가 커질 때).

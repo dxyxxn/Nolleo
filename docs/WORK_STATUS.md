@@ -2,7 +2,7 @@
 
 > 날짜별 파일이 아니라 이 한 파일을 계속 갱신한다(2026-11-06 작성 시작, 마지막 갱신 2026-11-08). 11/7 까지는 `docs/state/2026-11-06_work-status.md` 였다.
 
-- 브랜치: `main` — 프로토타입 작업 브랜치를 사용자가 main 으로 합쳐 `origin`(github.com/dxyxxn/HMC-Contest)에 push. 이때 히스토리가 다시 쓰여 아래 커밋 해시는 현재 main 기준이다. 11/8 검토 문서 기반 리팩토링(`refactor/review-fixes`, 1.21)은 같은 날 사용자 요청으로 main 에 합쳤다(fast-forward 라 해시 그대로). `origin` 에는 아직 push 하지 않았다.
+- 브랜치: `main` — 프로토타입 작업 브랜치를 사용자가 main 으로 합쳐 `origin`(github.com/dxyxxn/HMC-Contest)에 push. 이때 히스토리가 다시 쓰여 아래 커밋 해시는 현재 main 기준이다. 11/8 검토 문서 기반 리팩토링(`refactor/review-fixes`, 1.21)은 같은 날 사용자 요청으로 main 에 합쳤다(fast-forward 라 해시 그대로). `origin` 에는 아직 push 하지 않았다. 같은 날 홈 목적지 개편(1.22)은 **`feature/home-destinations`** 브랜치에 있다(아직 main 에 합치지 않음).
 - 기준 지시서: 처음 받은 프로토타입 구현 지시서(Claude Code 용)는 11/8 사용자 요청으로 저장소에서 지웠다(1.16). 이 문서의 옛 기록에 나오는 "지시서" 는 그 문서를 말한다 — 내용은 git 기록(`3d06bbc` 까지)에서 볼 수 있다. 코드 주석의 지시서 표기는 같은 날 정리했다(1.17).
 - 변수: 팀명 `돈도아연`(영문으로 적을 때 DonDoAYeon — 11/8 확정) · 패키지 `com.nolleo.app` · 앱 이름 `놀레오`(영문 Nolleo, 부제 "가는 길이 놀이가 되는 가족 게임" — 11/7 변경, 1.13; 앱 안 제목 줄은 11/8 부터 로고 + `Nolleo` 만) · APK `apk/돈도아연_놀레오_release.apk`(11/8 확정) · Pleos Client ID/Secret 없음 → TTS/STT `Mode.ON_DEVICE`
 - 검증 환경: Pleos Connect Emulator v2.1.0 AVD(cold boot, 2560×1440), Gradle 9.6.0 / AGP 9.5.0 / built-in Kotlin 2.2.10 / compileSdk 37
@@ -34,6 +34,7 @@
 | 끝말잇기 사전 교체 | `3bbc980` | AI 생성 목록 → 국립국어원 사전 기반 검증용(194,871)·출제용(7,882), 두음법칙 양방향, 난이도 상한과 등급 연동, 금칙어 목록, 막다른 말뿐이면 다시 시작 (아래 1.19) | 에뮬레이터 release 빌드로 확인, DoD 통과, 테스트 185개 |
 | 팀원용 프로토타입 영상 녹화 | `78234d8` | 에뮬레이터 자체 녹화로 기능별 영상 6편(약 7분)을 찍어 `.cache/teammate_tour/` 에 둠(저장소에는 올리지 않음 — `.gitignore` 에 `.cache/`) (아래 1.20) | 영상 파일마다 화면·소리 트랙 확인 |
 | 검토 문서 기반 리팩토링 | `512c158` · `5abc889` · `8291369` · `72af726` · 문서 `b7eefcd` (브랜치 `refactor/review-fixes` → 11/8 main 에 합침) | 검토 문서 23개 항목 — 화면 게임 음성 끊김, 오디오 포커스(영구 손실은 일시정지), 설정 변경 범위, 끝말잇기 "요" 낱말·첫 낱말, 쉬어 가기 질문 일시정지·근접 알림, 저장본 v2, 세션 수명주기, 졸음 지표, 음성 엔진 회복, 주행 중 요약·화면 규칙, 실제 내비 여정 결함, 쓰이지 않는 코드·중복 정리 (아래 1.21) | 에뮬레이터 release 빌드로 확인(1.21), DoD 통과, 테스트 207개 |
+| 홈 목적지 개편 | `1ac9e8a` · `4843213` · 문서 (해시는 뒤따르는 docs 커밋에서) (브랜치 `feature/home-destinations`) | 홈 목적지를 현재 경로 · 내비 최근 목적지(예상 시간, 출발할 때 길 안내) · 목적지 없이(30분~2시간 시간 여정)로, 프리셋은 시연용 시뮬 경로로 디버그 패널에, 저장본 v3 (아래 1.22) | 에뮬레이터 release 빌드로 확인(1.22), DoD 통과, 테스트 214개 |
 
 M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로 묶었다.
 
@@ -57,6 +58,8 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 | Pleos Vehicle Brake·Seat | 실제 SDK로 검증 (capability → register/getCurrent). 단 에뮬레이터의 Seat 값은 동승석 4곳 착좌로 고정 — Virtual Console 로 바꿔도 앱이 받는 값이 그대로(11/8, 1.5) |
 | NaviHelper requestRoute / onRouteStarted / onDestinationInfo / onTBTInfo / onCurrentLocationInfo | 실제 SDK로 검증 (차량이 움직이지 않아 남은 시간 감소는 시뮬로 시연) |
 | NaviHelper TBT `TURN_ENTER_SERVICEAREA`·`TURN_RESTAREA` | 실제 SDK로 검증(11/7) — 고속도로 경로 TBT 목록에 휴게소·졸음쉼터가 경로 순서대로 들어 있음(부산역 경로 22곳: 용인졸음쉼터 18.1 km·용인휴게소 28.5 km…). `distance` 는 앞 항목부터의 구간 거리 |
+| NaviHelper getRecentDestinationInfo / requestTrip | 실제 SDK로 검증(11/8) — 최근 목적지 2곳(앞서 길 안내한 부산역·소프트웨어드림센터), `requestTrip` 은 길 안내 없이 `onTripInfo(distance=378452, eta=15167)`. 홈 목적지 목록에 씀(1.22) |
+| NaviHelper getBookmarkInfo | 호출만 시험(11/8) — 에뮬레이터는 집·회사가 등록돼 있지 않아 빈 이름·0 좌표로 옴. 쓰지 않음(PHASE2 §7) |
 | NaviHelper addWaypoint | 실제 SDK로 시험(11/7) 후 **쓰지 않기로** — 경유지는 들어가고 내비가 재탐색하지만, POI ID 없는 좌표라 고속도로 옆 일반 도로에 붙어 IC 로 나갔다 들어오는 우회 경로가 됨(아래 1.11) |
 | FusedLocation | 실제 SDK로 검증 — 기본 좌표로는 국내 지역이 안 나와 내비 주소/시뮬로 폴백, `adb emu geo fix 126.9780 37.5665` 를 넣으면 `region=seoul via FusedLocation` (11/7 확인) |
 | FusedLocation addProximityAlert | 실제 SDK로 검증(11/7) — 등록 → `alertId`, `geo fix` 로 쉼터 좌표에 넣으면 ENTER 콜백(`rest stop arrived (근접 알림 ENTER)`) |
@@ -83,7 +86,8 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - TBT 일시정지: 같은 안내가 20초 넘게 그대로면 정체/정차로 보고 재개(에뮬레이터의 고정 TBT "TURN_LEFT 80m" 대응).
 - 졸음 기준값: 캘리브레이션 5개는 중앙값, 무응답(8초)은 캘리브레이션에서 제외, EMA 는 느리지 않은 응답으로만 갱신.
 - 데모 모드: 판당 6문제, 운전자 기준값 없으면 1.5초 시드. sleepy 대본은 운전자 차례에만 적용(driverOnly). 데모 세션은 운전자 기준값을 저장하지 않는다(시연용 시드가 실제 기준값이 되지 않게 — 11/8, 1.21).
-- **이어서 하기**(11/8 사용자 결정, 1.21): 시뮬 여정은 저장할 때의 남은 시간부터 이어 간다(꺼져 있던 동안은 흐르지 않은 것으로 봄). 쉬어 가기 진행(가는 중·쉬는 중)은 이어 가지 않고 처음 상태로 시작한다. 졸음 2단계 쿨다운·횟수, 끝말잇기 최장, 운전자 id 는 저장본 v2 에 넣었다.
+- **이어서 하기**(11/8 사용자 결정, 1.21): 시뮬 여정은 저장할 때의 남은 시간부터 이어 간다(꺼져 있던 동안은 흐르지 않은 것으로 봄). 쉬어 가기 진행(가는 중·쉬는 중)은 이어 가지 않고 처음 상태로 시작한다. 졸음 2단계 쿨다운·횟수, 끝말잇기 최장, 운전자 id 는 저장본 v2 에 넣었다. 시간 여정(목적지 없이)도 같은 규칙으로 이어 간다 — 저장본 v3 에 전체 시간·"목적지 없이" 여부(1.22).
+- **홈 목적지 = 현재 경로 · 내비 최근 목적지 · 목적지 없이**(11/8 사용자 결정, 1.22): 고정 프리셋(서울 → 부산 등)은 홈에서 빼고 시연용 **시뮬 경로**로 디버그 패널에 옮겼다(여정=시뮬이면 홈 현재 경로 자리). 최근 목적지는 **출발을 누를 때** 길 안내를 걸고(고르기만 해서는 내비를 바꾸지 않음), **길 안내 중에는 숨긴다**(운전자 길 안내를 바꾸지 않게). 목적지 없이는 **30분 · 1시간 · 1시간 반 · 2시간** 네 칸.
 - PARKED 판정: 기어를 알면 기어만 본다(에뮬레이터는 D 상태에서도 주차브레이크 텔테일이 켜질 수 있음).
 - 졸음 케어 2단계(11/7, 사용자 결정 반영): **경로 정보가 있으면 경로 위 휴게소·졸음쉼터에서만 고른다**(가장 가까운 곳, 휴게소가 5 km 안쪽으로만 더 멀면 휴게소). **경유지(`addWaypoint`)는 넣지 않는다** — 좌표 경유지가 우회 경로를 만들었고, 경로 위라 필요 없다. 길 안내가 없을 때만 공공데이터 졸음쉼터 표(근사, "A기점 + B종점" 은 A → B 차로로 해석). 도착은 근처에서 서거나 주차해야(지나가는 것과 구별). 도착 안내 뒤에는 다시 출발할 때까지 문제를 내지 않는다(`PauseReason.REST_AREA`). 질문 문구는 "졸음"을 단정하지 않고 "반응이 계속 느려졌어요".
 - 디버그 패널은 release 에도 그대로 둔다(11/7 사용자 결정 — 시연·심사용). 앱 마켓 제출본에서는 빼거나 차량 칸(시뮬 전환·시뮬 DO 끔 — 주행 규제 우회 가능)을 숨길 것.
@@ -110,7 +114,8 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - 공공데이터포털 15045551 "고속도로 출입시설 위치정보(LOD)"는 설명에 휴게소·졸음쉼터가 있다고 하지만 실제 파일에는 IC·JCT 407곳뿐이다.
 - Pleos TTS SDK 는 발화 텍스트를 자체 logcat(`[GAAS][SDK]OnDeviceStreamTts doSpeak text=…`, D 레벨)에 남긴다 — 앱이 막을 수 없는 SDK 동작(앱 로그는 PII 규칙을 지킴).
 - AAOS 런타임 권한 대화상자에서 `CAR_SPEED` 는 "위치" 그룹으로 표시되고, `FUSED_LOCATION` 은 라벨이 없어 "알 수 없는 작업"으로 보인다(플랫폼 측 표기).
-- HOME 키는 이 에뮬레이터에서 앱 창을 가리지 않는다(전용 홈 패널) → 백그라운드 검증은 다른 앱을 같은 창에 띄워서 했다.
+- HOME 키는 이 에뮬레이터에서 앱 창을 가리지 않는다(전용 홈 패널) → 백그라운드 검증은 다른 앱을 같은 창에 띄워서 했다. `adb shell am kill com.nolleo.app` 도 화면에 보이는 앱이라 프로세스를 끝내지 않았다 → 이어서 하기 시험은 다른 앱으로 덮은 뒤 `am force-stop`(11/8).
+- NaviHelper `requestTrip` 은 길 안내를 시작하지 않고 예상 시간만 `onTripInfo` 로 준다. 그런데 `onTripInfo`·`onRecentDestinationInfo` 는 **어느 앱이 물었든 모든 연결 앱에 온다**(요청 번호 없음 — 다른 앱의 요청에 대한 답도 받음). `TripInfo.summary.routePoints` 의 마지막 항목이 목적지라 그 좌표로 어느 곳의 답인지 맞춘다. 최근 목적지의 `poiSubId` 는 null 로 오는데 `RouteInfo.poiSubId` 는 null 을 받지 않아 "0" 을 넣는다. 등록 안 된 집·회사 즐겨찾기(`getBookmarkInfo`)는 빈 이름·0 좌표로 온다(11/8).
 - DEV_GUIDE §6.5 는 글꼴을 Asta Sans 로만 적었는데, 에뮬레이터의 `/product/etc/fonts_customization.xml` 은 `sans-serif` 를 Asta Sans 로 덮으면서 **굵기 500 을 Regular, 600 을 Bold, 700 을 ExtraBold** 파일에 연결한다(Medium 파일은 `pretendard` 라는 이름의 별도 글꼴 묶음에만 연결). 그래서 `FontWeight.Medium` 은 Regular 로 보인다 → 400·600 두 굵기만 쓴다(11/7).
 - Material3 기본 색 역할(secondaryContainer 등)을 채우지 않으면 슬라이더 빈 트랙 같은 곳에 기본 보라색이 나온다 → 테마에서 색 역할 전부를 우리 색으로 지정(11/7).
 - 에뮬레이터의 Pleos Vehicle SDK 좌석 착좌(Seat Occupancy)는 동승석 4곳(`ROW_1_RIGHT`·`ROW_2_LEFT`·`ROW_2_CENTER`·`ROW_2_RIGHT`)을 처음부터 모두 착좌로 보낸다. Virtual Console 의 Seat Occupancy 를 바꿔도(화면·HTTP API `PUT /vehicle/seat?kind=occupied…` 모두) 앱이 받는 값은 그대로였다 → 홈이 늘 "좌석 센서가 동승자 3명을 감지했어요"(앱이 고를 수 있는 최대 3명으로 줄임)를 띄운다. 앱이 값을 정해 둔 것이 아니다. 실차에서 실제 착좌가 반영되는지는 확인 못 함(11/8).
@@ -452,6 +457,28 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - **확인 못 함**: 통화·Gleo·다른 미디어 앱의 포커스 손실(2·3번 — 단위 테스트만), 음성 엔진 회복(16번 — 에뮬레이터에서 실패를 만들지 못함), 실제 내비 여정의 19~23번(차가 움직이지 않음), 글자 수 제한 비트(18번 일부 — 에뮬레이터는 active=80), 쉬어 가기 권유 줄이 좁은 창에서 잘리던 문제(거리를 앞으로 옮김 — 3분할 화면은 다시 보지 않음), 이어서 하기 v2 의 실제 복원(단위 테스트만 — `am kill` 시험은 하지 않음).
 - DoD: `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 오류 0·경고 17 — 이전과 같음), 테스트 207개(+22: 포커스 판단 5, 쉬어 가기 질문·두 번째 듣기 일시정지 3, 가는 중 2단계 1, 인식 오류 1, 다시 계획 3, 끝말잇기 "요" 2, 첫 낱말 2, 졸음 저장·초기화 2, 저장본 v1/v2·검증 2, 곧 도착 미리보기 1), `apk/돈도아연_놀레오_release.apk` 갱신.
 
+### 1.22 홈 목적지 개편 — 현재 경로 · 내비 최근 목적지 · 목적지 없이 (11/8)
+요청: "내비 sdk를 통해 최근 목적지 같은 정보 얻어올 수 있나? … 현재 경로 / 최근 목적지 / 시간 선택(30분 단위)(프리셋말고) 로 구성해보자. 경로는 '출발을 누를 때'. 시간 범위는 30분~2시간으로 4버튼." 정할 것 세 가지(프리셋은 디버그 패널로, 시간 4칸, 길 안내 중 최근 목적지 숨김)는 제안대로.
+
+- 먼저 확인: API 레퍼런스에 `getRecentDestinationInfo`·`getBookmarkInfo`·`requestTrip`(모두 `NAVI_ROUTE` — 이미 선언)이 있었고, 임시 로그를 넣은 release 빌드로 에뮬레이터 응답을 본 뒤 코드를 되돌렸다(1.5 의 관측).
+- 브랜치 **`feature/home-destinations`**(main 에서 나눔). 커밋:
+  - `1ac9e8a` 목적지 없는 세션의 끝맺음 문구와 저장본 v3
+  - `4843213` 홈 목적지 개편(코드·테스트·release APK)
+- **동작**(FEATURE_GUIDE §3.2):
+  - 홈 `목적지`: `현재 경로: ○○`(내비 길 안내가 있을 때) / 내비 최근 목적지 앞 3곳(길 안내가 없을 때, 오른쪽에 `requestTrip` 예상 시간) / `목적지 없이` + 시간 막대 `30분 · 1시간 · 1시간 반 · 2시간`. 디버그 패널 여정=시뮬이면 현재 경로 자리에 시뮬 경로(`서울 → 부산 · 시뮬 여정 · 부산역`), 실제 내비 줄은 숨김.
+  - 최근 목적지로 출발하면 `requestRoute`. 자동 모드에서 내비가 길 안내를 시작하지 못하면(미연결·onError·60초) 예상 시간으로 시간 여정을 대신 돌린다(예전에는 프리셋 시뮬로 넘어갔다).
+  - 목적지 없이 = 시간 여정(`TimerTripSource`, `TripSourceKind.TIMER`): 주차 중·쉬어 가기를 묻는 동안 멈춤, 여정=시뮬이면 시뮬 배율. 지역은 FusedLocation, 분기점 일시정지 없음, 쉬어 갈 곳은 졸음쉼터 표. 상단 `남은 시간`, 끝맺음 "정한 시간이 (거의) 다 됐어요", 요약 제목 `시간이 다 됐어요`.
+  - 고른 줄: 현재 경로가 새로 생기면 그것을, 없어지면 `목적지 없이`(그 사이 고른 최근 목적지가 숨겨지면 현재 경로로 봄). 마지막으로 출발한 시간은 저장(`timer_minutes`), 시뮬 경로는 예전 프리셋 키(`last_preset`)를 그대로 쓴다.
+- **구조**: 홈 선택 모델을 `app/HomeState.kt`(`DestinationChoice`·`DestinationOptions`·`effective`·`timeAndName`)로 `GameCoordinator` 밖으로 뺐다. 여정 시작은 `TripRepository.begin(TripTarget)`(NaviRoute · Place · Timer · Simulated) 하나로. 최근 목적지는 `NaviPlace`(정리·좌표 맞추기), 예상 시간은 한 곳씩 묻는다(5초 제한). `DestinationPreset` 은 시뮬 경로 전용이 되어 POI·주소·부제 필드를 지웠다. `TripSource` 인터페이스에서 `requestRoute` 를 뺐다(소스마다 시작 방법이 다름).
+- **에뮬레이터 확인**(release, 11/8, 여정 자동):
+  - 홈: `부산역 · 최근 목적지 · 부산광역시 동구 중앙대로 206 · 약 4시간 6분`, `소프트웨어드림센터 · … · 약 1분 미만`, `목적지 없이 · 1시간`(선택). 로그 `onRecentDestinationInfo 2곳 → 쓸 수 있는 곳 2곳`, `onTripInfo → 예상 4시간 6분`.
+  - 부산역 → `4시간 6분 → 5판` → 출발 → `requestRoute` → 순정 내비 길 안내 → `onRouteStarted raw duration=14820`, 화면 칩 `도착까지 4시간 7분`. 게임 끝내기 → 홈 `현재 경로: 부산역`(선택), 최근 목적지 숨김, 내비 길 안내 유지.
+  - 30분 칸 → `30분 → 1판 (판당 약 6분)` → 출발 → `timer trip 30분 (x1.0)`, 칩 `남은 시간 30분`. 다른 앱으로 덮어 저장 → `am force-stop` → 다시 실행 → 배너 `목적지 없이 30분 · 1번째 판` → 이어서 하기 → `timer trip 30분`, `session restored at round 1`. 기어 D → `일시정지 · 남은 시간 29분` → 계속 → 패널 남은 5분으로 → 주행 중 요약 `시간이 다 됐어요` → 기어 P → 전체 요약 `시간이 다 됐어요 · 목적지 없이 30분`.
+  - 여정 시뮬 → 홈 `서울 → 전주 · 시뮬 여정 · 전주한옥마을 · 약 2시간 50분`(선택, 최근 목적지·현재 경로 숨김) → 출발 → `simulated route 서울 → 전주 (170분, x30.0)`, `session start (Simulated)`.
+  - 크래시 없음. 시험 뒤 순정 내비 길 안내를 종료하고(홈이 최근 목적지 + 목적지 없이로 돌아옴), 여정 자동·기어 P 로 되돌려 둠(시뮬 경로 저장값은 예전 프리셋 선택 그대로 서울 → 전주).
+- **확인 못 함**: 실차 내비의 최근 목적지·`requestTrip` 응답, 최근 목적지로 출발했는데 내비가 길 안내를 시작하지 못해 예상 시간으로 대신 세는 경로(에뮬레이터 내비는 늘 시작함), 목적지 없이의 끝맺음 발화(문구는 단위 테스트, 에뮬레이터는 요약 제목과 진행 로그만 — release 는 발화 글을 로그에 남기지 않음), 3분할 좁은 창에서 시간 막대 네 칸.
+- DoD: `./gradlew lintDebug testDebugUnitTest assembleRelease` 통과(lint 오류 0·경고 17 — 이전과 같음), 테스트 214개(+7: 목적지 없는 세션 끝맺음 1, 저장본 v3 1, 홈 고르기 5 − 예전 4, 최근 목적지 정리·좌표 맞추기 2, 시간 여정 2), `apk/돈도아연_놀레오_release.apk` 갱신.
+
 ---
 
 ## 2. 추후 작업할 내용 (우선순위 순)
@@ -476,11 +503,13 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 4. 이동 앨범 (§4)
 5. 정차 중 화면 게임 더하기(틀린 그림 찾기·노래방)와 후속 (§5)
 6. Gleo Interface(`assets/schema.json`) — 1차에는 파일을 넣지 않음 (§6)
-7. 그 밖의 후보 — `requestTrip` 예상 시간, 리스너를 화면이 보일 때만 등록, 운전자 프로필, HYBRID TTS/STT, 버전 확인 (§7)
+7. 그 밖의 후보 — 홈 목적지 후속(집·회사 즐겨찾기, `requestTrip` 에 답하지 않는 내비 대비, 목적지 없이를 정한 시간 끝까지), 리스너를 화면이 보일 때만 등록, 운전자 프로필, HYBRID TTS/STT, 버전 확인 (§7)
 
 ### 2.3 기술 부채·검증 못 한 것
 - 통화·Gleo 호출로 인한 `AUDIOFOCUS_LOSS_TRANSIENT` → PAUSED → GAIN 1초 뒤 재출제 흐름, 정차 중 화면 게임 읽기 중의 같은 손실(읽기만 멈춤·세션 유지), 다른 미디어 앱의 영구 손실(일시정지 → 계속, 11/8)을 실차/전화 시뮬레이션으로 검증
-- 11/8 리팩토링(1.21)에서 에뮬레이터로 확인하지 못한 것: 음성 엔진 회복(초기화 실패·MIC_ERROR 뒤), 실제 내비 여정의 상태 채우기·다시 계획한 판·홈 선택·곧 도착 출발·쉼 장소 거리 기준, 이어서 하기 v2 의 실제 복원(`am kill`), 3분할 좁은 창의 쉬어 가기 권유 줄
+- 11/8 리팩토링(1.21)에서 에뮬레이터로 확인하지 못한 것: 음성 엔진 회복(초기화 실패·MIC_ERROR 뒤), 실제 내비 여정의 상태 채우기·다시 계획한 판·곧 도착 출발·쉼 장소 거리 기준, 3분할 좁은 창의 쉬어 가기 권유 줄. 이어서 하기의 실제 복원은 시간 여정으로 확인했다(1.22 — `am kill` 대신 `am force-stop`), 시뮬·내비 여정 복원은 아직
+- `feature/home-destinations`(1.22)를 main 에 합칠지 결정(사람이 할 일). 합치면 시연 대본 ①·녹화 전 체크리스트가 디버그 패널의 **시뮬 경로**(서울 → 부산)를 쓴다 — 11/15 영상은 합친 뒤의 APK 로 찍는 것이 좋다
+- 홈 목적지(1.22) 실차 확인: 실차 내비가 최근 목적지·`requestTrip` 에 답하는지, 최근 목적지로 출발했는데 길 안내가 시작되지 않을 때 예상 시간으로 대신 세는 경로
 - 리팩토링(1.21)을 합친 main 을 `origin` 에 push(사람이 할 일). 시연 영상(11/15)은 지금 main 의 APK 로 찍는다 — DEMO_SCENARIO ⑧ 은 주행 중 짧은 요약 → 기어 P 로 바뀌었다
 - 실차에서 내비가 주행 중 `onTBTInfo`·`onDrivingInfo` 를 스스로 보내는지 확인 (에뮬레이터는 차가 움직이지 않아 확인 불가). 남은 시간은 30초 재조회로 보완했지만 TBT 자동 일시정지는 push 에 의존
 - 3분할 자동 배치는 좌핸들·Connect-S 배치(Driving view 왼쪽, 앱 창 1:1)에서만 확인. 우핸들·Connect-W(2:1, 조수석 App library) 에서 동작 확인 필요
@@ -505,7 +534,7 @@ M4~M6 은 GameSession·Coordinator·UI 가 서로 물려 있어 한 커밋으로
 - 에뮬레이터 차량 조작 자동화: `adb forward tcp:8088 tcp:8088` 후
   `curl -X POST "http://127.0.0.1:8088/browser/session?client=cli"` (하트비트, 3초 유효) → `curl -X PUT "http://127.0.0.1:8088/vehicle/gear?gear=Drive"`
 - 로그: 태그 목록과 대표 문구는 `docs/FEATURE_GUIDE.md` §12, 필터 명령은 §0.5. debug 빌드의 `AppLog.sensitive` 값(예: `TBT.restStops=`)은 DEBUG 레벨이라 `Nolleo/NaviHelper:D` 처럼 D 로 걸어야 보인다
-- 졸음 케어 2단계 시험: 시뮬 서울 → 전주 출발 → D → 디버그 패널 "2단계 시험" → 대본 응답이 "네" → 기흥휴게소(편의시설) → 시뮬이 닿으면 도착 → 기어 P → D. 실제 내비 + 근접 알림은 `geo fix 127.10 37.40` → 여정 자동 → 서울 → 부산 → 용인졸음쉼터 → `adb emu geo fix 127.138727 37.288616`.
+- 졸음 케어 2단계 시험: 디버그 패널 여정 시뮬 · 시뮬 경로 서울 → 전주 → 출발 → D → 디버그 패널 "2단계 시험" → 대본 응답이 "네" → 기흥휴게소(편의시설) → 시뮬이 닿으면 도착 → 기어 P → D. 실제 내비 + 근접 알림은 `geo fix 127.10 37.40` → 여정 자동 → 홈 최근 목적지 부산역 → 용인졸음쉼터 → `adb emu geo fix 127.138727 37.288616`.
 - 자료 다시 만들기: 졸음쉼터 `node tools/convert_rest_areas.js <CSV> app/src/main/assets/content/rest_areas.json`, 휴게소 `node tools/convert_service_areas.js <serviceAreaAmenities.json> <가족사랑화장실.csv> app/src/main/assets/content/service_areas.json`. 시뮬 경로 목록을 다시 받으려면 debug 빌드로 실제 내비 출발 후 logcat `TBT.restStops=`
 - 기능별 확인 절차 전체: `docs/FEATURE_GUIDE.md`
 - SDK 사용법이 헷갈리면 `pleos-example/` 샘플(Vehicle `VehicleClient.kt`, Navi `NaviHelperViewModel.kt`, FusedLocation `FusedLocationClient.kt`)과 대조
