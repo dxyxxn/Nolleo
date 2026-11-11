@@ -5,6 +5,7 @@ import com.nolleo.app.core.speech.ListenHint
 import com.nolleo.app.core.speech.SttEvent
 import com.nolleo.app.domain.drowsy.DriverBaseline
 import com.nolleo.app.domain.drowsy.DrowsinessMonitor
+import com.nolleo.app.domain.games.WordChainGame
 import com.nolleo.app.domain.games.WordDictionary
 import com.nolleo.app.domain.model.GameChoice
 import com.nolleo.app.domain.model.GameContent
@@ -589,6 +590,31 @@ class GameSessionTest {
         assertTrue(s.state.value.scores[driver.id]!! > 0)
         assertTrue(s.state.value.scores[kid.id]!! > 0)
         job.cancel()
+    }
+
+    @Test
+    fun wordChainRound_answerLineHoldsAfterPraise_andIsGoneOnTheNextTurn() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val rec = Recorder()
+        val s = session(env, speech, rec, listOf(driver, kid), plan(GameKind.WORD_CHAIN, 4))
+        val seen = mutableListOf<Triple<Long, AnswerLine?, MicState>>()
+        val collector = launch { s.state.collect { seen += Triple(env.clock.elapsedMs(), it.lastAnswer, it.mic) } }
+        val job = launch { s.run() }
+        advanceTimeBy(60_000)
+        // 다음 사람이 듣는 동안에는 앞사람 판정 줄("조수석: 선반 → '선반' 성공")이 없다
+        val listening = seen.filter { it.third == MicState.LISTENING }
+        assertTrue(listening.isNotEmpty())
+        assertTrue(listening.all { it.second == null })
+        // 판정 줄은 칭찬(400ms) 뒤에도 더 보여 주고 나서 다음 차례에 지운다
+        val shown = seen.indexOfFirst { it.second != null }
+        assertTrue(shown >= 0)
+        val gone = seen.drop(shown).indexOfFirst { it.second == null }
+        assertTrue(gone > 0)
+        val held = seen[shown + gone].first - seen[shown].first
+        assertTrue("보인 시간 $held ms", held >= 400 + WordChainGame.ANSWER_HOLD_MS)
+        job.cancel()
+        collector.cancel()
     }
 
     @Test

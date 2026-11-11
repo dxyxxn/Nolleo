@@ -3,6 +3,7 @@ package com.nolleo.app.domain.engine
 import com.nolleo.app.core.Clock
 import com.nolleo.app.core.speech.ListenHint
 import com.nolleo.app.core.speech.SttEvent
+import com.nolleo.app.domain.games.WordChainGame
 import com.nolleo.app.domain.games.WordDictionary
 import com.nolleo.app.domain.model.Player
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -113,6 +114,23 @@ class WordChainPlayTest {
         assertNotNull(listening.needed)
         advanceTimeBy(1_000)
         assertNull("말을 시작하면 남은 초를 거둔다", play.state.value.listenDeadlineMs)
+        job.cancel()
+    }
+
+    @Test
+    fun answerLine_staysThroughPraiseAndHold_thenClearsOnTheNextTurn() = runTest {
+        val play = WordChainPlay(dictionary, listOf(driver, kid), FakeSpeech(clock(), answerDelayMs = 1_000), clock(), Random(8))
+        val job = launch { play.run() }
+        while (play.state.value.lastAnswer == null) advanceTimeBy(50)
+        assertEquals(driver.name, play.state.value.lastAnswer?.playerName)
+        // 칭찬(400ms) + 더 보여 주기가 끝나기 직전까지 운전자 답이 그대로, 아직 다음 차례가 아님
+        advanceTimeBy(400 + WordChainGame.ANSWER_HOLD_MS - 100)
+        assertEquals(driver.name, play.state.value.lastAnswer?.playerName)
+        assertEquals(driver, play.state.value.player)
+        assertEquals("더 보여 주는 동안은 말하지도 듣지도 않음", WordChainPlay.Phase.READY, play.state.value.phase)
+        advanceTimeBy(200)
+        assertEquals(kid, play.state.value.player)
+        assertNull("다음 차례에는 앞사람 판정 줄이 없다", play.state.value.lastAnswer)
         job.cancel()
     }
 

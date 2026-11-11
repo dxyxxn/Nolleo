@@ -9,6 +9,7 @@ import com.nolleo.app.domain.games.TurnContext
 import com.nolleo.app.domain.games.WordChainGame
 import com.nolleo.app.domain.games.WordDictionary
 import com.nolleo.app.domain.model.Player
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -84,7 +85,8 @@ class WordChainPlay(
             val resumed = pendingTurn != null
             val turn = pendingTurn ?: game.nextTurn(TurnContext(player, next, null, MAX_DIFFICULTY)) ?: return end(End.APP_LOST)
             pendingTurn = turn
-            _state.update { it.copy(player = player, words = game.words, needed = neededPhrase()) }
+            // 새 차례에는 앞사람 판정 줄을 지운다 (방금 답은 칭찬 뒤 [WordChainGame.ANSWER_HOLD_MS] 동안만 보인다)
+            _state.update { it.copy(player = player, words = game.words, needed = neededPhrase(), lastAnswer = null) }
 
             if (!turn.expectsAnswer) {
                 // 놀레오 차례: 낱말을 말하고 다음 사람에게 (끊겼다 이어도 같은 말을 다시 한다)
@@ -124,6 +126,8 @@ class WordChainPlay(
             // 잇달아 대답이 없으면 "다음 사람이 이어 볼까요?" 대신 끝을 말한다
             if (silentInARow >= silentLimit) return end(End.NO_ANSWER)
             say(judgement.feedback)
+            _state.update { it.copy(phase = Phase.READY) }
+            delay(WordChainGame.ANSWER_HOLD_MS)
         }
     }
 

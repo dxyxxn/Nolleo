@@ -228,24 +228,32 @@ private fun CenterBlock(s: SessionState, ux: UxState, remainSec: Int?, noDestina
             }
             SessionPhase.FINISHING, SessionPhase.FINISHED -> BigText("오늘의 결과를 정리하고 있어요")
             else -> {
+                val chainRound = s.roundGame == GameKind.WORD_CHAIN
                 // 끝말잇기: 이어진 낱말 줄 (정차 중 끝말잇기와 같은 모양). 글자 수 제한 규제면 1줄 요약만 남긴다
-                if (s.roundGame == GameKind.WORD_CHAIN && !ux.limitStringLength) WordChainRow(s.chainWords)
-                s.currentPlayer?.let { p ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
-                        Avatar(p.name, strong = true)
-                        Text("${p.name} 차례", style = MaterialTheme.typography.titleLarge, color = c.ink)
+                if (chainRound && !ux.limitStringLength) WordChainRow(s.chainWords)
+                // 끝말잇기는 누구 차례와 "'X'로 시작하는 말" 사이를 한 단계 좁게 — 큰 글 위의 빈 곳까지 더해
+                // 낱말 줄–누구 차례 간격과 같아 보이게 (11/11). 퀴즈는 그대로
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(if (chainRound) Sp.l else Sp.xl),
+                ) {
+                    s.currentPlayer?.let { p ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
+                            Avatar(p.name, strong = true)
+                            Text("${p.name} 차례", style = MaterialTheme.typography.titleLarge, color = c.ink)
+                        }
                     }
+                    // 규제가 LIMIT_STRING_LENGTH 면 1줄 요약, 아니면 ≤ 3줄. 화면 글이 없으면 발화 문장을 화면 문구로(느낌표 없이)
+                    val text = if (ux.limitStringLength) limitedText(s) else (s.display ?: s.caption?.let(::screenSentence))
+                    Text(
+                        text ?: "",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = c.ink,
+                        textAlign = TextAlign.Center,
+                        maxLines = if (ux.limitStringLength) 1 else 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                // 규제가 LIMIT_STRING_LENGTH 면 1줄 요약, 아니면 ≤ 3줄. 화면 글이 없으면 발화 문장을 화면 문구로(느낌표 없이)
-                val text = if (ux.limitStringLength) limitedText(s) else (s.display ?: s.caption?.let(::screenSentence))
-                Text(
-                    text ?: "",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = c.ink,
-                    textAlign = TextAlign.Center,
-                    maxLines = if (ux.limitStringLength) 1 else 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
                 // 끝말잇기: 듣는 동안 답을 시작해야 하는 남은 초를 가운데 크게 (말을 시작하면 사라짐)
                 val deadline = s.listenDeadlineMs
                 if (s.roundGame == GameKind.WORD_CHAIN && s.mic == MicState.LISTENING && deadline != null) {

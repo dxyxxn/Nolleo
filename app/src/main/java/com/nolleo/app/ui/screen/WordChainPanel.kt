@@ -108,7 +108,8 @@ private fun Header(ui: ScreenWordChainController.UiState, onRestart: () -> Unit,
                 s.ended != null -> "${s.words.size}개 낱말을 이었어요"
                 ui.voiceStopped -> "소리가 멈췄어요 · 이어서 하기를 눌러 주세요"
                 ui.running && s.phase == WordChainPlay.Phase.LISTENING -> "듣고 있어요 · 낱말 하나를 말해요"
-                ui.running -> "놀레오가 말하는 중이에요"
+                ui.running && s.phase == WordChainPlay.Phase.SPEAKING -> "놀레오가 말하는 중이에요"
+                // 답 뒤 판정 줄을 더 보여 주는 동안(말하지도 듣지도 않음)은 지금까지의 기록
                 s.answered > 0 -> "${s.answered}번 중 ${s.correct}번 이었어요"
                 else -> "놀레오 · 운전자 · 동승자 차례로 말로 이어요"
             }
@@ -130,13 +131,16 @@ private fun Header(ui: ScreenWordChainController.UiState, onRestart: () -> Unit,
 private fun Turn(s: WordChainPlay.State, nowMs: () -> Long) {
     val c = Nl.colors
     val player = s.player
-    if (player != null) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
-            Avatar(player.name, strong = player.id != Player.APP.id)
-            Text("${player.name} 차례", style = MaterialTheme.typography.titleLarge, color = c.ink)
+    // 누구 차례와 무엇으로 시작은 한 단계 좁게 — 큰 글 위의 빈 곳까지 더해 낱말 줄–누구 차례 간격과 같아 보이게 (11/11)
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Sp.s)) {
+        if (player != null) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
+                Avatar(player.name, strong = player.id != Player.APP.id)
+                Text("${player.name} 차례", style = MaterialTheme.typography.titleLarge, color = c.ink)
+            }
         }
+        s.needed?.let { Text(it, style = MaterialTheme.typography.headlineLarge, color = c.ink, textAlign = TextAlign.Center) }
     }
-    s.needed?.let { Text(it, style = MaterialTheme.typography.headlineLarge, color = c.ink, textAlign = TextAlign.Center) }
     val deadline = s.listenDeadlineMs
     val partial = s.partial
     when {

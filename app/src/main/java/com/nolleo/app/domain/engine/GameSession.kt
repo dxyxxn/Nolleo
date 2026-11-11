@@ -485,8 +485,12 @@ class GameSession(
             pendingTurn = turn
 
             if (!turn.expectsAnswer) {
+                // 놀레오 차례(끝말잇기 낱말): 앞사람 판정 줄은 지운다
                 _state.update {
-                    it.copy(currentPlayer = player, display = turn.display, shortDisplay = turn.shortDisplay, partial = null, chainWords = chainWords())
+                    it.copy(
+                        currentPlayer = player, display = turn.display, shortDisplay = turn.shortDisplay, partial = null,
+                        chainWords = chainWords(), lastAnswer = null,
+                    )
                 }
                 // 앱 차례(끝말잇기 낱말)가 일시정지로 끊기면 재개 후 다시 말한다 — 다음 사람이 낱말을 들어야 한다
                 if (!sayFully(turn.prompt)) break
@@ -520,6 +524,10 @@ class GameSession(
             }
 
             say(judgement.feedback, SessionPhase.FEEDBACK)
+            // 끝말잇기: 방금 답의 판정 줄을 칭찬 뒤에도 잠깐 더 보여 준다 (다음 차례가 시작되면 지움 — 11/11 팀 피드백)
+            if (game is WordChainGame && !judgement.endsRound && inputs.mode.value == GameMode.VOICE) {
+                delay(WordChainGame.ANSWER_HOLD_MS)
+            }
             when (action) {
                 is DrowsinessMonitor.Action.Stage1 -> {
                     callbacks.onStage1(player, action.newDifficultyCap)
@@ -574,7 +582,12 @@ class GameSession(
             }
             val prompt = if (interrupted) turn.prompt.ifBlank { turn.reprompt } else turn.prompt
             _state.update {
-                it.copy(currentPlayer = turn.player, display = turn.display, shortDisplay = turn.shortDisplay, partial = null, chainWords = chainWords())
+                it.copy(
+                    currentPlayer = turn.player, display = turn.display, shortDisplay = turn.shortDisplay, partial = null,
+                    chainWords = chainWords(),
+                    // 끝말잇기는 새 차례에 앞사람 판정 줄을 지운다 (퀴즈는 앞 문제의 정답을 남겨 둔다)
+                    lastAnswer = it.lastAnswer.takeUnless { _ -> it.roundGame == GameKind.WORD_CHAIN },
+                )
             }
             val result = interruptible {
                 if (prompt.isNotBlank()) {

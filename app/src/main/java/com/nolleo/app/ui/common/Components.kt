@@ -371,7 +371,8 @@ fun AnswerCountdown(deadlineMs: Long, nowMs: () -> Long, modifier: Modifier = Mo
 }
 
 /**
- * 끝말잇기에서 이어진 낱말 한 줄 — `… 기차 → 차례 → 예절 → 절약`. 마지막 낱말(지금 이을 말)만 테두리 칸에 진하게.
+ * 끝말잇기에서 이어진 낱말 한 줄 — `… 기차 → 차례 → 예절 → 절약`. 마지막 낱말(지금 이을 말)만 크게 강조 —
+ * 더 큰 칸(104dp)·큰 글(headlineLarge)·고른 표시 색(`indicator`, 낮 잉크·밤 노랑) 2dp 테두리 (11/11 팀 피드백).
  * 많아야 [maxWords] 개, 창이 좁으면 앞쪽 낱말부터 빼서 한 줄에 들어가는 만큼만(줄을 넘기거나 잘리지 않게). 앞이 더 있으면 "…".
  * 주행 중 음성 화면과 정차 중 끝말잇기가 같이 쓴다.
  */
@@ -391,15 +392,15 @@ fun WordChainRow(words: List<String>, modifier: Modifier = Modifier, maxWords: I
                 val last = i == shown.lastIndex
                 Box(
                     Modifier
-                        .heightIn(min = 72.dp)
-                        .then(if (last) Modifier.border(1.dp, c.line, Radius.tile) else Modifier)
+                        .heightIn(min = if (last) 104.dp else 72.dp)
+                        .then(if (last) Modifier.border(2.dp, c.indicator, Radius.tile) else Modifier)
                         .background(if (last) c.card else c.sunk, Radius.tile)
-                        .padding(horizontal = Sp.l, vertical = Sp.m),
+                        .padding(horizontal = if (last) Sp.xl else Sp.l, vertical = Sp.m),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         w,
-                        style = if (last) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineSmall,
+                        style = if (last) MaterialTheme.typography.headlineLarge else MaterialTheme.typography.headlineSmall,
                         color = if (last) c.ink else c.muted,
                         maxLines = 1,
                     )
