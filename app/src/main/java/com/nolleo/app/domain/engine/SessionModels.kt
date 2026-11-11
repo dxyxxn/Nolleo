@@ -45,7 +45,6 @@ interface SessionCallbacks {
     fun onRestDecision(suggestion: RestStopSuggestion?, accepted: Boolean) = Unit
 
     /** 졸음쉼터 도착 안내를 말했다 — 다시 출발할 때까지 게임을 쉬게 한다 (화면은 일시정지로) */
-    fun onRestHold() = Unit
     fun onSnapshot(snapshot: SessionSnapshot)
     fun onFinished(summary: SessionSummary)
     fun log(message: String)

@@ -120,10 +120,6 @@ class GameSessionTest {
         override fun onRestDecision(suggestion: RestStopSuggestion?, accepted: Boolean) {
             restDecisions += accepted
         }
-        var restHolds = 0
-        override fun onRestHold() {
-            restHolds++
-        }
         override fun onVoiceRoundActive(active: Boolean) {
             voiceRound += active
         }
@@ -368,50 +364,51 @@ class GameSessionTest {
         job.cancel()
     }
 
-    private val arrivedLine = "오산 졸음쉼터에 도착했어요. 차를 세우고 충분히 쉬었다 가요."
-
+    /**
+     * 쉼터에 도착하면 코디네이터가 REST_AREA 로 게임을 쉬게 한다(세션 입장에서는 PAUSED). 쉬는 동안 문제를 내지 않고,
+     * 주차했다 다시 출발하면(onRestFinished + VOICE) "잘 쉬셨나요?"부터 말한 뒤 끊겼던 문제를 다시 낸다.
+     */
     @Test
-    fun arrivalAnnouncement_holdsQuestions_untilRestFinished() = runTest {
+    fun restAreaPause_holdsQuestions_andGreetsFirstAfterRest() = runTest {
         val env = Env(this)
         val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
         val rec = Recorder()
         val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 8))
         val job = launch { s.run() }
         advanceTimeBy(3_000) // 첫 문제를 듣는 중
-        s.announce(arrivedLine, holdAfter = true)
-        while (speech.spoken.none { it == arrivedLine }) advanceTimeBy(100)
-        val afterArrival = speech.spoken.size
+        env.mode.value = GameMode.PAUSED // 쉼터 도착 → REST_AREA
+        advanceTimeBy(1_000)
+        val atArrival = speech.spoken.size
         advanceTimeBy(60_000)
-        assertEquals("도착 안내 뒤에는 다시 출발할 때까지 문제를 내지 않는다", afterArrival, speech.spoken.size)
-        assertEquals(1, rec.restHolds)
+        assertEquals("쉬는 동안에는 문제를 내지 않는다", atArrival, speech.spoken.size)
         s.onRestFinished()
+        env.mode.value = GameMode.VOICE // 다시 출발
         advanceTimeBy(10_000)
-        assertEquals("풀리면 인사부터", "아빠, 잘 쉬셨나요? 다시 출발해요!", speech.spoken[afterArrival])
-        assertTrue(speech.spoken.drop(afterArrival + 1).any { it.contains("아빠 차례") })
+        assertEquals("다시 출발하면 인사부터", "아빠, 잘 쉬셨나요? 다시 출발해요!", speech.spoken[atArrival])
+        assertTrue(speech.spoken.drop(atArrival + 1).any { it.contains("아빠 차례") })
         job.cancel()
     }
 
+    /** 쉼터에서 화면 "계속"(REST_AREA 만 풀림)이면 인사 없이 같은 문제부터, 쉬는 중에 주차(화면 게임 가능)하면 판을 마무리한다 */
     @Test
-    fun arrivalHold_continueButtonResumesWithoutGreeting_andParkingWrapsRound() = runTest {
+    fun restAreaPause_continueResumesWithoutGreeting_andParkingWrapsRound() = runTest {
         val env = Env(this)
         val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
         val rec = Recorder()
         val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 8))
         val job = launch { s.run() }
         advanceTimeBy(3_000)
-        s.announce(arrivedLine, holdAfter = true)
-        while (speech.spoken.none { it == arrivedLine }) advanceTimeBy(100)
+        env.mode.value = GameMode.PAUSED
         advanceTimeBy(5_000)
         val held = speech.spoken.size
-        s.releaseRestHold() // 화면 "계속"
+        env.mode.value = GameMode.VOICE // 화면 "계속"
         advanceTimeBy(3_000)
-        assertTrue("계속이면 바로 다음 문제", speech.spoken.drop(held).any { it.contains("아빠 차례") })
+        assertTrue("계속이면 바로 같은 문제", speech.spoken.drop(held).any { it.contains("아빠 차례") })
         assertTrue(speech.spoken.none { it.contains("잘 쉬셨나요") })
 
-        // 다시 도착 안내 → 기다리는 중 정차(화면 게임 가능)하면 판을 마무리한다
-        s.announce(arrivedLine, holdAfter = true)
-        while (speech.spoken.count { it == arrivedLine } < 2) advanceTimeBy(100)
-        advanceTimeBy(1_000)
+        // 다시 쉼터에서 쉬는 중 주차하면 판을 마무리한다
+        env.mode.value = GameMode.PAUSED
+        advanceTimeBy(2_000)
         env.screen.value = true
         advanceTimeBy(5_000)
         assertEquals(listOf(true, false), rec.voiceRound)
@@ -436,6 +433,28 @@ class GameSessionTest {
         assertTrue(speech.spoken.last() == "아빠, 잘 쉬셨나요? 다시 출발해요!")
         assertEquals("다음 판은 아직 시작하지 않는다", SessionPhase.RESTING, s.state.value.phase)
         assertEquals(1, s.state.value.roundIndex)
+        job.cancel()
+    }
+
+    /** 판 진행 중 쉬러 갔다가(쉼터에서 주차하며 판은 마무리) 다시 출발하면 인사 뒤 다음 판을 바로 시작한다 */
+    @Test
+    fun restFinished_afterInterruptedRound_greetsThenStartsNextRoundRightAway() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val rec = Recorder()
+        val twoRounds = SessionPlan(
+            listOf(RoundPlan(0, GameKind.REGION_QUIZ, 360, 2, 3 * 3600), RoundPlan(1, GameKind.REGION_QUIZ, 360, 2, 3600)),
+            basisRemainSec = 3 * 3600,
+        )
+        val s = session(env, speech, rec, listOf(driver), twoRounds)
+        val job = launch { s.run() }
+        advanceTimeBy(60_000)
+        assertEquals("1판 뒤 쉬는 시간", SessionPhase.RESTING, s.state.value.phase)
+        val before = speech.spoken.size
+        s.onRestFinished(startNextRound = true)
+        advanceTimeBy(5_000)
+        assertEquals("인사부터", "아빠, 잘 쉬셨나요? 다시 출발해요!", speech.spoken[before])
+        assertTrue("쉬는 시간을 기다리지 않고 2번째 판", speech.spoken.drop(before + 1).any { it.startsWith("2번째 판!") })
         job.cancel()
     }
 

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
@@ -113,29 +115,47 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 }
                 Spacer(Modifier.height(Sp.xl))
 
-                // 문제·차례·마이크 상태를 흰 카드 하나에 모아 한눈에 읽히게 한다
-                Box(
-                    Modifier.weight(1f).fillMaxWidth().background(c.card, Radius.card).border(1.dp, c.edge, Radius.card)
-                        .padding(horizontal = Sp.xxl, vertical = Sp.xl),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    when {
-                        paused -> PausedBlock(reasons)
-                        else -> CenterBlock(s, ux, trip?.remainTimeSec, noDestination, container.clock::elapsedMs)
-                    }
-                }
-
+                // 졸음 케어 2단계(권유 · 쉼터로 가는 중 · 쉼터에 도착)는 문제 카드 자리를 통째로 덮는다 (11/11 팀 피드백).
+                // 거절 뒤 잠시, 또는 "계속"으로 게임을 이어 가며 쉼터로 가는 중이면 예전처럼 카드 아래 작은 띠로만.
                 val rest = restState
-                if (rest != null) {
-                    RestOverlay(
+                val restFull = when (rest) {
+                    is RestCareController.State.Offered -> !rest.answered
+                    is RestCareController.State.Heading -> PauseReason.REST_STOP in reasons
+                    is RestCareController.State.Arrived -> PauseReason.REST_AREA in reasons
+                    null -> false
+                }
+                if (rest != null && restFull) {
+                    RestPanel(
                         state = rest,
                         distanceM = restDistance,
+                        mic = s.mic,
                         onAccept = coordinator::acceptRest,
                         onDecline = coordinator::declineRest,
                         onCancel = coordinator::cancelRest,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
                     )
                 } else {
-                    if (stage1Visible) Stage1Overlay()
+                    // 문제·차례·마이크 상태를 흰 카드 하나에 모아 한눈에 읽히게 한다
+                    Box(
+                        Modifier.weight(1f).fillMaxWidth().background(c.card, Radius.card).border(1.dp, c.edge, Radius.card)
+                            .padding(horizontal = Sp.xxl, vertical = Sp.xl),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        when {
+                            paused -> PausedBlock(reasons)
+                            else -> CenterBlock(s, ux, trip?.remainTimeSec, noDestination, container.clock::elapsedMs)
+                        }
+                    }
+                    when {
+                        rest is RestCareController.State.Offered || rest is RestCareController.State.Heading -> RestBand(
+                            state = rest,
+                            distanceM = restDistance,
+                            onAccept = coordinator::acceptRest,
+                            onDecline = coordinator::declineRest,
+                            onCancel = coordinator::cancelRest,
+                        )
+                        rest == null && stage1Visible -> Stage1Overlay()
+                    }
                 }
                 Spacer(Modifier.height(Sp.l))
                 Hairline()
@@ -278,9 +298,97 @@ private fun Stage1Overlay() {
     }
 }
 
-/** 졸음 케어 2단계: 쉬어 가기 권유 → 쉼터로 가는 중 → 도착. 글은 3줄 이하, 버튼은 크게 (주행 중에도 한 번 누르면 끝) */
+/**
+ * 졸음 케어 2단계 — 문제 카드 자리를 통째로 덮는 노란 안내 화면 (11/11 팀 피드백: 아래 띠로는 경고인지 잘 안 보인다).
+ *  - 권유: 큰 제목 · 이유와 쉼 장소 · 편의시설 · 말하는 중/듣는 중(말로 "네"/"괜찮아요"도 된다) · 큰 "쉬어 가기"/"괜찮아요"
+ *  - 가는 중 · 도착: 예전에는 위(일시정지 글)와 아래(안내 띠)로 나뉘어 같은 말이 두 번 나왔다 → 한 화면으로 합쳤다
+ * 글은 제목 아래 두 줄까지, 버튼은 한 번 누르면 끝(주행 중 조작 최소). 애니메이션 없음.
+ */
 @Composable
-private fun RestOverlay(
+private fun RestPanel(
+    state: RestCareController.State,
+    distanceM: Int?,
+    mic: MicState,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier,
+) {
+    val c = Nl.colors
+    val s = state.suggestion
+    val target = s?.let { listOfNotNull(it.name, it.directionLabel).joinToString(" · ") }
+    val distance = (distanceM ?: s?.distanceM)?.let(TripUnits::formatDistance)
+    BandCard(modifier) {
+        Column(
+            Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(Sp.l, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            val title: @Composable (String) -> Unit = { t ->
+                Text(t, style = restTitleStyle(), color = c.onBand, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            val line: @Composable (String) -> Unit = { t ->
+                Text(t, style = MaterialTheme.typography.headlineSmall, color = c.onBand, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            val note: @Composable (String) -> Unit = { t ->
+                Text(t, style = MaterialTheme.typography.bodyLarge, color = c.bandMuted, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            when (state) {
+                is RestCareController.State.Offered -> {
+                    title("잠깐 쉬어 가요")
+                    line(
+                        when {
+                            s == null -> "반응이 계속 느려졌어요 · 가까운 졸음쉼터나 휴게소에서 쉬어 가요"
+                            distance != null -> "반응이 계속 느려졌어요 · $distance 앞 $target"
+                            else -> "반응이 계속 느려졌어요 · $target"
+                        },
+                    )
+                    s?.facilityLine?.let { note(it) }
+                    // 말로도 답할 수 있다 — 음성 화면과 같은 말하는 중/듣는 중 표시
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
+                        MicIndicator(mic)
+                        if (s != null) note("말로 \"네\" 또는 \"괜찮아요\"")
+                    }
+                    Row(Modifier.fillMaxWidth().padding(top = Sp.s), horizontalArrangement = Arrangement.spacedBy(Sp.l)) {
+                        val big = Modifier.weight(1f).heightIn(min = RestButtonHeight)
+                        if (s != null) PrimaryButton("쉬어 가기", onClick = onAccept, modifier = big, onBand = true)
+                        SecondaryButton(if (s != null) "괜찮아요" else "닫기", onClick = onDecline, modifier = big, onBand = true)
+                    }
+                }
+                is RestCareController.State.Heading -> {
+                    title("${s?.name ?: "쉼터"}로 가는 중이에요")
+                    line(
+                        listOfNotNull(
+                            distance?.let { "남은 거리 $it" },
+                            when (s?.source) {
+                                RestStopSuggestion.Source.ON_ROUTE -> "가는 길에 있어요"
+                                else -> "화면으로만 안내"
+                            },
+                        ).joinToString(" · "),
+                    )
+                    note("도착하면 알려 드릴게요 · 그동안 게임은 쉬어요")
+                    SecondaryButton("안내 그만두기", onClick = onCancel, onBand = true, modifier = Modifier.padding(top = Sp.s))
+                }
+                is RestCareController.State.Arrived -> {
+                    title("${s?.name ?: "쉼터"}에 도착했어요")
+                    line("차를 세우고 충분히 쉬었다 가요")
+                    note("다시 출발하면 이어서 해요 · 바로 하려면 계속")
+                }
+            }
+        }
+    }
+}
+
+/** 권유·가는 중 화면의 큰 버튼 높이 (보통 버튼 76dp 보다 크게) */
+private val RestButtonHeight = 112.dp
+
+/** 안내 화면 제목 — 테마에서 가장 큰 축(displayMedium 66sp)을 600 굵기로 */
+@Composable
+private fun restTitleStyle() = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.SemiBold)
+
+/** 게임이 이어지는 동안의 작은 띠: 음성 질문을 거절한 뒤 잠시(버튼으로 다시 수락 가능) · "계속"으로 이어 가며 쉼터로 가는 중 */
+@Composable
+private fun RestBand(
     state: RestCareController.State,
     distanceM: Int?,
     onAccept: () -> Unit,
@@ -333,10 +441,7 @@ private fun RestOverlay(
                 )
                 SecondaryButton("안내 그만두기", onClick = onCancel, onBand = true, modifier = Modifier.padding(top = Sp.s))
             }
-            is RestCareController.State.Arrived -> {
-                Text("${s?.name ?: "쉼터"}에 도착했어요", style = MaterialTheme.typography.titleLarge, color = c.onBand, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("차를 세우고 충분히 쉬었다 가요 · 다시 출발하면 이어서 해요", style = MaterialTheme.typography.bodyLarge, color = c.bandMuted, maxLines = 2)
-            }
+            is RestCareController.State.Arrived -> Unit
         }
     }
 }

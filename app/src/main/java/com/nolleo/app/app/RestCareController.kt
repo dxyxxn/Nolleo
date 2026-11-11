@@ -30,7 +30,8 @@ import kotlin.math.roundToInt
  *     (좌표 경유지는 고속도로 옆 일반 도로에 붙어 우회 경로가 된다 — 11/7 관측). 좌표를 아는 졸음쉼터는
  *     `FusedLocation.addProximityAlert`(반경 300 m, ENTER)로 근처에 온 것을 안다.
  *  3. 도착 = 근처(근접 알림·위치)에서 **서거나 주차** / 주차 / 시뮬 여정이 그 지점에 닿음 — 옆을 지나가기만 하면 도착이 아니다.
- *     도착 안내를 말한 뒤 [PauseReason.REST_AREA] 로 계속 쉰다.
+ *     도착하는 순간 [PauseReason.REST_STOP] 을 [PauseReason.REST_AREA] 로 바꿔 끼워 게임이 잠깐도 다시 시작하지 않게 하고
+ *     (11/11 — 전에는 도착 안내를 말하는 몇 초 동안 끊겼던 문제가 화면에 다시 보였다), 도착 안내 말은 코디네이터가 한다.
  *  4. 주차했다가 다시 주행하면 "잘 쉬셨나요?" + 졸음 지표 초기화
  */
 class RestCareController(
@@ -41,8 +42,11 @@ class RestCareController(
     sealed interface State {
         val suggestion: RestStopSuggestion?
 
-        /** 2단계가 걸려 쉬어 가기를 권하는 중 (음성 질문 + 화면 버튼) */
-        data class Offered(override val suggestion: RestStopSuggestion?) : State
+        /**
+         * 2단계가 걸려 쉬어 가기를 권하는 중 (음성 질문 + 화면 버튼).
+         * [answered] = 음성 질문은 끝났다(거절·무응답) — 게임이 이어지므로 화면은 작은 띠로 잠시 남겨 버튼으로만 다시 수락할 수 있다
+         */
+        data class Offered(override val suggestion: RestStopSuggestion?, val answered: Boolean = false) : State
 
         /** 수락해서 쉼 장소로 가는 중 */
         data class Heading(override val suggestion: RestStopSuggestion, val alertRegistered: Boolean) : State
@@ -191,7 +195,8 @@ class RestCareController(
             start(suggestion)
             return
         }
-        // 거절·무응답: 카드를 잠시 남겨 두고(버튼으로 다시 수락 가능) 닫는다
+        // 거절·무응답: 카드를 잠시 작게 남겨 두고(버튼으로 다시 수락 가능) 닫는다
+        (_state.value as? State.Offered)?.let { _state.value = it.copy(answered = true) }
         hideJob?.cancel()
         hideJob = scope.launch {
             delay(OFFER_CARD_MS)
@@ -256,6 +261,8 @@ class RestCareController(
         val st = _state.value as? State.Heading ?: return
         removeAlert()
         nearTrigger = null
+        // 쉬는 사유를 먼저 바꿔 끼운다 — REST_STOP 을 먼저 풀면 잠깐 음성 모드로 돌아가 끊겼던 문제가 보인다
+        c.modeController.addPause(PauseReason.REST_AREA)
         c.modeController.removePause(PauseReason.REST_STOP)
         sawParkedAfterArrival = driveState.value == DriveState.PARKED
         _distanceM.value = null
@@ -273,11 +280,6 @@ class RestCareController(
         _distanceM.value = null
         _state.value = null
         AppLog.i(TAG, "rest guidance cancelled by user")
-    }
-
-    /** 도착 안내를 말한 뒤: 다시 출발할 때까지 게임을 쉰다 (세션은 문제를 내지 않고 기다린다) */
-    fun holdAtRestArea() {
-        if (_state.value is State.Arrived) c.modeController.addPause(PauseReason.REST_AREA)
     }
 
     private fun finishRest() {

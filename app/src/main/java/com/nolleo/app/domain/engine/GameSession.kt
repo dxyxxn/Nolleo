@@ -114,32 +114,17 @@ class GameSession(
     @Volatile private var awaitingRestDecision = false
     @Volatile private var forceStage2 = false
     /** 한 번 말할 안내(졸음쉼터 도착·다시 출발). 판 사이 쉬는 시간에도 VOICE 가 되면 바로 말한다 */
-    private data class Announcement(val line: String, val holdAfter: Boolean)
+    private data class Announcement(val line: String)
     private val announcement = MutableStateFlow<Announcement?>(null)
 
-    /** 쉼터 도착 안내 뒤 "쉬는 중" — 다시 출발([onRestFinished])하거나 계속([releaseRestHold])을 누를 때까지 문제를 내지 않는다 */
-    private val restHold = MutableStateFlow(false)
-
-    /** @return 도착 안내 뒤 쉬었다 왔으면 true — 호출한 쪽은 정차·도착 여부를 다시 확인한다 */
-    private suspend fun sayPendingAnnouncement(): Boolean {
-        val a = announcement.value ?: return false
+    /**
+     * 다음 차례 앞에 한 번 말할 안내(다시 출발 인사). 쉼터에 머무는 동안은 세션이 붙잡지 않는다 —
+     * 코디네이터가 [com.nolleo.app.domain.model.PauseReason.REST_AREA] 로 게임을 쉬게 하고 도착 안내도 직접 말한다(11/11).
+     */
+    private suspend fun sayPendingAnnouncement() {
+        val a = announcement.value ?: return
         announcement.value = null
         say(a.line, SessionPhase.FEEDBACK)
-        if (a.holdAfter) holdForRest()
-        return a.holdAfter
-    }
-
-    /**
-     * 쉼터에 도착했다고 말한 직후 바로 다음 문제를 내지 않도록 기다린다. 정차해서 화면 게임이 열리면(판 마무리) 또는
-     * 곧 도착이면 기다림을 끝내 호출한 쪽이 판을 정리하게 둔다. 다시 출발해서 풀리면 "잘 쉬셨나요?"부터 말한다.
-     */
-    private suspend fun holdForRest() {
-        restHold.value = true
-        callbacks.onRestHold()
-        callbacks.log("RestHold: 쉼터 도착 안내 뒤 다시 출발할 때까지 대기")
-        val (held, _) = combine(restHold, inputs.screenAvailable, inputs.remainSec) { h, s, r -> h to (s || arrival(r)) }
-            .first { (h, leave) -> !h || leave }
-        if (!held && awaitVoice()) sayPendingAnnouncement()
     }
 
     /** 디버그 패널 "2단계 시험": 다음 운전자 답 뒤에 2단계를 낸다 */
@@ -155,28 +140,24 @@ class GameSession(
         return true
     }
 
-    /**
-     * 다음 차례 앞에 한 번 말할 안내 (마지막 것만 남긴다).
-     * @param holdAfter 말한 뒤 다시 출발할 때까지 게임을 쉰다 (졸음쉼터 도착 안내)
-     */
-    fun announce(line: String, holdAfter: Boolean = false) {
-        announcement.value = Announcement(line, holdAfter)
+    /** 다음 차례 앞에 한 번 말할 안내 (마지막 것만 남긴다). 판 사이 쉬는 동안이면 바로 말한다 */
+    fun announce(line: String) {
+        announcement.value = Announcement(line)
     }
 
-    /** 졸음쉼터에서 쉬고 다시 출발: 응답 창·난이도를 처음으로 되돌리고 인사한다 */
-    fun onRestFinished() {
+    /**
+     * 졸음쉼터에서 쉬고 다시 출발: 응답 창·난이도를 처음으로 되돌리고 인사한다.
+     * @param startNextRound 쉬러 갈 때 음성 판이 진행 중이었으면 true — 쉼터에서 주차하며 그 판은 마무리됐으므로
+     *  판 사이 쉬는 시간을 기다리지 않고 다음 판을 바로 시작한다(11/11 팀 피드백). 판 사이에 있을 때만 효과가 있다.
+     */
+    fun onRestFinished(startNextRound: Boolean = false) {
         drowsy.resetAfterRest()
         _state.update { it.copy(difficultyCap = drowsy.difficultyCap) }
         announce("${driver.name}, 잘 쉬셨나요? 다시 출발해요!")
-        restHold.value = false
-        callbacks.log("Drowsiness: 휴식 후 다시 출발 → 응답 창·난이도 초기화")
-    }
-
-    /** 쉼터에서 "계속"을 눌러 바로 이어 할 때 */
-    fun releaseRestHold() {
-        if (!restHold.value) return
-        restHold.value = false
-        callbacks.log("RestHold: 계속 → 바로 이어서")
+        val phase = _state.value.phase
+        val startNow = startNextRound && (phase == SessionPhase.RESTING || phase == SessionPhase.WAITING)
+        if (startNow) skipWait.value = true
+        callbacks.log("Drowsiness: 휴식 후 다시 출발 → 응답 창·난이도 초기화" + if (startNow) " · 다음 판 바로 시작" else "")
     }
 
     private suspend fun offerRest(driver: Player, action: DrowsinessMonitor.Action.Stage2) {
@@ -407,7 +388,7 @@ class GameSession(
             }
             if (arrival(r.remain)) return WaitEnd.ARRIVED
             if (r.planVersion != version) return WaitEnd.PLAN_CHANGED
-            // 판 사이에는 게임으로 말을 걸지 않지만, 졸음쉼터 도착·다시 출발 안내 한 줄은 바로 한다
+            // 판 사이에는 게임으로 말을 걸지 않지만, 쉬고 다시 출발한 인사 한 줄은 바로 한다
             if (r.line != null) {
                 sayPendingAnnouncement()
                 setPhase(waitPhase)
@@ -489,8 +470,8 @@ class GameSession(
                 break
             }
             if (!awaitVoice()) break
-            // 졸음쉼터 도착·다시 출발 같은 안내는 다음 차례 앞에 한 번 말한다. 쉼터에서 쉬었다 왔으면 정차·도착부터 다시 본다
-            if (sayPendingAnnouncement()) continue
+            // 쉬고 다시 출발한 인사는 다음 차례 앞에 한 번 말한다
+            sayPendingAnnouncement()
 
             val player = rotation[rotationIndex % rotation.size]
             val next = rotation[(rotationIndex + 1) % rotation.size]
@@ -588,8 +569,8 @@ class GameSession(
             if (interrupted) {
                 delay(RESUME_DELAY_MS)
                 if (inputs.mode.value != GameMode.VOICE) continue
-                // 쉬는 동안 생긴 안내(졸음쉼터 도착 등)는 같은 문제를 다시 내기 전에 말한다
-                if (sayPendingAnnouncement() && (inputs.screenAvailable.value || arrivalImminent())) return null
+                // 쉬는 동안 생긴 인사(쉬고 다시 출발)는 같은 문제를 다시 내기 전에 말한다
+                sayPendingAnnouncement()
             }
             val prompt = if (interrupted) turn.prompt.ifBlank { turn.reprompt } else turn.prompt
             _state.update {

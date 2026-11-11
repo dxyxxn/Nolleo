@@ -233,9 +233,13 @@ class GameCoordinator(private val c: AppContainer) {
             }
         }
         restCare.onArrived = { s ->
-            _session.value?.announce("${s.name}에 도착했어요. 차를 세우고 충분히 쉬었다 가요.", holdAfter = true)
+            restInterruptedRound = mode.voiceRoundActive.value
+            speakRestArrival("${s.name}에 도착했어요. 차를 세우고 충분히 쉬었다 가요.")
         }
-        restCare.onRested = { _session.value?.onRestFinished() }
+        restCare.onRested = {
+            _session.value?.onRestFinished(startNextRound = restInterruptedRound)
+            restInterruptedRound = false
+        }
         observeFocus()
         observeFocusRequest()
         observeTrip()
@@ -246,7 +250,7 @@ class GameCoordinator(private val c: AppContainer) {
         gameMode.onEach { m -> if (m != GameMode.SCREEN) stopScreenGames("mode=${m.name}") }.launchIn(scope)
         // 시뮬 여정은 주차 중에, 그리고 쉬어 가기를 묻는 동안 멈춘다 — 30배속이라 질문하는 15초에 11 km 를 지나
         // 권한 쉼 장소를 수락 전에 지나쳐 버리기 때문 (실제 내비는 해당 없음)
-        combine(driveState, restCare.state) { d, rest -> d != DriveState.PARKED && rest !is RestCareController.State.Offered }
+        combine(driveState, restCare.state) { d, rest -> d != DriveState.PARKED && !(rest is RestCareController.State.Offered && !rest.answered) }
             .onEach { c.tripRepository.setMoving(it) }
             .launchIn(scope)
     }
@@ -495,8 +499,6 @@ class GameCoordinator(private val c: AppContainer) {
 
         override fun onRestDecision(suggestion: RestStopSuggestion?, accepted: Boolean) = restCare.decide(suggestion, accepted)
 
-        override fun onRestHold() = restCare.holdAtRestArea()
-
         override fun onSnapshot(snapshot: SessionSnapshot) = persist(snapshot)
 
         override fun onFinished(summary: SessionSummary) {
@@ -564,7 +566,6 @@ class GameCoordinator(private val c: AppContainer) {
     fun resume() {
         listOf(PauseReason.USER, PauseReason.BACKGROUND, PauseReason.AUDIO_UNAVAILABLE, PauseReason.REST_STOP, PauseReason.REST_AREA)
             .forEach(mode::removePause)
-        _session.value?.releaseRestHold()
         c.speechRouter.markNewStream()
     }
 
@@ -582,6 +583,35 @@ class GameCoordinator(private val c: AppContainer) {
     }
 
     fun cancelRest() = restCare.cancel()
+
+    /** 쉼터 도착 안내를 말하는 중 (포커스 손실이면 이것만 멈춘다) */
+    private var restNoticeJob: Job? = null
+
+    /** 쉼터에 닿을 때 음성 판이 진행 중이었나 — 쉬고 다시 출발하면 다음 판을 바로 시작한다 */
+    private var restInterruptedRound = false
+
+    /**
+     * 쉼터 도착 안내: 게임은 [PauseReason.REST_AREA] 로 쉰 채(문제 화면으로 돌아가지 않음) 이 한 줄만 말한다.
+     * 포커스는 말하는 동안만 잡고, 다 말하면 음성 판이 다시 돌고 있지 않은 한 반납한다. 자동으로 다시 말하지 않는다.
+     */
+    private fun speakRestArrival(line: String) {
+        if (_session.value == null) return
+        restNoticeJob?.cancel()
+        restNoticeJob = scope.launch {
+            stopScreenGames("쉼터 도착 안내")
+            if (!c.audioFocus.request()) {
+                AppLog.w(TAG, "쉼터 도착 안내: 오디오 포커스를 못 받음 → 화면으로만")
+                return@launch
+            }
+            c.speechRouter.markNewStream()
+            AppLog.i(TAG, "쉼터 도착 안내 (게임은 다시 출발할 때까지 쉼)")
+            try {
+                c.speechRouter.speak(line)
+            } finally {
+                if (gameMode.value != GameMode.VOICE) c.audioFocus.abandon()
+            }
+        }
+    }
 
     /** 데모 모드는 쿨다운만 짧게 (3분 시연 안에 1단계 → 2단계) — 판단 규칙은 같다 */
     private fun drowsyConfig(demo: Boolean) = if (demo) DrowsinessMonitor.Config.DEMO else DrowsinessMonitor.Config()
@@ -601,6 +631,18 @@ class GameCoordinator(private val c: AppContainer) {
     private fun observeFocus() {
         c.audioFocus.changes.onEach { change ->
             val ownTts = c.speechRouter.ttsKind.value == SpeechEngineKind.PLEOS && c.speechRouter.pleosSpeaking.value
+            // 쉼터 도착 안내를 말하는 중: 그 말만 멈춘다 (게임은 이미 쉬는 중)
+            if (restNoticeJob?.isActive == true && (change == FocusChange.LOSS_TRANSIENT || change == FocusChange.LOSS)) {
+                if (ownTts) {
+                    c.audioFocus.markLost()
+                } else {
+                    AppLog.i(TAG, "${change.name} (통화·Gleo 등) → 쉼터 도착 안내 즉시 멈춤, 다시 말하지 않음")
+                    restNoticeJob?.cancel()
+                    c.speechRouter.stopAll()
+                    c.audioFocus.abandon(force = true)
+                }
+                return@onEach
+            }
             // 정차 중 화면 게임이 소리를 내는 중: 그 게임만 멈춘다 (음성 판이 없으니 세션을 일시정지·종료하지 않는다)
             val reading = screenGames.firstOrNull { it.holdsFocus }
             if (reading != null) {
@@ -653,7 +695,8 @@ class GameCoordinator(private val c: AppContainer) {
         combine(gameMode, mode.pauseReasons) { m, reasons -> m to reasons }
             .distinctUntilChanged()
             .onEach { (m, reasons) ->
-                if (m == GameMode.PAUSED && PauseReason.AUDIO_FOCUS !in reasons) c.audioFocus.abandon()
+                // 쉼터 도착 안내는 쉬는 중(PAUSED)에 말하므로 그동안은 반납하지 않는다 (다 말하면 그쪽에서 반납)
+                if (m == GameMode.PAUSED && PauseReason.AUDIO_FOCUS !in reasons && restNoticeJob?.isActive != true) c.audioFocus.abandon()
                 if (m == GameMode.PAUSED) c.speechRouter.markNewStream()
             }.launchIn(scope)
     }
