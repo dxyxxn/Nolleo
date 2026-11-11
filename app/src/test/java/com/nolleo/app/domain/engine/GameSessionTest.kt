@@ -5,6 +5,7 @@ import com.nolleo.app.core.speech.ListenHint
 import com.nolleo.app.core.speech.SttEvent
 import com.nolleo.app.domain.drowsy.DriverBaseline
 import com.nolleo.app.domain.drowsy.DrowsinessMonitor
+import com.nolleo.app.domain.games.RegionQuizGame
 import com.nolleo.app.domain.games.WordChainGame
 import com.nolleo.app.domain.games.WordDictionary
 import com.nolleo.app.domain.model.GameChoice
@@ -593,6 +594,31 @@ class GameSessionTest {
     }
 
     @Test
+    fun quizRound_answerLineHoldsOneAndAHalfSeconds_andIsGoneOnTheNextTurn() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1300L, 1800L)) { it.correctAnswer }
+        val rec = Recorder()
+        val s = session(env, speech, rec, listOf(driver, kid), plan(GameKind.REGION_QUIZ, 4))
+        val seen = mutableListOf<Triple<Long, AnswerLine?, MicState>>()
+        val collector = launch { s.state.collect { seen += Triple(env.clock.elapsedMs(), it.lastAnswer, it.mic) } }
+        val job = launch { s.run() }
+        advanceTimeBy(40_000)
+        // 조수석이 듣는 동안 운전자 답("아빠: … → 정답")이 남아 있지 않다 (11/12)
+        val listening = seen.filter { it.third == MicState.LISTENING }
+        assertTrue(listening.size >= 2)
+        assertTrue(listening.all { it.second == null })
+        val shown = seen.indexOfFirst { it.second != null }
+        assertTrue(shown >= 0)
+        val gone = seen.drop(shown).indexOfFirst { it.second == null }
+        assertTrue(gone > 0)
+        val held = seen[shown + gone].first - seen[shown].first
+        assertTrue("보인 시간 $held ms", held >= 400 + RegionQuizGame(content).answerHoldMs)
+        assertEquals(1_500L, RegionQuizGame(content).answerHoldMs)
+        job.cancel()
+        collector.cancel()
+    }
+
+    @Test
     fun wordChainRound_answerLineHoldsAfterPraise_andIsGoneOnTheNextTurn() = runTest {
         val env = Env(this)
         val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
@@ -633,6 +659,24 @@ class GameSessionTest {
         assertTrue(next.second, next.second!!.startsWith("아빠 차례예요! '") && next.second!!.endsWith("시작하는 말!"))
         assertTrue("놀레오 낱말 뒤에도 쉰다", next.first - captions[app].first >= 400 + WordChainGame.TURN_HOLD_MS)
         assertTrue("조수석 차례도 누구 차례 먼저", speech.spoken.any { it.startsWith("조수석 차례예요! '") })
+        job.cancel()
+        collector.cancel()
+    }
+
+    @Test
+    fun roundIntro_screenShowsOneSentencePerLine_whileSpeechStaysOneLine() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val rec = Recorder()
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 2))
+        val intros = mutableListOf<String?>()
+        val collector = launch { s.state.collect { if (it.phase == SessionPhase.INTRO) intros += it.display } }
+        val job = launch { s.run() }
+        advanceTimeBy(1_000)
+        // 소개를 말하는 동안의 화면 글 (말이 끝나면 첫 문제 글로 바뀐다)
+        assertEquals("1번째 판\n지역 퀴즈를 시작할게요.\n지나가는 곳에 대한 문제예요.", intros.first())
+        assertEquals("1번째 판! 지역 퀴즈를 시작할게요! 지나가는 곳에 대한 문제예요.", speech.spoken.first())
+        assertEquals("1번째 판\n끝말잇기를 시작할게요.\n제가 먼저 할게요.", GameSession.introScreenText(1, "끝말잇기를 시작할게요! 제가 먼저 할게요."))
         job.cancel()
         collector.cancel()
     }

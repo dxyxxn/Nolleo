@@ -20,6 +20,9 @@ class RegionQuizGame(
 
     override val kind = GameKind.REGION_QUIZ
 
+    /** 결과 안내 뒤 판정 줄을 1.5초 더 (11/12 사용자 요청 — 끝말잇기는 2초) */
+    override val answerHoldMs = 1_500L
+
     private val asked = linkedSetOf<String>()
     private var lastRegion: String? = null
     private val allQuestions: Map<String, Question> =

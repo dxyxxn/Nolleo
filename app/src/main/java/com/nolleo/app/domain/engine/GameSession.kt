@@ -452,7 +452,14 @@ class GameSession(
         }
         callbacks.log("round ${round.index + 1}/${plan.roundCount} start: ${round.game.label} x${round.questionCount}")
 
-        val introLine = if (resumeTurnInRound > 0) "이어서 할게요!" else "${round.index + 1}번째 판! ${game.intro(players, round.questionCount)}"
+        val introLine = if (resumeTurnInRound > 0) {
+            "이어서 할게요!"
+        } else {
+            val intro = game.intro(players, round.questionCount)
+            // 화면에는 문장마다 줄을 나눠 보인다 (11/12 사용자 요청) — 말은 그대로 한 번에
+            _state.update { it.copy(display = introScreenText(round.index + 1, intro)) }
+            "${round.index + 1}번째 판! $intro"
+        }
         say(introLine, SessionPhase.INTRO)
 
         var humanTurns = resumeTurnInRound
@@ -526,10 +533,9 @@ class GameSession(
             }
 
             say(judgement.feedback, SessionPhase.FEEDBACK)
-            // 끝말잇기: 방금 답의 판정 줄을 칭찬 뒤에도 잠깐 더 보여 준다 (다음 차례가 시작되면 지움 — 11/11 팀 피드백)
-            if (game is WordChainGame && !judgement.endsRound && inputs.mode.value == GameMode.VOICE) {
-                delay(WordChainGame.TURN_HOLD_MS)
-            }
+            // 방금 답의 판정 줄을 결과 안내 뒤에도 잠깐 더 보여 준다 — 끝말잇기 2초(11/11 팀 피드백), 지역 퀴즈 1.5초(11/12).
+            // 다음 차례가 시작되면 지운다
+            if (!judgement.endsRound && inputs.mode.value == GameMode.VOICE) delay(game.answerHoldMs)
             when (action) {
                 is DrowsinessMonitor.Action.Stage1 -> {
                     callbacks.onStage1(player, action.newDifficultyCap)
@@ -587,8 +593,8 @@ class GameSession(
                 it.copy(
                     currentPlayer = turn.player, display = turn.display, shortDisplay = turn.shortDisplay, partial = null,
                     chainWords = chainWords(),
-                    // 끝말잇기는 새 차례에 앞사람 판정 줄을 지운다 (퀴즈는 앞 문제의 정답을 남겨 둔다)
-                    lastAnswer = it.lastAnswer.takeUnless { _ -> it.roundGame == GameKind.WORD_CHAIN },
+                    // 새 차례에는 앞사람 판정 줄을 지운다 (끝말잇기 11/11, 지역 퀴즈 11/12)
+                    lastAnswer = null,
                 )
             }
             val result = interruptible {
@@ -797,6 +803,14 @@ class GameSession(
     companion object {
         /** 일시정지 해제(GAIN 등) 후 같은 문제를 다시 낼 때까지 (1초 뒤 재출제) */
         const val RESUME_DELAY_MS = 1_000L
+
+        /**
+         * 판 시작 화면 글 — `1번째 판` 한 줄, 그 뒤 소개 문장마다 한 줄 (11/12 사용자 요청: 한 덩어리로 줄바꿈되던 것을 문장마다).
+         * 화면 문구에는 느낌표를 쓰지 않는다(발화는 그대로). 예: "1번째 판\n지역 퀴즈를 시작할게요.\n지나가는 곳에 대한 문제예요."
+         */
+        internal fun introScreenText(roundNumber: Int, intro: String): String =
+            (listOf("${roundNumber}번째 판") + intro.split(Regex("(?<=[.!?])\\s+")).map { it.trim().replace('!', '.') }.filter { it.isNotEmpty() })
+                .joinToString("\n")
 
         private val YES_NO_HINT = ListenHint(correctAnswer = "네", wrongAnswer = "아니요", forDriver = true, yesNo = true)
 

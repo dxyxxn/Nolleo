@@ -24,6 +24,8 @@ class WordChainGame(
 
     override val kind = GameKind.WORD_CHAIN
 
+    override val answerHoldMs = TURN_HOLD_MS
+
     private val used = linkedSetOf<String>()
     private var lastWord: String? = null
 

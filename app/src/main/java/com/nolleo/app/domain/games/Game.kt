@@ -7,7 +7,7 @@ import com.nolleo.app.domain.model.Player
 /** 한 차례에 필요한 정보 */
 data class TurnContext(
     val player: Player,
-    /** 이 차례 다음 사람 (끝말잇기에서 앱이 다음 사람을 지목할 때) */
+    /** 이 차례 다음 사람 (지금 쓰는 게임은 없다 — 11/11 까지 끝말잇기 놀레오가 다음 사람을 지목할 때 썼다) */
     val nextPlayer: Player,
     val regionCode: String?,
     /** 졸음 케어가 내린 난이도 상한 (1~3) */
@@ -50,6 +50,12 @@ data class Judgement(
 /** 음성 게임 공통 인터페이스 (지역 퀴즈 · 끝말잇기) */
 interface VoiceGame {
     val kind: GameKind
+
+    /**
+     * 사람이 답한 뒤 판정 줄("아빠: 남산 → 정답")을 결과 안내 말이 끝나고도 더 보여 주는 시간.
+     * 그 줄은 다음 차례가 시작되면 지운다 — 다음 사람 차례에 앞사람 답이 남지 않게 (11/12 사용자 요청).
+     */
+    val answerHoldMs: Long
 
     /** 이 게임에서 차례를 도는 순서 */
     fun rotation(players: List<Player>): List<Player>
