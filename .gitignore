@@ -13,3 +13,6 @@ skills-lock.json
 .claude
 .agents
 .cache/
+# 팀 내부 작업 문서 (11/12 — 저장소에는 올리지 않음)
+/CLAUDE.md
+/docs/

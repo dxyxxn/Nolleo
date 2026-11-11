@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-        퍼미션은 코드가 실제로 호출하는 API 의 것만 선언한다 (CLAUDE.md "Adding a Pleos SDK" 3번).
+        퍼미션은 코드가 실제로 호출하는 API 의 것만 선언한다(Vehicle 퍼미션은 App Market 사전 승인 대상).
         샘플 앱의 퍼미션 목록은 복사하지 않는다.
     -->
     <!-- Pleos Vehicle SDK: Brake.registerBrakePedalStatus / check·getCurrent (protection: normal) -->
