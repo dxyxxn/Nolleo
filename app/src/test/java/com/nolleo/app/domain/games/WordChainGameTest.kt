@@ -34,22 +34,23 @@ class WordChainGameTest {
     }
 
     @Test
-    fun appTurn_namesNextPlayerAndSyllable() {
+    fun appTurn_saysOnlyItsOwnWord() {
         val g = game()
         val t = g.nextTurn(TurnContext(Player.APP, driver, null, 3))!!
         val word = g.currentWord!!
-        assertTrue(t.prompt.contains(word))
-        assertTrue(t.prompt.contains("아빠"))
-        assertTrue(t.prompt.contains("'${word.last()}'"))
+        // 놀레오도 한 사람의 차례 — 다음 사람 이름·음절은 그 사람 차례에 (11/11)
+        assertEquals("저는 '$word' 할게요!", t.prompt)
+        assertFalse(t.prompt.contains("아빠"))
     }
 
     @Test
-    fun humanTurn_afterAppTurn_hasNoRedundantPrompt_butHasReprompt() {
+    fun humanTurn_afterAppTurn_namesThePlayerFirst_thenTheSyllable() {
         val g = game()
         startChain(g)
         val human = g.nextTurn(TurnContext(driver, kid, null, 3))!!
-        assertEquals("", human.prompt)
-        assertTrue(human.reprompt.contains("아빠"))
+        val phrase = g.startsWithPhrase(g.currentWord!!.last())
+        assertEquals("아빠 차례예요! $phrase 시작하는 말!", human.prompt)
+        assertEquals(human.prompt, human.reprompt)
         assertTrue(human.expectsAnswer)
         // 이어진 낱말은 화면 위 낱말 줄에 따로 보이므로 화면 글은 무엇으로 시작할지만
         assertEquals("${g.startsWithPhrase(g.currentWord!!.last())} 시작하는 말", human.display)

@@ -612,7 +612,27 @@ class GameSessionTest {
         val gone = seen.drop(shown).indexOfFirst { it.second == null }
         assertTrue(gone > 0)
         val held = seen[shown + gone].first - seen[shown].first
-        assertTrue("보인 시간 $held ms", held >= 400 + WordChainGame.ANSWER_HOLD_MS)
+        assertTrue("보인 시간 $held ms", held >= 400 + WordChainGame.TURN_HOLD_MS)
+        job.cancel()
+        collector.cancel()
+    }
+
+    @Test
+    fun wordChainRound_appSaysItsWord_restsLikeAPlayer_thenNamesTheNextPlayerFirst() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val rec = Recorder()
+        val s = session(env, speech, rec, listOf(driver, kid), plan(GameKind.WORD_CHAIN, 4))
+        val captions = mutableListOf<Pair<Long, String?>>()
+        val collector = launch { s.state.collect { if (captions.lastOrNull()?.second != it.caption) captions += env.clock.elapsedMs() to it.caption } }
+        val job = launch { s.run() }
+        advanceTimeBy(30_000)
+        val app = captions.indexOfFirst { it.second?.matches(Regex("저는 '.+' 할게요!")) == true }
+        assertTrue("놀레오는 제 낱말만 말한다: $captions", app >= 0)
+        val next = captions[app + 1]
+        assertTrue(next.second, next.second!!.startsWith("아빠 차례예요! '") && next.second!!.endsWith("시작하는 말!"))
+        assertTrue("놀레오 낱말 뒤에도 쉰다", next.first - captions[app].first >= 400 + WordChainGame.TURN_HOLD_MS)
+        assertTrue("조수석 차례도 누구 차례 먼저", speech.spoken.any { it.startsWith("조수석 차례예요! '") })
         job.cancel()
         collector.cancel()
     }

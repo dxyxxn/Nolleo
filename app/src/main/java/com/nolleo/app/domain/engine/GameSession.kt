@@ -497,6 +497,8 @@ class GameSession(
                 pendingTurn = null
                 rotationIndex++
                 if (turn.endsRoundAfter) break
+                // 놀레오도 한 차례 — 낱말을 말한 뒤 사람 차례처럼 잠깐 쉬고 다음 사람에게 (11/11)
+                if (inputs.mode.value == GameMode.VOICE) delay(WordChainGame.TURN_HOLD_MS)
                 continue
             }
 
@@ -526,7 +528,7 @@ class GameSession(
             say(judgement.feedback, SessionPhase.FEEDBACK)
             // 끝말잇기: 방금 답의 판정 줄을 칭찬 뒤에도 잠깐 더 보여 준다 (다음 차례가 시작되면 지움 — 11/11 팀 피드백)
             if (game is WordChainGame && !judgement.endsRound && inputs.mode.value == GameMode.VOICE) {
-                delay(WordChainGame.ANSWER_HOLD_MS)
+                delay(WordChainGame.TURN_HOLD_MS)
             }
             when (action) {
                 is DrowsinessMonitor.Action.Stage1 -> {

@@ -13,6 +13,8 @@ import kotlin.random.Random
  *  - 앱 차례에는 출제용 사전에서만, 졸음 케어 난이도 상한 안의 등급([WordLevel])으로, 다음 사람이 이을 수 있는 단어를 고른다
  *    (막다른 음절 회피). 막다른 말밖에 없으면 [RESTART_LINE] 으로 새 낱말부터 다시, 이을 말이 아예 없으면 "제가 졌어요!"
  *  - 사람이 못 이으면 같은 음절이 다음 사람에게 넘어간다
+ *  - 말하는 순서(11/11): 놀레오는 "저는 '이빨' 할게요!"(낱말만), 사람 차례는 "아빠 차례예요! '빨'로 시작하는 말!"(누구 차례 먼저).
+ *    놀레오도 사람과 같은 한 차례로 보고, 낱말을 말한 뒤 [TURN_HOLD_MS] 쉬고 다음 차례로 넘어간다(엔진이 쉰다)
  */
 class WordChainGame(
     private val dictionary: WordDictionary,
@@ -24,7 +26,6 @@ class WordChainGame(
 
     private val used = linkedSetOf<String>()
     private var lastWord: String? = null
-    private var appJustNamedNext = false
 
     val chainLength: Int get() = used.size
     val currentWord: String? get() = lastWord
@@ -64,7 +65,6 @@ class WordChainGame(
             }
         }
         if (word == null) {
-            appJustNamedNext = false
             val s = required ?: '가'
             return Turn(
                 player = Player.APP,
@@ -77,11 +77,11 @@ class WordChainGame(
         }
         used += word
         lastWord = word
-        appJustNamedNext = true
         val next = word.last()
         return Turn(
             player = Player.APP,
-            prompt = (if (restarted) "$RESTART_LINE " else "") + "저는 '$word'! ${ctx.nextPlayer.name}, ${startsWithPhrase(next)} 시작하는 말!",
+            // 놀레오도 한 사람의 차례 — 제 낱말만 말하고, 다음 사람 이름·음절은 그 사람 차례에 말한다
+            prompt = (if (restarted) "$RESTART_LINE " else "") + "저는 '$word' 할게요!",
             // 낱말은 화면 위 낱말 줄(SessionState.chainWords)에 있으므로 화면 글은 무엇으로 시작할지만
             display = (if (restarted) "다른 말로 다시 시작\n" else "") + "${startsWithPhrase(next)} 시작하는 말",
             shortDisplay = "${syllableLabel(next)} 차례",
@@ -92,14 +92,13 @@ class WordChainGame(
     private fun humanTurn(ctx: TurnContext): Turn {
         val required = requiredSyllable() ?: '가'
         val starts = Hangul.allowedStarts(required)
-        val fullPrompt = "${startsWithPhrase(required)} 시작하는 말, ${ctx.player.name} 차례예요!"
-        val prompt = if (appJustNamedNext) "" else fullPrompt
-        appJustNamedNext = false
+        // 누구 차례를 먼저, 그다음 무엇으로 시작할지 (11/11 — 전에는 "'이'로 시작하는 말, 조수석 차례예요!")
+        val prompt = "${ctx.player.name} 차례예요! ${startsWithPhrase(required)} 시작하는 말!"
         val sample = dictionary.pickNext(required, used, random, avoidDeadEnd = false, difficultyCap = ctx.difficultyCap)
         return Turn(
             player = ctx.player,
             prompt = prompt,
-            reprompt = fullPrompt,
+            reprompt = prompt,
             display = "${startsWithPhrase(required)} 시작하는 말",
             shortDisplay = "${syllableLabel(required)} 시작",
             hint = ListenHint(
@@ -180,7 +179,6 @@ class WordChainGame(
         used.clear()
         state["used"]?.split(",")?.filter { it.isNotBlank() }?.let { used += it }
         lastWord = state["lastWord"]?.takeIf { it.isNotBlank() }
-        appJustNamedNext = false
     }
 
     companion object {
@@ -190,9 +188,10 @@ class WordChainGame(
         const val RESTART_LINE = "이 말은 잇기 어렵네요, 다른 말로 다시 시작할까요?"
 
         /**
-         * 사람이 답한 뒤 판정 줄("조수석: 선반 → '선반' 성공")을 칭찬 말이 끝나고도 더 보여 주는 시간 (11/11 팀 피드백).
-         * 그 줄은 다음 차례가 시작되면 지운다 — 다음 사람 차례에 앞사람 답이 남아 있지 않게. 주행 중·정차 중 같은 값.
+         * 한 차례가 끝나고 다음 차례까지 쉬는 시간 (11/11 팀 피드백) — 주행 중·정차 중 같은 값.
+         *  - 사람: 칭찬 말 뒤 판정 줄("조수석: 선반 → '선반' 성공")을 이만큼 더 보여 준다. 그 줄은 다음 차례가 시작되면 지운다.
+         *  - 놀레오: "저는 '이빨' 할게요!" 뒤 이만큼 쉬고 다음 사람 차례("아빠 차례예요! …")로.
          */
-        const val ANSWER_HOLD_MS = 2_000L
+        const val TURN_HOLD_MS = 2_000L
     }
 }

@@ -85,7 +85,7 @@ class WordChainPlay(
             val resumed = pendingTurn != null
             val turn = pendingTurn ?: game.nextTurn(TurnContext(player, next, null, MAX_DIFFICULTY)) ?: return end(End.APP_LOST)
             pendingTurn = turn
-            // 새 차례에는 앞사람 판정 줄을 지운다 (방금 답은 칭찬 뒤 [WordChainGame.ANSWER_HOLD_MS] 동안만 보인다)
+            // 새 차례에는 앞사람 판정 줄을 지운다 (방금 답은 칭찬 뒤 [WordChainGame.TURN_HOLD_MS] 동안만 보인다)
             _state.update { it.copy(player = player, words = game.words, needed = neededPhrase(), lastAnswer = null) }
 
             if (!turn.expectsAnswer) {
@@ -95,6 +95,8 @@ class WordChainPlay(
                 rotationIndex++
                 _state.update { it.copy(words = game.words, needed = neededPhrase()) }
                 if (turn.endsRoundAfter) return end(End.APP_LOST)
+                // 놀레오도 한 차례 — 사람 차례처럼 잠깐 쉬고 다음 사람에게 (11/11)
+                hold()
                 continue
             }
 
@@ -126,9 +128,14 @@ class WordChainPlay(
             // 잇달아 대답이 없으면 "다음 사람이 이어 볼까요?" 대신 끝을 말한다
             if (silentInARow >= silentLimit) return end(End.NO_ANSWER)
             say(judgement.feedback)
-            _state.update { it.copy(phase = Phase.READY) }
-            delay(WordChainGame.ANSWER_HOLD_MS)
+            hold()
         }
+    }
+
+    /** 한 차례 뒤 쉬는 시간 — 말하지도 듣지도 않는다 (사람 답이면 판정 줄이 그동안 보인다) */
+    private suspend fun hold() {
+        _state.update { it.copy(phase = Phase.READY) }
+        delay(WordChainGame.TURN_HOLD_MS)
     }
 
     private suspend fun listen(turn: Turn): AnswerResult {

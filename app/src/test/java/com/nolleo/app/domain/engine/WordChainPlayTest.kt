@@ -103,14 +103,19 @@ class WordChainPlayTest {
 
     @Test
     fun listenDeadline_shownUntilSpeechStarts() = runTest {
-        val play = WordChainPlay(dictionary, listOf(driver), FakeSpeech(clock(), answerDelayMs = 1_000), clock(), Random(6))
+        val speech = FakeSpeech(clock(), answerDelayMs = 1_000)
+        val play = WordChainPlay(dictionary, listOf(driver), speech, clock(), Random(6))
         val job = launch { play.run() }
-        // 시작 안내 400ms + 놀레오 낱말 400ms 뒤 운전자 차례 듣기 (앞 말에서 이미 이름을 불렀으므로 다시 말하지 않음)
-        advanceTimeBy(801)
+        // 시작 안내 400ms + 놀레오 낱말 400ms + 쉬기 + 운전자 차례 안내 400ms 뒤 듣기
+        val listenAt = 1_200L + WordChainGame.TURN_HOLD_MS
+        advanceTimeBy(listenAt + 1)
         val listening = play.state.value
         assertEquals(WordChainPlay.Phase.LISTENING, listening.phase)
         assertEquals(driver, listening.player)
-        assertEquals(800L + AnswerCollector.FIRST_SPEECH_TIMEOUT_MS, listening.listenDeadlineMs)
+        assertEquals(listenAt + AnswerCollector.FIRST_SPEECH_TIMEOUT_MS, listening.listenDeadlineMs)
+        // 놀레오는 제 낱말만, 사람 차례는 누구 차례를 먼저 (11/11)
+        assertTrue(speech.spoken[1], speech.spoken[1].matches(Regex("저는 '.+' 할게요!")))
+        assertTrue(speech.spoken[2], speech.spoken[2].startsWith("${driver.name} 차례예요! '") && speech.spoken[2].endsWith("시작하는 말!"))
         assertNotNull(listening.needed)
         advanceTimeBy(1_000)
         assertNull("말을 시작하면 남은 초를 거둔다", play.state.value.listenDeadlineMs)
@@ -124,7 +129,7 @@ class WordChainPlayTest {
         while (play.state.value.lastAnswer == null) advanceTimeBy(50)
         assertEquals(driver.name, play.state.value.lastAnswer?.playerName)
         // 칭찬(400ms) + 더 보여 주기가 끝나기 직전까지 운전자 답이 그대로, 아직 다음 차례가 아님
-        advanceTimeBy(400 + WordChainGame.ANSWER_HOLD_MS - 100)
+        advanceTimeBy(400 + WordChainGame.TURN_HOLD_MS - 100)
         assertEquals(driver.name, play.state.value.lastAnswer?.playerName)
         assertEquals(driver, play.state.value.player)
         assertEquals("더 보여 주는 동안은 말하지도 듣지도 않음", WordChainPlay.Phase.READY, play.state.value.phase)
@@ -139,7 +144,7 @@ class WordChainPlayTest {
         val speech = FakeSpeech(clock(), answerDelayMs = null)
         val play = WordChainPlay(dictionary, listOf(driver, kid), speech, clock(), Random(7))
         val first = launch { play.run() }
-        advanceTimeBy(801)
+        advanceTimeBy(1_201 + WordChainGame.TURN_HOLD_MS)
         val before = play.state.value
         assertEquals(WordChainPlay.Phase.LISTENING, before.phase)
         first.cancel()
@@ -152,7 +157,7 @@ class WordChainPlayTest {
         // 시작 안내는 다시 하지 않고, 같은 사람에게 같은 음절을 다시 묻는다
         val again = speech.spoken.drop(spokenBefore)
         assertEquals(1, again.size)
-        assertTrue(again.first(), again.first().endsWith("${driver.name} 차례예요!"))
+        assertTrue(again.first(), again.first().startsWith("${driver.name} 차례예요!"))
         assertEquals(before.words, play.state.value.words)
         assertEquals(before.needed, play.state.value.needed)
         assertEquals(driver, play.state.value.player)
