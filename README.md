@@ -98,7 +98,7 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 | 마이크 | 선택 | 실제 음성으로 답하려면 에뮬레이터 **Extended Controls(⋯) > Microphone > "Virtual microphone uses host audio input"** 를 켜고 디버그 패널 응답 입력 **마이크**. 마이크 없이 시연하려면 **대본 normal / sleepy** (TTS 는 실제 Pleos 음성 그대로) |
 | 국내 위치 | 선택 | 실제 위치로 지역을 정하려면 `adb emu geo fix 126.9780 37.5665`(서울 시청, 경도 먼저). 없으면 내비 주소 → 시뮬 경로 순으로 정합니다 |
 | `local.properties` | 선택 | `PLEOS_CLIENT_ID`, `PLEOS_CLIENT_SECRET` — 있으면 TTS/STT `Mode.HYBRID`, 없으면 `Mode.ON_DEVICE`(이 제출본은 **ON_DEVICE**) |
-| release 서명 | 선택(직접 빌드 때) | `RELEASE_STORE_FILE`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` — 없으면 debug 키로 서명([§8](#8-release-서명-키-만들기-직접-빌드할-때)) |
+| release 서명 | 선택(직접 빌드 때) | `RELEASE_STORE_FILE`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD` — 없으면 debug 키로 서명([§7](#7-release-서명-키-만들기-직접-빌드할-때)) |
 
 ### 3.3 실제 SDK 와 시뮬레이션
 
@@ -223,27 +223,7 @@ GameMode    IDLE(세션 없음) · VOICE(주행/정차/DO) · SCREEN(주차 && !
 - 단위 테스트 226개 — 모드 판정·판 짜기(다시 계획한 판 반영, 랜덤 게임 순서)·홈 목적지 고르기(현재 경로·최근 목적지·목적지 없이)·시간 여정·게임 규칙(음성 판·끝말잇기 낱말 줄·판정 줄 보이는 시간·정차 중 화면 게임·정차 끝말잇기, 목적지 없는 세션의 끝맺음)·졸음 케어(저장·복원·인식 오류 제외)·쉬어 가기 질문의 일시정지·오디오 포커스 대응·쉼 장소 고르기·콘텐츠 자산·저장본(v1/v2/v3)·내비 처리(최근 목적지 정리·예상 시간 맞추기)·창 배치 등. lint 오류 0.
 - 사용량(release APK, 에뮬레이터 4코어, 11/8 측정 — 기기 전체 = 100% 기준): 주행 중 음성 게임 CPU 평균 0.2%·최대 0.5%, 정차 중 화면 게임 평균 0.1%·최대 0.3%, 메모리 PSS 44~64 MB, 첫 실행 0.91초. 기준(주행 중 CPU 5% 미만 · 정차 중 25% 이하 · RAM 400 MB 이하 · 실행 10초 이하) 안입니다. 음성 합성은 Pleos 플랫폼 서비스가 따로 합니다.
 
-## 7. 콘텐츠 출처와 라이선스
-
-모든 게임 콘텐츠와 졸음쉼터·휴게소 자료는 `app/src/main/assets/content/` 에 들어 있고, 실행 중 네트워크로 받지 않습니다.
-
-| 파일 | 내용 · 규모 | 출처 | 배포 조건 |
-|---|---|---|---|
-| `quiz_idioms.json` | 정차 중 사자성어 1,014문항 — 뜻·정답·한자·글자별 훈·음·유래(210문항) | 표제어·한자·뜻풀이·유래: 국립국어원 《표준국어대사전》(CC BY-SA 2.0 KR, https://stdict.korean.go.kr), 중간 가공본 k1tech-ai-kr/k1-db-idioms(CC BY-SA 4.0). 한자 훈·음: 한국어문회 급수 한자(rycont/hanja-grade-dataset), libhangul 한자 사전(LGPL 2.1), Wiktionary(CC BY-SA 4.0), 직접 보충. 문항 문구·난이도·id 는 직접 작성 | **CC BY-SA 4.0** (앱 코드와 별개) |
-| `words_ko_valid.txt` · `words_ko_play.json` | 끝말잇기 검증용 194,871어 · 출제용 7,882어(어휘 등급 포함) | 국립국어원 《표준국어대사전》·《한국어기초사전》(CC BY-SA 2.0 KR), 중간 가공본 animatedbreath/kortongdok-dict, spellcheck-ko/korean-dict-nikl | **CC BY-SA 4.0** (앱 코드와 별개) |
-| `words_blocklist.txt` | 끝말잇기 금칙어 119줄 — 두 사전을 읽을 때 한 번 더 거름 | 직접 작성 | 앱 코드와 같음 |
-| `rest_areas.json` | 고속도로 졸음쉼터 253곳(이름·노선·방향·좌표) | 한국도로공사, 전국졸음쉼터표준데이터, 공공데이터포털(15028203) — 이용허락 제한 없음 | 원자료 조건 |
-| `service_areas.json` | 고속도로 휴게소 편의시설 247곳(수면실·수유실·대표 음식·가족사랑 화장실, 좌표 없음) | 한국도로공사 고속도로 공공데이터 포털 "휴게소별 편의시설 현황" + 공공데이터포털(15142833) "장애인 및 가족사랑 화장실 운영여부 및 위치" — 이용허락 제한 없음 | 원자료 조건 |
-| `quiz_regions.json` · `quiz_general.json` · `regions.json` | 지역 퀴즈 170문항(17개 시/도) · 가족 퀴즈 48문항 · 시/도 판정 표 | 직접 작성(외부 문제집·웹 콘텐츠를 옮기지 않음) | 앱 코드와 같음 |
-
-**가공 내용(변경 사항 표시)**
-- 사자성어: 사자성어 선별, 뜻풀이 첫 문장과 유래 분리, 유래 칸에 섞인 뜻풀이 뒷부분 정리(21문항은 유래 없음으로), 한자 유니코드 정규화(NFC), 오탈자 교정, 두음법칙 글자는 원음으로 훈·음 표기, JSON 변환.
-- 끝말잇기 사전: 명사·일상어 선별, 비표준어 제외, 금칙어 제거, 공백 제거, 사전 미등재 일상 복합어 184어를 검증용에 추가.
-- 졸음쉼터: `tools/convert_rest_areas.js` 로 CSV → JSON 변환, 원자료 오탈자 3건 보정(회턱→회덕, 양앙→양양, 양→양평), 진행 방향(heading) 계산 추가.
-- 휴게소 편의시설: `tools/convert_service_areas.js` 로 두 자료를 이름·방향으로 합침(같은 차로를 다른 방향 도시로 적은 24곳을 하나로), 줄임 표기 정리, 방향 도시의 대략 좌표 추가.
-- 아이콘: `res/drawable/ic_*.xml` 은 Google Material Icons(Apache License 2.0) 경로 데이터. 런처 아이콘·로고는 직접 그렸고 외부 글꼴은 쓰지 않았습니다(플랫폼 기본 Asta Sans).
-
-## 8. release 서명 키 만들기 (직접 빌드할 때)
+## 7. release 서명 키 만들기 (직접 빌드할 때)
 ```bash
 keytool -genkeypair -v -keystore <리포 밖 경로>/nolleo-release.jks -storetype PKCS12 \
   -alias nolleo -keyalg RSA -keysize 2048 -validity 10000
