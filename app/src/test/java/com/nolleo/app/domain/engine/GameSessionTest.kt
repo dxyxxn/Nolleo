@@ -234,6 +234,7 @@ class GameSessionTest {
         assertEquals(listOf<RestStopSuggestion?>(osan), rec.stage2Offers)
         assertEquals(listOf(true), rec.restDecisions)
         assertTrue(speech.spoken.any { it.contains("잠깐 쉬어 갈까요?") && it.contains("경부선 부산 방향 오산 졸음쉼터가 12킬로미터 앞에 있어요.") })
+        assertTrue("말로 답하는 법도 말한다", speech.spoken.any { it.endsWith("잠깐 쉬어 갈까요? 말로 '네' 또는 '괜찮아요'라고 해 주세요.") })
         assertTrue(speech.spoken.any { it.contains("좋아요. 오산 졸음쉼터에서 쉬어 가요") })
         assertEquals("2단계도 난이도 상한 -1", 2, s.drowsy.difficultyCap)
         job.cancel()

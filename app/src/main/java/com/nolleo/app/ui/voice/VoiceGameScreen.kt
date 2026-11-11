@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -146,15 +147,22 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
                             else -> CenterBlock(s, ux, trip?.remainTimeSec, noDestination, container.clock::elapsedMs)
                         }
                     }
+                    // 카드 아래 띠는 카드와 붙지 않게 아래 구분선과 같은 여백을 둔다
                     when {
-                        rest is RestCareController.State.Offered || rest is RestCareController.State.Heading -> RestBand(
-                            state = rest,
-                            distanceM = restDistance,
-                            onAccept = coordinator::acceptRest,
-                            onDecline = coordinator::declineRest,
-                            onCancel = coordinator::cancelRest,
-                        )
-                        rest == null && stage1Visible -> Stage1Overlay()
+                        rest is RestCareController.State.Offered || rest is RestCareController.State.Heading -> {
+                            Spacer(Modifier.height(Sp.l))
+                            RestBand(
+                                state = rest,
+                                distanceM = restDistance,
+                                onAccept = coordinator::acceptRest,
+                                onDecline = coordinator::declineRest,
+                                onCancel = coordinator::cancelRest,
+                            )
+                        }
+                        rest == null && stage1Visible -> {
+                            Spacer(Modifier.height(Sp.l))
+                            Stage1Overlay()
+                        }
                     }
                 }
                 Spacer(Modifier.height(Sp.l))
@@ -319,42 +327,74 @@ private fun RestPanel(
     val target = s?.let { listOfNotNull(it.name, it.directionLabel).joinToString(" · ") }
     val distance = (distanceM ?: s?.distanceM)?.let(TripUnits::formatDistance)
     BandCard(modifier) {
+        val title: @Composable (String) -> Unit = { t ->
+            Text(t, style = restTitleStyle(), color = c.onBand, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        val line: @Composable (String) -> Unit = { t ->
+            Text(t, style = MaterialTheme.typography.headlineSmall, color = c.onBand, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        val note: @Composable (String) -> Unit = { t ->
+            Text(t, style = MaterialTheme.typography.bodyLarge, color = c.bandMuted, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        if (state is RestCareController.State.Offered) {
+            // 권유: 글은 처음 화면과 같은 자리에 그대로 두고, 두 버튼만 글 아래 남은 여백의 가운데로 (11/11 —
+            // 전에는 버튼이 글 바로 아래 붙어 있었다)
+            Layout(
+                modifier = Modifier.fillMaxSize(),
+                content = {
+                    Column(
+                        Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(Sp.l),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        title("잠깐 쉬어 가요")
+                        line(
+                            when {
+                                s == null -> "반응이 계속 느려졌어요 · 가까운 졸음쉼터나 휴게소에서 쉬어 가요"
+                                distance != null -> "반응이 계속 느려졌어요 · $distance 앞 $target"
+                                else -> "반응이 계속 느려졌어요 · $target"
+                            },
+                        )
+                        s?.facilityLine?.let { note(it) }
+                        // 말로도 답할 수 있다 — 음성 화면과 같은 말하는 중/듣는 중 표시 (TTS 도 같은 말을 한다)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
+                            MicIndicator(mic)
+                            if (s != null) note("말로 \"네\" 또는 \"괜찮아요\"라고 해 주세요")
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth(RestButtonRowWidth), horizontalArrangement = Arrangement.spacedBy(Sp.xl)) {
+                        val big = Modifier.weight(1f).heightIn(min = RestButtonHeight)
+                        if (s != null) PrimaryButton("쉬어 가기", onClick = onAccept, modifier = big, onBand = true, large = true)
+                        SecondaryButton(if (s != null) "괜찮아요" else "닫기", onClick = onDecline, modifier = big, onBand = true, large = true)
+                    }
+                },
+            ) { measurables, constraints ->
+                val loose = constraints.copy(minWidth = 0, minHeight = 0)
+                val text = measurables[0].measure(loose)
+                val buttons = measurables[1].measure(loose)
+                val gap = Sp.l.roundToPx()
+                val w = constraints.maxWidth
+                val h = if (constraints.hasBoundedHeight) constraints.maxHeight else text.height + gap + buttons.height
+                // 글 자리: 처음 화면처럼 "글 + 그 아래 붙어 있던 버튼 줄"을 한 덩어리로 세로 가운데에 둔 위치.
+                // 창이 낮으면 버튼이 들어갈 만큼만 글을 올린다.
+                val firstTop = (h - text.height - RestFirstButtonBlock.roundToPx()) / 2
+                val textY = minOf(firstTop, h - text.height - gap - buttons.height).coerceAtLeast(0)
+                val below = textY + text.height
+                val buttonsY = below + ((h - below - buttons.height) / 2).coerceAtLeast(gap)
+                layout(w, h) {
+                    text.place((w - text.width) / 2, textY)
+                    buttons.place((w - buttons.width) / 2, buttonsY)
+                }
+            }
+            return@BandCard
+        }
         Column(
             Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(Sp.l, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val title: @Composable (String) -> Unit = { t ->
-                Text(t, style = restTitleStyle(), color = c.onBand, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-            val line: @Composable (String) -> Unit = { t ->
-                Text(t, style = MaterialTheme.typography.headlineSmall, color = c.onBand, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
-            val note: @Composable (String) -> Unit = { t ->
-                Text(t, style = MaterialTheme.typography.bodyLarge, color = c.bandMuted, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            }
             when (state) {
-                is RestCareController.State.Offered -> {
-                    title("잠깐 쉬어 가요")
-                    line(
-                        when {
-                            s == null -> "반응이 계속 느려졌어요 · 가까운 졸음쉼터나 휴게소에서 쉬어 가요"
-                            distance != null -> "반응이 계속 느려졌어요 · $distance 앞 $target"
-                            else -> "반응이 계속 느려졌어요 · $target"
-                        },
-                    )
-                    s?.facilityLine?.let { note(it) }
-                    // 말로도 답할 수 있다 — 음성 화면과 같은 말하는 중/듣는 중 표시
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Sp.m)) {
-                        MicIndicator(mic)
-                        if (s != null) note("말로 \"네\" 또는 \"괜찮아요\"")
-                    }
-                    Row(Modifier.fillMaxWidth().padding(top = Sp.s), horizontalArrangement = Arrangement.spacedBy(Sp.l)) {
-                        val big = Modifier.weight(1f).heightIn(min = RestButtonHeight)
-                        if (s != null) PrimaryButton("쉬어 가기", onClick = onAccept, modifier = big, onBand = true)
-                        SecondaryButton(if (s != null) "괜찮아요" else "닫기", onClick = onDecline, modifier = big, onBand = true)
-                    }
-                }
+                is RestCareController.State.Offered -> Unit
                 is RestCareController.State.Heading -> {
                     title("${s?.name ?: "쉼터"}로 가는 중이에요")
                     line(
@@ -379,8 +419,14 @@ private fun RestPanel(
     }
 }
 
-/** 권유·가는 중 화면의 큰 버튼 높이 (보통 버튼 76dp 보다 크게) */
-private val RestButtonHeight = 112.dp
+/** 권유 화면의 큰 버튼 높이 (보통 버튼 76dp 보다 크게) */
+private val RestButtonHeight = 150.dp
+
+/** 권유 화면 두 버튼이 차지하는 폭 (화면 폭 전체보다 조금 좁게) */
+private const val RestButtonRowWidth = 0.84f
+
+/** 처음 권유 화면에서 글 바로 아래 붙어 있던 버튼 줄(간격 + 112dp) — 글 자리를 그때와 같게 잡는 데만 쓴다 */
+private val RestFirstButtonBlock = Sp.l + Sp.s + 112.dp
 
 /** 안내 화면 제목 — 테마에서 가장 큰 축(displayMedium 66sp)을 600 굵기로 */
 @Composable

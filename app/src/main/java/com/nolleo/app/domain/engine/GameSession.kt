@@ -176,7 +176,7 @@ class GameSession(
             callbacks.onRestDecision(null, false)
             return
         }
-        val accepted = askYesNo("${driver.name}, 반응이 계속 느려졌어요. ${suggestion.spokenTarget} 거기서 잠깐 쉬어 갈까요?")
+        val accepted = askYesNo("${driver.name}, 반응이 계속 느려졌어요. ${suggestion.spokenTarget} 거기서 잠깐 쉬어 갈까요? 말로 '네' 또는 '괜찮아요'라고 해 주세요.")
         callbacks.log("Stage2 응답: ${when (accepted) { true -> "네"; false -> "아니요"; null -> "응답 없음" }}")
         // 수락하면 곧 게임이 쉬므로(PauseReason.REST_STOP) 안내 말을 먼저 하고 결정을 넘긴다
         if (accepted == true) {

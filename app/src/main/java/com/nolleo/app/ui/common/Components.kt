@@ -80,7 +80,7 @@ fun Modifier.pressable(
 
 /**
  * 주 버튼 — 화면마다 하나만 채운 버튼으로 둔다. 노란 알약에 검은 글, 높이 76dp 이상.
- * [onBand] 는 안내 카드(노랑) 위에 놓을 때 색을 뒤집는다.
+ * [onBand] 는 안내 카드(노랑) 위에 놓을 때 색을 뒤집는다. [large] 는 글을 크게 — 졸음 쉬어 가기 화면의 두 버튼에만 쓴다.
  */
 @Composable
 fun PrimaryButton(
@@ -90,6 +90,7 @@ fun PrimaryButton(
     enabled: Boolean = true,
     @DrawableRes icon: Int? = null,
     onBand: Boolean = false,
+    large: Boolean = false,
 ) {
     val c = Nl.colors
     val container = when {
@@ -102,7 +103,7 @@ fun PrimaryButton(
         onBand -> c.onBandAction
         else -> c.onAction
     }
-    ButtonBody(text, icon, content, modifier.background(container, Radius.pill).pressable(onClick, Radius.pill, enabled), horizontal = Sp.xxl)
+    ButtonBody(text, icon, content, modifier.background(container, Radius.pill).pressable(onClick, Radius.pill, enabled), horizontal = Sp.xxl, large = large)
 }
 
 /** 보조 버튼 — 테두리만 있는 알약. 끝내기·다시 듣기 같은 두 번째 행동 */
@@ -114,6 +115,7 @@ fun SecondaryButton(
     enabled: Boolean = true,
     @DrawableRes icon: Int? = null,
     onBand: Boolean = false,
+    large: Boolean = false,
 ) {
     val c = Nl.colors
     val ink = if (onBand) c.onBand else c.ink
@@ -123,11 +125,12 @@ fun SecondaryButton(
         if (enabled) ink else c.faint,
         modifier.border(1.5.dp, if (enabled) ink.copy(alpha = 0.35f) else c.line, Radius.pill).pressable(onClick, Radius.pill, enabled),
         horizontal = Sp.xl,
+        large = large,
     )
 }
 
 @Composable
-private fun ButtonBody(text: String, @DrawableRes icon: Int?, content: Color, modifier: Modifier, horizontal: Dp) {
+private fun ButtonBody(text: String, @DrawableRes icon: Int?, content: Color, modifier: Modifier, horizontal: Dp, large: Boolean = false) {
     Row(
         modifier.heightIn(min = MinTouch).padding(horizontal = horizontal, vertical = Sp.m),
         verticalAlignment = Alignment.CenterVertically,
@@ -137,7 +140,13 @@ private fun ButtonBody(text: String, @DrawableRes icon: Int?, content: Color, mo
             Icon(painterResource(icon), contentDescription = null, tint = content, modifier = Modifier.size(30.dp))
             Spacer(Modifier.width(Sp.m))
         }
-        Text(text, style = MaterialTheme.typography.labelLarge, color = content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            text,
+            style = if (large) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.labelLarge,
+            color = content,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
