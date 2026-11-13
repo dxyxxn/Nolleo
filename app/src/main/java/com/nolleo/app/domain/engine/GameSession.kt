@@ -388,7 +388,7 @@ class GameSession(
                 roundIndex = round.index,
                 roundGame = round.game,
                 turnInRound = 0,
-                turnsInRound = round.questionCount,
+                turnsInRound = humanTurnsIn(round),
             )
         }
         val waitPhase = if (first) SessionPhase.WAITING else SessionPhase.RESTING
@@ -441,6 +441,14 @@ class GameSession(
 
     // ── 판 진행 ──────────────────────────────────────────────────
 
+    /**
+     * 한 판에 사람이 답하는 차례 수. 지역 퀴즈는 판 문제 수 그대로(번갈아 답함), 끝말잇기는 **사람마다** 판 문제 수만큼
+     * 답한다(11/13 사용자 결정 — 전에는 모두 합쳐 문제 수만큼이라 동승자가 많을수록 한 사람 차례가 줄었다).
+     * 화면의 `판 진행`은 끝말잇기면 각자 몇 번째인지로 보인다.
+     */
+    private fun humanTurnsIn(round: RoundPlan): Int =
+        if (round.game == GameKind.WORD_CHAIN) round.questionCount * players.size else round.questionCount
+
     /** 끝말잇기 판이면 지금까지 이은 낱말 (화면 위 낱말 줄) */
     private fun chainWords(): List<String> = chain?.words.orEmpty()
 
@@ -460,11 +468,11 @@ class GameSession(
         speech.markNewStream()
         _state.update {
             it.copy(
-                roundIndex = round.index, roundGame = round.game, turnsInRound = round.questionCount, turnInRound = resumeTurnInRound,
+                roundIndex = round.index, roundGame = round.game, turnsInRound = humanTurnsIn(round), turnInRound = resumeTurnInRound,
                 lastAnswer = null, chainWords = chainWords(),
             )
         }
-        callbacks.log("round ${round.index + 1}/${plan.roundCount} start: ${round.game.label} x${round.questionCount}")
+        callbacks.log("round ${round.index + 1}/${plan.roundCount} start: ${round.game.label} x${round.questionCount}" + if (round.game == GameKind.WORD_CHAIN) " (각자, 사람 차례 ${humanTurnsIn(round)}번)" else "")
 
         val introLine = if (resumeTurnInRound > 0) {
             "이어서 할게요!"
@@ -481,7 +489,8 @@ class GameSession(
         resumeTurnInRound = 0
         var wrapLine: String? = null
 
-        while (humanTurns < round.questionCount) {
+        val turnsToPlay = humanTurnsIn(round)
+        while (humanTurns < turnsToPlay) {
             if (inputs.screenAvailable.value) {
                 wrapLine = "차가 멈췄네요. 이번 판은 여기까지 할게요! 화면 게임이 열렸어요."
                 break
@@ -499,7 +508,7 @@ class GameSession(
             val restoredQuizTurn = pendingQuestionId?.takeIf { game === quiz && player.id != Player.APP.id }
                 ?.let { id -> quiz.turnFor(id, player) }
             pendingQuestionId = null
-            val lastInRound = player.id != Player.APP.id && humanTurns + 1 >= round.questionCount
+            val lastInRound = player.id != Player.APP.id && humanTurns + 1 >= turnsToPlay
             val turn = pendingTurn
                 ?: restoredQuizTurn
                 ?: game.nextTurn(TurnContext(player, next, inputs.regionCode.value, drowsy.difficultyCap, lastInRound))

@@ -25,8 +25,11 @@ object SessionPlanner {
     const val MAX_ROUND_SEC = 10 * 60
     const val MIN_GAP_SEC = 2 * 60
     const val SEC_PER_QUESTION = 30
-    /** 데모 모드의 판당 문제 수 — 시연 영상 한 장면에 한 판(11/13 시연 피드백으로 6 → 4) */
-    const val DEMO_QUESTION_COUNT = 4
+    /**
+     * 데모 모드의 판당 문제 수(11/13 사용자 결정 — 잠깐 4 로 줄였다가 6 으로). 끝말잇기는 사람마다 이만큼 답한다
+     * ([GameSession] — 끝말잇기 판 길이는 각 사람이 답한 차례 수).
+     */
+    const val DEMO_QUESTION_COUNT = 6
     const val REPLAN_THRESHOLD = 0.2
 
     fun plan(

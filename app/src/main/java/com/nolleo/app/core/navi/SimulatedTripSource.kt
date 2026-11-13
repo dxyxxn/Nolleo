@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * 시뮬레이션 여정이 지나는 현재 지점. 지역·이름은 마지막으로 지난 경유 지점 기준이고,
@@ -55,7 +56,15 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
     val moving = MutableStateFlow(true)
 
     private var preset: DestinationPreset? = null
+
+    /** 프리셋 시간표로 간 정도(초) — 경유 지점·쉼 장소·TBT 는 이 값으로 정한다 */
     private var elapsedTripSec: Double = 0.0
+
+    /**
+     * 여정 1초에 프리셋 시간표로 가는 초 (기본 1). [matchRemain] 이 바꾼다 — 길은 그대로 두고 남은 시간을 내비에 맞출 때
+     * (내비 예상 시간이 시간대에 따라 4시간 0분~4시간 7분으로 바뀌어 프리셋 4시간 10분과 다르다, 11/13)
+     */
+    private var pace: Double = 1.0
     private var tickJob: Job? = null
     private var tbtJob: Job? = null
     private var nextTbtIndex = 0
@@ -66,6 +75,7 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
         stopTimers()
         this.preset = preset
         elapsedTripSec = 0.0
+        pace = 1.0
         nextTbtIndex = 0
         timeScale.value = preset.defaultTimeScale
         AppLog.i(TAG, "simulated route ${preset.title} (${preset.estimatedMinutes}분, x${preset.defaultTimeScale})")
@@ -74,7 +84,7 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
         tickJob = scope.launch {
             while (isActive) {
                 delay(TICK_MS)
-                if (moving.value) elapsedTripSec += TICK_MS / 1000.0 * timeScale.value
+                if (moving.value) elapsedTripSec = (elapsedTripSec + TICK_MS / 1000.0 * timeScale.value * pace).coerceAtMost(preset.estimatedSec.toDouble())
                 publish()
                 maybeFireTbt()
                 val remain = remainSec()
@@ -90,8 +100,21 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
     /** 디버그 패널: 남은 시간을 바로 지정 (예: "5분 남김") */
     fun jumpToRemain(remainSec: Int) {
         val p = preset ?: return
-        elapsedTripSec = (p.estimatedSec - remainSec).coerceIn(0, p.estimatedSec).toDouble()
+        elapsedTripSec = (p.estimatedSec - remainSec * pace).coerceIn(0.0, p.estimatedSec.toDouble())
         nextTbtIndex = p.tbtAtMin.count { it * 60 <= elapsedTripSec }
+        publish()
+    }
+
+    /**
+     * 지금 위치는 그대로 두고 남은 시간이 [remainSec] 가 되게 여정 빠르기를 맞춘다 (디버그 패널 "내비 남은 시간으로" —
+     * 실제 내비로 출발하는 장면 뒤 시뮬로 이어 찍을 때). [jumpToRemain] 과 달리 앞으로 건너뛰지 않아 지나는 지역·쉼 장소 순서가 그대로다.
+     */
+    fun matchRemain(remainSec: Int) {
+        val p = preset ?: return
+        val left = p.estimatedSec - elapsedTripSec
+        if (remainSec <= 0 || left <= 0) return
+        pace = left / remainSec
+        AppLog.i(TAG, "남은 시간 맞춤: 길은 그대로, 빠르기 x${"%.3f".format(pace)} → 남은 ${remainSec}s")
         publish()
     }
 
@@ -128,14 +151,15 @@ class SimulatedTripSource(private val scope: CoroutineScope) : TripSource {
 
     private fun remainSec(): Int {
         val p = preset ?: return 0
-        return (p.estimatedSec - elapsedTripSec).toInt().coerceAtLeast(0)
+        return ((p.estimatedSec - elapsedTripSec) / pace).roundToInt().coerceAtLeast(0)
     }
 
     private fun publish() {
         val p = preset ?: return
         val remain = remainSec()
         val totalDistance = routeMeters(p)
-        val ratio = if (p.estimatedSec == 0) 0.0 else remain.toDouble() / p.estimatedSec
+        // 남은 거리는 길에서 간 정도로 (빠르기를 맞춰도 거리는 그대로)
+        val ratio = if (p.estimatedSec == 0) 0.0 else ((p.estimatedSec - elapsedTripSec) / p.estimatedSec).coerceIn(0.0, 1.0)
         _snapshot.update {
             TripSnapshot(
                 destinationName = p.poiName,

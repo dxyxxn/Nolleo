@@ -192,6 +192,15 @@ class TripRepository(
         }
     }
 
+    /** 디버그 패널 "내비 남은 시간으로": 시뮬은 위치를 두고 빠르기를 맞추고([SimulatedTripSource.matchRemain]), 시간 여정은 남은 시간을 바로 지정 */
+    fun matchRemain(remainSec: Int) {
+        when (_activeKind.value) {
+            TripSourceKind.SIMULATED -> sim.matchRemain(remainSec)
+            TripSourceKind.TIMER -> timer.jumpToRemain(remainSec)
+            TripSourceKind.REAL_NAVI -> Unit
+        }
+    }
+
     private suspend fun onNaviEvent(event: TripEvent) {
         if (!tripActive || _activeKind.value != TripSourceKind.REAL_NAVI) return
         when (event) {

@@ -892,7 +892,8 @@ class GameCoordinator(private val c: AppContainer) {
 
     /**
      * 시뮬·타이머 여정의 남은 시간을 내비 길 안내의 남은 시간에 맞춘다 (시연 촬영: 실제 내비로 출발하는 장면 뒤에 시뮬 여정으로
-     * 이어 찍을 때 "도착까지 남은 시간"이 거꾸로 늘지 않게 — 11/13). 길 안내가 없으면 그대로 둔다.
+     * 이어 찍을 때 "도착까지 남은 시간"이 거꾸로 늘지 않게 — 11/13). 시뮬은 앞으로 건너뛰지 않고 지금 위치에서 빠르기만 맞춘다
+     * (내비 예상이 프리셋보다 짧을 때 건너뛰면 지나는 지역·첫 쉼터를 촬영 전에 지나 버렸다). 길 안내가 없으면 그대로 둔다.
      */
     fun simJumpToNaviRemain() {
         val remain = c.naviTrip.activeNaviDestination.value?.remainTimeSec
@@ -901,7 +902,7 @@ class GameCoordinator(private val c: AppContainer) {
             return
         }
         AppLog.i(TAG, "여정 남은 시간을 내비에 맞춤 → ${TripUnits.formatDuration(remain)}")
-        c.tripRepository.jumpToRemain(remain)
+        c.tripRepository.matchRemain(remain)
     }
 
     fun simTriggerTbt() = c.simTrip.triggerTbt()

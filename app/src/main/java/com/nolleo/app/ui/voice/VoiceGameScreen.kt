@@ -548,6 +548,16 @@ private fun MainButton(quiet: Boolean, text: String, onClick: () -> Unit, icon: 
     else PrimaryButton(text, onClick = onClick, enabled = enabled, icon = icon)
 }
 
+/**
+ * 점수판의 `판 진행`. 지역 퀴즈는 `3 / 6 문제`(모두 합친 문제 수), 끝말잇기는 사람마다 판 문제 수만큼 답하므로
+ * `각자 2 / 6번`(모두가 답한 바퀴 수 — 11/13 사용자 결정).
+ */
+internal fun roundProgressLabel(s: SessionState, humanCount: Int): String = when {
+    s.turnsInRound <= 0 -> "-"
+    s.roundGame == GameKind.WORD_CHAIN && humanCount > 0 -> "각자 ${s.turnInRound / humanCount} / ${s.turnsInRound / humanCount}번"
+    else -> "${s.turnInRound} / ${s.turnsInRound} 문제"
+}
+
 @Composable
 private fun ScorePanel(container: AppContainer, s: SessionState, modifier: Modifier) {
     val session by container.coordinator.session.collectAsStateWithLifecycle()
@@ -568,7 +578,7 @@ private fun ScorePanel(container: AppContainer, s: SessionState, modifier: Modif
         Hairline()
         Text("판 진행", style = MaterialTheme.typography.labelSmall, color = c.muted)
         Text(
-            if (s.turnsInRound > 0) "${s.turnInRound} / ${s.turnsInRound} 문제" else "-",
+            roundProgressLabel(s, players.size),
             style = MaterialTheme.typography.titleMedium,
             color = c.ink,
         )

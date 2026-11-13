@@ -301,16 +301,32 @@ class GameSessionTest {
     @Test
     fun wordChain_lastTurnOfRound_endsWithoutPassingOn() = runTest {
         val env = Env(this)
-        // 4문제 판: 아빠·조수석·아빠 정답, 조수석 마지막 차례 무응답
+        // 판당 2(사람마다 2번): 아빠·조수석·아빠 정답, 조수석 마지막 차례 무응답
         val speech = FakeSpeech(env.clock, listOf(1500L, 1500L, 1500L, 9_000L)) { it.correctAnswer }
         val rec = Recorder()
-        val s = session(env, speech, rec, listOf(driver, kid), plan(GameKind.WORD_CHAIN, 4), DriverBaseline(1500.0, 0.9, 10))
+        val s = session(env, speech, rec, listOf(driver, kid), plan(GameKind.WORD_CHAIN, 2), DriverBaseline(1500.0, 0.9, 10))
         val job = launch { s.run() }
         advanceTimeBy(120_000)
         val passLines = speech.spoken.count { it.contains(WordChainGame.PASS_LINE) }
         assertEquals("마지막 차례의 무응답은 다음 사람에게 넘기지 않는다", 0, passLines)
         assertTrue(speech.spoken.any { it == "시간이 다 됐어요!" })
         assertTrue(speech.spoken.any { it.startsWith("끝말잇기 한 판 끝!") })
+        job.cancel()
+    }
+
+    @Test
+    fun wordChain_eachPlayerAnswersTheRoundCount() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val rec = Recorder()
+        // 판당 3 → 아빠 3번 · 조수석 3번 (모두 합쳐 3번이 아니다 — 11/13 사용자 결정)
+        val s = session(env, speech, rec, listOf(driver, kid), plan(GameKind.WORD_CHAIN, 3))
+        val job = launch { s.run() }
+        advanceTimeBy(180_000)
+        assertTrue(speech.spoken.any { it.startsWith("끝말잇기 한 판 끝!") })
+        assertEquals(3, speech.spoken.count { it.startsWith("아빠 차례예요!") })
+        assertEquals(3, speech.spoken.count { it.startsWith("조수석 차례예요!") })
+        assertEquals(6, s.state.value.turnsInRound)
         job.cancel()
     }
 

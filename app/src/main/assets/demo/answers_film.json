@@ -1,11 +1,19 @@
 {
   "name": "film",
-  "description": "시연 영상 촬영 순서용 (데모 모드 판당 4문제, 운전자+조수석). 1판 끝말잇기: 아빠·조수석·아빠 2.6~3.3초 정답, 조수석 마지막 차례 무응답으로 판 끝. 2판 지역 퀴즈: 1·2번 2.2~2.7초 정답, 3번(운전자) 6.5초로 느리게 — 디버그 '2단계 시험(다음 느린 운전자 답 뒤)'과 함께 쓴다. 그 뒤(3분할 판)는 2.4~3.4초. 쉬어 가기 질문에는 2.5초 뒤 '네'. answer 가 null 이면 무응답",
+  "description": "시연 영상 촬영 순서용 (데모 모드 판당 6문제, 운전자+조수석). 1판 끝말잇기(사람마다 6번): 아빠 2.5~2.8초·조수석 2.9~3.3초 정답, 조수석 마지막(6번째) 차례 무응답으로 판 끝. 2판 지역 퀴즈: 1·2번 2.2~2.7초 정답, 3번(운전자) 6.5초로 느리게 — 디버그 '2단계 시험(다음 느린 운전자 답 뒤)'과 함께 쓴다. 그 뒤(3분할 판)는 2.4~3.4초. 쉬어 가기 질문에는 2.5초 뒤 '네'. answer 가 null 이면 무응답",
   "yesNoDelayMs": 2500,
   "entries": [
     { "delayMs": 2600, "answer": "{correct}" },
     { "delayMs": 3000, "answer": "{correct}" },
+    { "delayMs": 2700, "answer": "{correct}" },
+    { "delayMs": 3200, "answer": "{correct}" },
+    { "delayMs": 2500, "answer": "{correct}" },
+    { "delayMs": 2900, "answer": "{correct}" },
+    { "delayMs": 2800, "answer": "{correct}" },
+    { "delayMs": 3100, "answer": "{correct}" },
+    { "delayMs": 2600, "answer": "{correct}" },
     { "delayMs": 3300, "answer": "{correct}" },
+    { "delayMs": 2700, "answer": "{correct}" },
     { "delayMs": 9000, "answer": null },
     { "delayMs": 2200, "answer": "{correct}" },
     { "delayMs": 2700, "answer": "{correct}" },
@@ -13,7 +21,7 @@
     { "delayMs": 2400, "answer": "{correct}" },
     { "delayMs": 3000, "answer": "{correct}" },
     { "delayMs": 2600, "answer": "{correct}" },
-    { "delayMs": 3400, "answer": "{wrong}" },
+    { "delayMs": 3400, "answer": "{correct}" },
     { "delayMs": 2800, "answer": "{correct}" },
     { "delayMs": 3200, "answer": "{correct}" }
   ]
