@@ -119,8 +119,11 @@ class GameSessionTest {
         override fun onStage2(driver: Player, suggestion: RestStopSuggestion?) {
             stage2Offers += suggestion
         }
+        /** 코디네이터처럼 결정 뒤 게임을 멈추게 할 때 쓴다 */
+        var afterDecision: (Boolean) -> Unit = {}
         override fun onRestDecision(suggestion: RestStopSuggestion?, accepted: Boolean) {
             restDecisions += accepted
+            afterDecision(accepted)
         }
         override fun onVoiceRoundActive(active: Boolean) {
             voiceRound += active
@@ -174,6 +177,7 @@ class GameSessionTest {
         advanceTimeBy(120_000)
         assertEquals(SessionPhase.ALL_DONE, s.state.value.phase)
         assertEquals(listOf(true, false), rec.voiceRound)
+        assertEquals("판이 끝나면 판정 줄도 지운다 (판 사이 인사 아래에 남지 않게)", null, s.state.value.lastAnswer)
         env.remain.value = 200 // 도착 5분 전
         advanceUntilIdle()
         val summary = assertNotNull(rec.summary).let { rec.summary!! }
@@ -239,6 +243,74 @@ class GameSessionTest {
         assertTrue("말로 답하는 법도 말한다", speech.spoken.any { it.endsWith("잠깐 쉬어 갈까요? 말로 '네' 또는 '괜찮아요'라고 해 주세요.") })
         assertTrue(speech.spoken.any { it.contains("좋아요. 오산 졸음쉼터에서 쉬어 가요") })
         assertEquals("2단계도 난이도 상한 -1", 2, s.drowsy.difficultyCap)
+        job.cancel()
+    }
+
+    @Test
+    fun stage2Test_afterSlowAnswer_waitsForASlowDriverAnswer() = runTest {
+        val env = Env(this)
+        // 기준값 1.5초 → 느림 = 3초 넘게. 1·2번은 빠르고 3번이 6.5초
+        val speech = FakeSpeech(env.clock, listOf(1500L, 1500L, 6500L, 1500L)) { if (it.yesNo) "네" else it.correctAnswer }
+        val rec = Recorder().apply { restSuggestion = osan }
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 6), DriverBaseline(1500.0, 0.9, 10))
+        s.requestStage2(GameSession.Stage2Test.NEXT_SLOW_ANSWER)
+        val job = launch { s.run() }
+        advanceTimeBy(60_000)
+        assertEquals(listOf<RestStopSuggestion?>(osan), rec.stage2Offers)
+        assertEquals("빠른 답 두 번은 넘긴다", 2, rec.logs.count { it.contains("다음 느린 답을 기다림") })
+        val offerAt = speech.spoken.indexOfFirst { it.contains("잠깐 쉬어 갈까요?") }
+        val questionsBefore = speech.spoken.take(offerAt).count { it.contains("아빠 차례예요!") }
+        assertEquals("셋째(느린) 답 뒤에 권한다", 3, questionsBefore)
+        job.cancel()
+    }
+
+    @Test
+    fun progress_risesWithTheScore_notAfterTheFeedback() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { it.correctAnswer }
+        val rec = Recorder()
+        val s = session(env, speech, rec, listOf(driver, kid), plan(GameKind.REGION_QUIZ, 4))
+        val job = launch { s.run() }
+        while (speech.spoken.none { it.startsWith("딩동댕") }) advanceTimeBy(50)
+        // 첫 결과 안내를 말하기 시작한 때 점수와 진행이 함께 올라 있다
+        assertEquals(10, s.state.value.scores[driver.id])
+        assertEquals(1, s.state.value.turnInRound)
+        job.cancel()
+    }
+
+    @Test
+    fun stage2_accepted_doesNotStartNextQuestionBeforeThePauseLands() = runTest {
+        val env = Env(this)
+        val speech = FakeSpeech(env.clock, listOf(1500L)) { if (it.yesNo) "네" else it.correctAnswer }
+        // 코디네이터의 REST_STOP 멈춤은 모드에 조금 늦게 닿는다
+        val rec = Recorder().apply {
+            restSuggestion = osan
+            afterDecision = { ok -> if (ok) launch { delay(50); env.mode.value = GameMode.PAUSED } }
+        }
+        val s = session(env, speech, rec, listOf(driver), plan(GameKind.REGION_QUIZ, 6), DriverBaseline(1500.0, 0.9, 10))
+        s.requestStage2()
+        val job = launch { s.run() }
+        advanceTimeBy(30_000)
+        val accepted = speech.spoken.indexOfFirst { it.contains("좋아요. 오산 졸음쉼터에서 쉬어 가요") }
+        assertTrue(accepted >= 0)
+        assertEquals("수락 뒤 멈춤이 닿기 전에 다음 문제를 내지 않는다", 0, speech.spoken.drop(accepted + 1).count { it.contains("차례예요!") })
+        assertEquals(0, rec.logs.count { it.contains("turn interrupted") })
+        job.cancel()
+    }
+
+    @Test
+    fun wordChain_lastTurnOfRound_endsWithoutPassingOn() = runTest {
+        val env = Env(this)
+        // 4문제 판: 아빠·조수석·아빠 정답, 조수석 마지막 차례 무응답
+        val speech = FakeSpeech(env.clock, listOf(1500L, 1500L, 1500L, 9_000L)) { it.correctAnswer }
+        val rec = Recorder()
+        val s = session(env, speech, rec, listOf(driver, kid), plan(GameKind.WORD_CHAIN, 4), DriverBaseline(1500.0, 0.9, 10))
+        val job = launch { s.run() }
+        advanceTimeBy(120_000)
+        val passLines = speech.spoken.count { it.contains(WordChainGame.PASS_LINE) }
+        assertEquals("마지막 차례의 무응답은 다음 사람에게 넘기지 않는다", 0, passLines)
+        assertTrue(speech.spoken.any { it == "시간이 다 됐어요!" })
+        assertTrue(speech.spoken.any { it.startsWith("끝말잇기 한 판 끝!") })
         job.cancel()
     }
 

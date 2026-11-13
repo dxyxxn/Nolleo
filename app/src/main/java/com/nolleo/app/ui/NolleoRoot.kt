@@ -47,6 +47,8 @@ fun NolleoRoot(container: AppContainer, vm: MainViewModel) {
     LaunchedEffect(closeScreenGame) {
         if (closeScreenGame) vm.setOpenScreenGame(null)
     }
+    // 디버그 패널을 여는 동안 게임을 멈춘다 (패널 설정에서 끌 수 있음)
+    LaunchedEffect(debugOpen) { coordinator.onDebugPanel(debugOpen) }
 
     Box(Modifier.fillMaxSize().background(Nl.colors.ground).safeDrawingPadding()) {
         Column(Modifier.fillMaxSize()) {

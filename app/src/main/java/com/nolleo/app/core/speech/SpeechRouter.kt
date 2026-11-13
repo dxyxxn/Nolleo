@@ -20,6 +20,8 @@ enum class AnswerInput(val label: String, val scriptAsset: String?) {
     MIC("마이크", null),
     SCRIPT_NORMAL("대본 normal", "demo/answers_normal.json"),
     SCRIPT_SLEEPY("대본 sleepy", "demo/answers_sleepy.json"),
+    /** 시연 영상 촬영 순서(끝말잇기 → 지역 퀴즈 → 3분할 판)에 맞춘 대본 — 2~4초 응답, 운전자 셋째 문제만 느리게 */
+    SCRIPT_FILM("대본 film", "demo/answers_film.json"),
     MANUAL("직접 입력", null),
 }
 

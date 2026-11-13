@@ -12,7 +12,7 @@ import kotlin.random.Random
  *  - 사람 낱말은 검증용 사전으로 판정. 없으면 한 번 "다시 한번 말해 줄래요?" 후 관대하게 인정 (가족 게임; 로그에는 남긴다)
  *  - 앱 차례에는 출제용 사전에서만, 졸음 케어 난이도 상한 안의 등급([WordLevel])으로, 다음 사람이 이을 수 있는 단어를 고른다
  *    (막다른 음절 회피). 막다른 말밖에 없으면 [RESTART_LINE] 으로 새 낱말부터 다시, 이을 말이 아예 없으면 "제가 졌어요!"
- *  - 사람이 못 이으면 같은 음절이 다음 사람에게 넘어간다
+ *  - 사람이 못 이으면 같은 음절이 다음 사람에게 넘어간다. 판의 마지막 차례([TurnContext.lastInRound])면 넘기지 않고 판이 끝난다
  *  - 말하는 순서(11/11): 놀레오는 "저는 '이빨' 할게요!"(낱말만), 사람 차례는 "아빠 차례예요! '빨'로 시작하는 말!"(누구 차례 먼저).
  *    놀레오도 사람과 같은 한 차례로 보고, 낱말을 말한 뒤 [TURN_HOLD_MS] 쉬고 다음 차례로 넘어간다(엔진이 쉰다)
  */
@@ -96,7 +96,9 @@ class WordChainGame(
         val starts = Hangul.allowedStarts(required)
         // 누구 차례를 먼저, 그다음 무엇으로 시작할지 (11/11 — 전에는 "'이'로 시작하는 말, 조수석 차례예요!")
         val prompt = "${ctx.player.name} 차례예요! ${startsWithPhrase(required)} 시작하는 말!"
-        val sample = dictionary.pickNext(required, used, random, avoidDeadEnd = false, difficultyCap = ctx.difficultyCap)
+        // 대본 엔진의 "정답" 낱말 — 놀레오가 이을 수 있는 말을 먼저 고른다 (막다른 말이면 시연 판이 "제가 졌어요"로 일찍 끝난다)
+        val sample = dictionary.pickNext(required, used, random, avoidDeadEnd = true, difficultyCap = ctx.difficultyCap)
+            ?: dictionary.pickNext(required, used, random, avoidDeadEnd = false, difficultyCap = ctx.difficultyCap)
         return Turn(
             player = ctx.player,
             prompt = prompt,
@@ -108,6 +110,7 @@ class WordChainGame(
                 wrongAnswer = dictionary.randomNotStartingWith(starts, random),
                 forDriver = ctx.player.isDriver,
             ),
+            lastInRound = ctx.lastInRound,
         )
     }
 
@@ -131,11 +134,14 @@ class WordChainGame(
 
     override fun judge(turn: Turn, answer: String?, attempt: Int): Judgement {
         val required = requiredSyllable() ?: '가'
+        // 판의 마지막 차례면 다음 사람에게 넘기지 않는다 — 판이 여기서 끝난다 (11/13 시연 피드백)
+        val passOn = if (turn.lastInRound) "" else " $PASS_LINE"
         if (answer.isNullOrBlank()) {
-            return Judgement(Outcome.NO_ANSWER, "시간이 다 됐어요! 다음 사람이 이어 볼까요?", correct = false, label = "무응답")
+            return Judgement(Outcome.NO_ANSWER, "시간이 다 됐어요!$passOn", correct = false, label = "무응답")
         }
         val word = extractWord(answer, required)
         val starts = Hangul.allowedStarts(required)
+        fun miss(feedback: String, label: String) = Judgement(Outcome.WRONG, feedback + passOn, correct = false, label = label)
         return when {
             word.length < 2 || !word.all(Hangul::isSyllable) ->
                 if (attempt == 1) retry() else miss("두 글자 이상 낱말로 말해 주세요.", "짧은 말")
@@ -154,9 +160,6 @@ class WordChainGame(
     }
 
     private fun retry() = Judgement(Outcome.RETRY, "다시 한번 말해 줄래요?", correct = null, label = "다시 듣기")
-
-    private fun miss(feedback: String, label: String) =
-        Judgement(Outcome.WRONG, "$feedback 다음 사람이 이어 볼까요?", correct = false, label = label)
 
     private fun accept(word: String, lenient: Boolean): Judgement {
         used += word
@@ -188,6 +191,9 @@ class WordChainGame(
 
         /** 앱이 이을 말이 막다른 말뿐일 때 — 판을 끝내지 않고 새 낱말로 다시 시작한다 */
         const val RESTART_LINE = "이 말은 잇기 어렵네요, 다른 말로 다시 시작할까요?"
+
+        /** 사람이 못 이었을 때 같은 음절을 다음 사람에게 넘기는 말 — 판의 마지막 차례에는 붙이지 않는다 */
+        const val PASS_LINE = "다음 사람이 이어 볼까요?"
 
         /**
          * 한 차례가 끝나고 다음 차례까지 쉬는 시간 (11/11 팀 피드백) — 주행 중·정차 중 같은 값.

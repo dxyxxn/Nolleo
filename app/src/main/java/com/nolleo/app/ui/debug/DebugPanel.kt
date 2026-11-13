@@ -41,6 +41,7 @@ import com.nolleo.app.core.navi.TripUnits
 import com.nolleo.app.core.speech.AnswerInput
 import com.nolleo.app.core.speech.ScriptedSpeechEngine
 import com.nolleo.app.core.speech.SpeechMode
+import com.nolleo.app.domain.engine.GameSession
 import com.nolleo.app.domain.model.GearPosition
 import com.nolleo.app.domain.rest.RestStopFinder
 import com.nolleo.app.ui.theme.Nl
@@ -93,6 +94,7 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
     val restAreas by container.content.restAreas.collectAsStateWithLifecycle()
     val serviceAreas by container.content.serviceAreas.collectAsStateWithLifecycle()
     val rest by coordinator.restCare.state.collectAsStateWithLifecycle()
+    val pauseWhileOpen by coordinator.pauseWhileDebugOpen.collectAsStateWithLifecycle()
     val restDistance by coordinator.restCare.distanceM.collectAsStateWithLifecycle()
 
     Column(
@@ -111,6 +113,7 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
             Line("모드 ${decision.mode.label} · 주행 ${decision.driveState.label} (${decision.reason}) · 정지사유 ${reasons.joinToString { it.name }.ifEmpty { "-" }}")
             Line("규제 DO=${ux.requiresDO} bits=${ux.activeRestrictions} (${if (uxReal) "실제 CarUxRestrictions" else "시뮬"}) · 포커스 ${if (focus) "보유" else "없음"}")
             Toggle("데모 모드(판당 ${com.nolleo.app.domain.engine.SessionPlanner.DEMO_QUESTION_COUNT}문제·기준값 시드)", settings.demoMode) { coordinator.setDemoMode(it) }
+            Toggle("패널 여는 동안 게임 멈춤(말하기·듣기·여정 시간 — 닫으면 같은 문제부터)", pauseWhileOpen) { coordinator.setPauseWhileDebugOpen(it) }
         }
 
         Section("차량 — ${carKind.label}") {
@@ -142,6 +145,7 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DevButton("남은 5분으로") { coordinator.simJumpRemain(5 * 60) }
                 DevButton("남은 30분으로") { coordinator.simJumpRemain(30 * 60) }
+                DevButton("내비 남은 시간으로") { coordinator.simJumpToNaviRemain() }
                 DevButton("TBT 분기점 300m") { coordinator.simTriggerTbt() }
             }
             Line("시뮬 배율: 실제 1분 = 여정 ${scale.toInt()}분")
@@ -172,7 +176,7 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 AnswerInput.entries.forEach { a -> DevButton(a.label + if (settings.answerInput == a) " ✓" else "") { coordinator.setAnswerInput(a) } }
             }
-            Line("직접 응답 (대본 엔진이 듣는 중일 때) ${if (scriptedListening) "· 듣는 중" else ""}")
+            Line("직접 응답 (대본 엔진이 듣는 중일 때 — 위 '패널 여는 동안 게임 멈춤'을 꺼야 씀) ${if (scriptedListening) "· 듣는 중" else ""}")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 DevButton("정답") { coordinator.manualAnswer(ScriptedSpeechEngine.ManualAnswer.Correct) }
                 DevButton("오답") { coordinator.manualAnswer(ScriptedSpeechEngine.ManualAnswer.Wrong) }
@@ -219,7 +223,9 @@ fun DebugPanel(container: AppContainer, onClose: () -> Unit) {
             Line("지금 걸리면 권할 곳: ${pick?.let { "${it.name} ${it.distanceLabel} (${it.source.label})${it.facilityLine?.let { f -> " · $f" } ?: ""}" } ?: "없음"}")
             Line("쉬어 가기 상태: ${restLabel(rest, restDistance)}")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                DevButton("2단계 시험 (다음 운전자 답 뒤)", enabled = session != null) { coordinator.simStage2() }
+                GameSession.Stage2Test.entries.forEach { t ->
+                    DevButton("2단계 시험 (${t.label})", enabled = session != null) { coordinator.simStage2(t) }
+                }
                 DevButton("쉼터 도착 (시뮬)", enabled = rest is RestCareController.State.Heading) { coordinator.simRestArrival() }
                 DevButton("운전자 기준값 초기화") { coordinator.resetBaseline() }
                 DevButton("여정 끝내기") { coordinator.endSession() }

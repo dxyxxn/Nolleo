@@ -112,7 +112,8 @@ fun VoiceGameScreen(container: AppContainer, modifier: Modifier = Modifier) {
                 Row(horizontalArrangement = Arrangement.spacedBy(Sp.s)) {
                     if (s.plan.roundCount > 0 && s.roundGame != null) Chip("${s.roundIndex + 1}/${s.plan.roundCount}판 · ${s.roundGame.label}")
                     regionName?.let { Chip(it) }
-                    if (tripKind == TripSourceKind.SIMULATED) Chip("시뮬레이션 여정")
+                    // 데모 모드(시연 영상 촬영)에서는 숨긴다 — 11/13 사용자 결정. 여정 소스는 디버그 패널 여정 칸에 있다
+                    if (tripKind == TripSourceKind.SIMULATED && session?.demo != true) Chip("시뮬레이션 여정")
                 }
                 Spacer(Modifier.height(Sp.xl))
 

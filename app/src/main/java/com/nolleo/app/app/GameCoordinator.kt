@@ -128,6 +128,12 @@ class GameCoordinator(private val c: AppContainer) {
     /** 놀레오 화면이 보이는 중 (onStart ~ onStop) */
     private var visible = false
 
+    /** 디버그 패널을 여는 동안 게임을 멈출지 (11/13). 패널을 여는 동안 게임을 멈출지. 직접 응답 버튼(듣는 중에만 들어감)을 쓰려면 끈다. 앱을 다시 켜면 켜짐 */
+    private val _pauseWhileDebugOpen = MutableStateFlow(true)
+    val pauseWhileDebugOpen: StateFlow<Boolean> = _pauseWhileDebugOpen.asStateFlow()
+    private val debugPanelOpen = MutableStateFlow(false)
+    private val debugHold = MutableStateFlow(false)
+
     /** 최근 목적지로 출발한 시각 — 내비가 놀레오를 덮었으면 길 안내가 시작될 때 다시 앞으로 온다 ([returnAfterRouteStarted]) */
     private var placeStartedAtMs: Long? = null
 
@@ -249,8 +255,10 @@ class GameCoordinator(private val c: AppContainer) {
         // 출발 등으로 화면 게임을 벗어나면 화면 게임 읽기를 즉시 멈춘다
         gameMode.onEach { m -> if (m != GameMode.SCREEN) stopScreenGames("mode=${m.name}") }.launchIn(scope)
         // 시뮬 여정은 주차 중에, 그리고 쉬어 가기를 묻는 동안 멈춘다 — 30배속이라 질문하는 15초에 11 km 를 지나
-        // 권한 쉼 장소를 수락 전에 지나쳐 버리기 때문 (실제 내비는 해당 없음)
-        combine(driveState, restCare.state) { d, rest -> d != DriveState.PARKED && !(rest is RestCareController.State.Offered && !rest.answered) }
+        // 권한 쉼 장소를 수락 전에 지나쳐 버리기 때문 (실제 내비는 해당 없음). 디버그 패널로 게임을 멈춘 동안도 멈춘다
+        combine(driveState, restCare.state, debugHold) { d, rest, hold ->
+            d != DriveState.PARKED && !(rest is RestCareController.State.Offered && !rest.answered) && !hold
+        }
             .onEach { c.tripRepository.setMoving(it) }
             .launchIn(scope)
     }
@@ -881,10 +889,58 @@ class GameCoordinator(private val c: AppContainer) {
         c.locationRepository.manualRegion.value = code
     }
     fun simJumpRemain(sec: Int) = c.tripRepository.jumpToRemain(sec)
+
+    /**
+     * 시뮬·타이머 여정의 남은 시간을 내비 길 안내의 남은 시간에 맞춘다 (시연 촬영: 실제 내비로 출발하는 장면 뒤에 시뮬 여정으로
+     * 이어 찍을 때 "도착까지 남은 시간"이 거꾸로 늘지 않게 — 11/13). 길 안내가 없으면 그대로 둔다.
+     */
+    fun simJumpToNaviRemain() {
+        val remain = c.naviTrip.activeNaviDestination.value?.remainTimeSec
+        if (remain == null || remain <= 0) {
+            AppLog.w(TAG, "내비 길 안내의 남은 시간을 몰라 여정을 그대로 둠")
+            return
+        }
+        AppLog.i(TAG, "여정 남은 시간을 내비에 맞춤 → ${TripUnits.formatDuration(remain)}")
+        c.tripRepository.jumpToRemain(remain)
+    }
+
     fun simTriggerTbt() = c.simTrip.triggerTbt()
-    fun simStage2() = _session.value?.requestStage2()
+    fun simStage2(test: GameSession.Stage2Test = GameSession.Stage2Test.NEXT_ANSWER) = _session.value?.requestStage2(test)
     fun simRestArrival() = restCare.arrive("디버그 패널")
     fun manualAnswer(answer: ScriptedSpeechEngine.ManualAnswer) = c.scriptedSpeech.submitManual(answer)
+
+    // ── 디버그 패널을 여는 동안 게임 멈춤 (11/13 — 시연 촬영 때 패널 장면을 잘라 내기 쉽게) ──
+
+
+    /** 화면에서 디버그 패널이 열리고 닫힐 때 */
+    fun onDebugPanel(open: Boolean) {
+        debugPanelOpen.value = open
+        applyDebugHold()
+    }
+
+    fun setPauseWhileDebugOpen(on: Boolean) {
+        _pauseWhileDebugOpen.value = on
+        applyDebugHold()
+    }
+
+    /**
+     * 열려 있으면: 음성 판을 [PauseReason.DEBUG_PANEL] 로 멈추고(말하기·듣기 즉시 중단, 시뮬·시간 여정도 멈춤),
+     * 정차 중 화면 게임 읽기도 멈춘다. 닫으면 1초 뒤 같은 문제부터 — 화면 게임은 다른 멈춤처럼 저절로 다시 읽지 않는다.
+     */
+    private fun applyDebugHold() {
+        val hold = debugPanelOpen.value && _pauseWhileDebugOpen.value
+        if (hold == debugHold.value) return
+        debugHold.value = hold
+        if (hold) {
+            AppLog.i(TAG, "디버그 패널 → 게임 멈춤 (여정 시간도)")
+            mode.addPause(PauseReason.DEBUG_PANEL)
+            stopScreenGames("디버그 패널")
+        } else {
+            AppLog.i(TAG, "디버그 패널 멈춤 풀림 → 같은 문제부터 이어서")
+            c.speechRouter.markNewStream()
+            mode.removePause(PauseReason.DEBUG_PANEL)
+        }
+    }
 
     /** 디버그 "운전자 기준값 초기화". 세션 중이면 지금 세션도 다음 응답부터 다시 기준을 만든다 (끝날 때 옛 값을 다시 저장하지 않게) */
     fun resetBaseline() {

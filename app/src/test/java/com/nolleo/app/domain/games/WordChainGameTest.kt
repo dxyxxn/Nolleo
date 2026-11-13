@@ -129,6 +129,23 @@ class WordChainGameTest {
     }
 
     @Test
+    fun missOnLastTurnOfRound_doesNotPassToNextPerson() {
+        val g = WordChainGame(WordDictionary(listOf("기차", "차표", "사과")), Random(1))
+        g.restoreState(mapOf("used" to "기차", "lastWord" to "기차"))
+        val middle = g.nextTurn(TurnContext(driver, kid, null, 3))!!
+        assertTrue(g.judge(middle, null, 1).feedback.endsWith(WordChainGame.PASS_LINE))
+        assertTrue(g.judge(middle, "사과", 1).feedback.endsWith(WordChainGame.PASS_LINE))
+        // 판의 마지막 차례: 다음 사람에게 넘기지 않는다 (11/13 시연 피드백 — 판이 여기서 끝난다)
+        val last = g.nextTurn(TurnContext(kid, Player.APP, null, 3, lastInRound = true))!!
+        val timeUp = g.judge(last, null, 1)
+        assertEquals(Outcome.NO_ANSWER, timeUp.outcome)
+        assertEquals("시간이 다 됐어요!", timeUp.feedback)
+        val wrong = g.judge(last, "사과", 1)
+        assertEquals(Outcome.WRONG, wrong.outcome)
+        assertFalse(wrong.feedback.contains(WordChainGame.PASS_LINE))
+    }
+
+    @Test
     fun appLoses_whenNoContinuation() {
         val g = WordChainGame(WordDictionary(listOf("기차", "차표", "가름")), Random(1))
         g.restoreState(mapOf("used" to "가름", "lastWord" to "가름"))

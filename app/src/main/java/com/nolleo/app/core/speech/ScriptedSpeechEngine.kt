@@ -16,11 +16,20 @@ import kotlinx.coroutines.withTimeoutOrNull
 /** 대본 한 줄: [delayMs] 뒤에 [answer] 를 말한다. answer == null 이면 무응답(타임아웃). */
 data class ScriptEntry(val delayMs: Long, val answer: String?)
 
-/** [driverOnly] 이면 대본은 운전자 차례에만 쓰고, 동승자는 평소 속도(1.2~1.8초 정답)로 답한다. */
-data class AnswerScript(val name: String, val entries: List<ScriptEntry>, val driverOnly: Boolean = false) {
+/**
+ * [driverOnly] 이면 대본은 운전자 차례에만 쓰고, 동승자는 평소 속도(1.2~1.8초 정답)로 답한다.
+ * [yesNoDelayMs] 는 쉬어 가기 같은 네/아니요 질문에 "네"라고 답하기까지 (대본 순서를 쓰지 않는다).
+ */
+data class AnswerScript(
+    val name: String,
+    val entries: List<ScriptEntry>,
+    val driverOnly: Boolean = false,
+    val yesNoDelayMs: Long = DEFAULT_YES_NO_DELAY_MS,
+) {
     companion object {
         const val CORRECT = "{correct}"
         const val WRONG = "{wrong}"
+        const val DEFAULT_YES_NO_DELAY_MS = 1_500L
     }
 }
 
@@ -90,7 +99,7 @@ class ScriptedSpeechEngine(private val clock: Clock) : SpeechEngine {
             val script = _script.value
             val entry = when {
                 // 네/아니요 질문은 대본 순서를 쓰지 않는다 (수동 버튼: 정답=네, 오답=아니요, 무응답)
-                hint.yesNo && script != null -> ScriptEntry(YES_NO_DELAY_MS, AnswerScript.CORRECT)
+                hint.yesNo && script != null -> ScriptEntry(script.yesNoDelayMs, AnswerScript.CORRECT)
                 script != null && script.driverOnly && !hint.forDriver ->
                     ScriptEntry(PASSENGER_DELAYS[passengerCursor++ % PASSENGER_DELAYS.size], AnswerScript.CORRECT)
                 else -> nextEntry()
@@ -149,7 +158,6 @@ class ScriptedSpeechEngine(private val clock: Clock) : SpeechEngine {
         /** 발화 속도: 글자당 ms (데모 녹화가 늘어지지 않게 실제 TTS 보다 약간 빠르게) */
         private const val MS_PER_CHAR = 55L
         private const val FINALIZE_MS = 250L
-        private const val YES_NO_DELAY_MS = 1_500L
         private val PASSENGER_DELAYS = listOf(1_200L, 1_600L, 1_400L, 1_800L)
     }
 }

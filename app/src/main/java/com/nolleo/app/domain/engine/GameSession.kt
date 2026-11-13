@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.random.Random
 
 /**
@@ -112,7 +113,11 @@ class GameSession(
 
     private val restDecision = MutableStateFlow<Boolean?>(null)
     @Volatile private var awaitingRestDecision = false
-    @Volatile private var forceStage2 = false
+
+    /** 디버그 "2단계 시험" — 다음 운전자 답 뒤에 낼지, 다음 느린 운전자 답 뒤에 낼지 */
+    enum class Stage2Test(val label: String) { NEXT_ANSWER("다음 운전자 답 뒤"), NEXT_SLOW_ANSWER("다음 느린 운전자 답 뒤") }
+
+    @Volatile private var forceStage2: Stage2Test? = null
     /** 한 번 말할 안내(졸음쉼터 도착·다시 출발). 판 사이 쉬는 시간에도 VOICE 가 되면 바로 말한다 */
     private data class Announcement(val line: String)
     private val announcement = MutableStateFlow<Announcement?>(null)
@@ -127,10 +132,14 @@ class GameSession(
         say(a.line, SessionPhase.FEEDBACK)
     }
 
-    /** 디버그 패널 "2단계 시험": 다음 운전자 답 뒤에 2단계를 낸다 */
-    fun requestStage2() {
-        forceStage2 = true
-        callbacks.log("Drowsiness: 2단계 시험 예약 (다음 운전자 답 뒤)")
+    /**
+     * 디버그 패널 "2단계 시험": 다음 운전자 답 뒤에 2단계를 낸다.
+     * [Stage2Test.NEXT_SLOW_ANSWER] 는 느린 답([DrowsinessMonitor.looksSlow])을 기다린다 — 시연 영상에서 응답이 늦어지는
+     * 모습 바로 뒤에 쉬어 가기를 권하게 (11/13 시연 피드백: 빠른 답 뒤에 권유가 뜨면 왜 권하는지 화면으로 안 보인다)
+     */
+    fun requestStage2(test: Stage2Test = Stage2Test.NEXT_ANSWER) {
+        forceStage2 = test
+        callbacks.log("Drowsiness: 2단계 시험 예약 (${test.label})")
     }
 
     /** 화면의 "쉬어 가기"/"괜찮아요" 버튼. 음성 질문을 기다리는 중이면 그 답으로 쓰고 true */
@@ -185,6 +194,9 @@ class GameSession(
             say("알겠어요. 대신 다음 문제는 쉬운 걸로 갈게요. 피곤하면 언제든 쉬어 가요.", SessionPhase.FEEDBACK)
         }
         callbacks.onRestDecision(suggestion, accepted == true)
+        // 수락하면 코디네이터가 게임을 쉬게 한다(PauseReason.REST_STOP) — 그 멈춤이 모드에 닿기 전에 다음 문제를 내기
+        // 시작하지 않게 잠깐 기다린다 (11/13: 몇 ms 동안 다음 문제를 냈다가 끊는 일이 있었다)
+        if (accepted == true) withTimeoutOrNull(REST_PAUSE_WAIT_MS) { inputs.mode.first { it != GameMode.VOICE } }
     }
 
     private data class Decision(val value: Boolean?)
@@ -278,7 +290,9 @@ class GameSession(
     }
 
     suspend fun run() = coroutineScope {
-        callbacks.log("session start: ${plan.roundCount} rounds, players=${players.size}, choice=$choice, demo=$demo")
+        // 판 순서도 남긴다 — "랜덤"은 홈에서 순서를 보여 주지 않아서, 시연 촬영 전에 로그로 확인한다
+        val order = plan.rounds.drop(roundIndex).take(3).joinToString(" → ") { it.game.label }
+        callbacks.log("session start: ${plan.roundCount} rounds ($order …), players=${players.size}, choice=$choice, demo=$demo")
         val regionJob = launch {
             inputs.regionCode.filterNotNull().collect { code ->
                 _state.update { s -> if (s.regionsVisited.lastOrNull() == code) s else s.copy(regionsVisited = s.regionsVisited + code) }
@@ -485,9 +499,10 @@ class GameSession(
             val restoredQuizTurn = pendingQuestionId?.takeIf { game === quiz && player.id != Player.APP.id }
                 ?.let { id -> quiz.turnFor(id, player) }
             pendingQuestionId = null
+            val lastInRound = player.id != Player.APP.id && humanTurns + 1 >= round.questionCount
             val turn = pendingTurn
                 ?: restoredQuizTurn
-                ?: game.nextTurn(TurnContext(player, next, inputs.regionCode.value, drowsy.difficultyCap))
+                ?: game.nextTurn(TurnContext(player, next, inputs.regionCode.value, drowsy.difficultyCap, lastInRound))
                 ?: break
             pendingTurn = turn
 
@@ -524,12 +539,18 @@ class GameSession(
             pendingTurn = null
             heard?.let { callbacks.logSensitive("heard(${player.name})", it) }
             applyScore(player, judgement)
-            _state.update { it.copy(lastAnswer = AnswerLine(player.name, heard, judgement.label), partial = null) }
+            // 점수와 같은 때에 `n/N 문제`도 올린다 — 전에는 결과 안내·판정 줄을 다 보여 준 뒤에 올라 몇 초 동안 점수와 어긋났다 (11/13)
+            _state.update { it.copy(lastAnswer = AnswerLine(player.name, heard, judgement.label), partial = null, turnInRound = humanTurns + 1) }
 
             var action = if (player.isDriver) recordDrowsy(first, judgement, eligible = !firstHumanTurn && !interrupted) else DrowsinessMonitor.Action.None
-            if (player.isDriver && forceStage2) {
-                forceStage2 = false
-                action = drowsy.forceStage2(clock.wallMs())
+            val trigger = forceStage2
+            if (player.isDriver && trigger != null) {
+                if (trigger == Stage2Test.NEXT_ANSWER || drowsy.looksSlow(first.latencyMs)) {
+                    forceStage2 = null
+                    action = drowsy.forceStage2(clock.wallMs())
+                } else {
+                    callbacks.log("Drowsiness: 2단계 시험 — 느리지 않은 답(${first.latencyMs}ms)이라 다음 느린 답을 기다림")
+                }
             }
 
             say(judgement.feedback, SessionPhase.FEEDBACK)
@@ -561,8 +582,12 @@ class GameSession(
         wrapLine?.let { say(it, SessionPhase.ROUND_END) }
         if (inputs.mode.value == GameMode.VOICE) say("${game.outro()} ${scoreLine()}", SessionPhase.ROUND_END)
         (game as? WordChainGame)?.let { longestChain = maxOf(longestChain, it.chainLength) }
+        // 판정 줄도 지운다 — 남겨 두면 판 사이 인사("잘 쉬셨나요?") 아래에 지난 판의 마지막 답이 보인다 (11/13)
         _state.update {
-            it.copy(roundsPlayed = it.roundsPlayed + round.game, currentPlayer = null, display = null, shortDisplay = null, chainWords = emptyList())
+            it.copy(
+                roundsPlayed = it.roundsPlayed + round.game, currentPlayer = null, display = null, shortDisplay = null,
+                chainWords = emptyList(), lastAnswer = null,
+            )
         }
         currentGame = null
         chain = null
@@ -803,6 +828,9 @@ class GameSession(
     companion object {
         /** 일시정지 해제(GAIN 등) 후 같은 문제를 다시 낼 때까지 (1초 뒤 재출제) */
         const val RESUME_DELAY_MS = 1_000L
+
+        /** 쉬어 가기를 수락한 뒤 게임이 실제로 멈출 때까지 기다리는 최대 시간 */
+        private const val REST_PAUSE_WAIT_MS = 1_000L
 
         /**
          * 판 시작 화면 글 — `1번째 판` 한 줄, 그 뒤 소개 문장마다 한 줄 (11/12 사용자 요청: 한 덩어리로 줄바꿈되던 것을 문장마다).

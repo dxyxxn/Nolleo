@@ -111,6 +111,7 @@ class ContentRepository(context: Context) {
             AnswerScript(
                 name = root.optString("name", input.label),
                 driverOnly = root.optBoolean("driverOnly", false),
+                yesNoDelayMs = root.optLong("yesNoDelayMs", AnswerScript.DEFAULT_YES_NO_DELAY_MS),
                 entries = (0 until arr.length()).map { i ->
                     val o = arr.getJSONObject(i)
                     ScriptEntry(

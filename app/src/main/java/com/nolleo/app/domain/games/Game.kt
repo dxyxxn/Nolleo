@@ -12,6 +12,8 @@ data class TurnContext(
     val regionCode: String?,
     /** 졸음 케어가 내린 난이도 상한 (1~3) */
     val difficultyCap: Int,
+    /** 판의 마지막 사람 차례 — 못 이어도 "다음 사람이 이어 볼까요?"라고 하지 않는다 (판이 여기서 끝난다) */
+    val lastInRound: Boolean = false,
 )
 
 /** 한 차례 = 출제(TTS) → (필요하면) 듣기 */
@@ -31,6 +33,8 @@ data class Turn(
     val difficulty: Int = 1,
     /** 일시정지 후 다시 낼 때 쓰는 문장 (prompt 가 비어 있는 차례 대비) */
     val reprompt: String = "",
+    /** [TurnContext.lastInRound] 를 판정까지 넘긴다 */
+    val lastInRound: Boolean = false,
 )
 
 enum class Outcome { CORRECT, WRONG, NO_ANSWER, RETRY, ACCEPTED_LENIENT }

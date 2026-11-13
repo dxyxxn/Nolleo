@@ -100,6 +100,10 @@ class DrowsinessMonitor(
     fun isSlow(latencyMs: Long, baselineMs: Double): Boolean =
         latencyMs > max(baselineMs * config.slowRatio, baselineMs + config.slowExtraMs)
 
+    /** 지금 기준값으로 느린 답인가. 기준값을 만드는 중이면 무응답 타임아웃의 절반 이상을 느림으로 본다 (디버그 "2단계 시험") */
+    fun looksSlow(latencyMs: Long): Boolean =
+        baseline?.let { isSlow(latencyMs, it.latencyEmaMs) } ?: (latencyMs >= config.timeoutMs / 2)
+
     /** @param nowMs 쿨다운 계산용 시각(벽시계 ms) */
     fun record(sample: ResponseSample, nowMs: Long): Action {
         val base = baseline

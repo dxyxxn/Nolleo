@@ -235,7 +235,7 @@ class ContentAssetsTest {
 
     @Test
     fun demoScripts_parse() {
-        listOf("demo/answers_normal.json", "demo/answers_sleepy.json").forEach { path ->
+        listOf("demo/answers_normal.json", "demo/answers_sleepy.json", "demo/answers_film.json").forEach { path ->
             val entries = JSONObject(asset(path)).getJSONArray("entries")
             assertTrue(entries.length() >= 5)
         }

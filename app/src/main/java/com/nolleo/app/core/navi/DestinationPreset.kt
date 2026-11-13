@@ -55,9 +55,11 @@ data class DestinationPreset(
             latitude = 35.115225,
             longitude = 129.042243,
             estimatedMinutes = 250,
-            // 에뮬레이터 순정 내비의 부산역 경로(378 km)와 같은 길: 영동선 → 중부내륙선 → 대구 → 청도 → 부산
+            // 에뮬레이터 순정 내비의 부산역 경로(378 km)와 같은 길: 영동선 → 중부내륙선 → 대구 → 청도 → 부산.
+            // 11분(약 17 km)에 서울을 벗어나 경기도로 — 첫 쉼 장소(용인졸음쉼터, 12분쯤)는 경기도다 (11/13)
             timeline = listOf(
                 SEOUL_START,
+                RouteWaypoint(11, "gyeonggi", "경기 성남", 37.4000, 127.1100),
                 RouteWaypoint(17, "gyeonggi", "경기 용인", 37.2470, 127.2090),
                 RouteWaypoint(38, "gyeonggi", "경기 여주", 37.2980, 127.6370),
                 RouteWaypoint(63, "chungbuk", "충북 충주", 36.9910, 127.9260),
