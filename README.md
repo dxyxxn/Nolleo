@@ -1,26 +1,25 @@
 # 놀레오 (Nolleo)
 
-> **가는 길이 놀이가 되는 앱** — **놀레오(Nolleo)** 는 지루한 이동시간에 즐거움을 더해 행복한 이동이 될 수 있게 도와주는 게임 서비스로, 졸음 방지까지 가능한 차량용 엔터테인먼트 앱입니다.
-
 > **운전자까지 한 판에 끼는 차 안 가족 게임** — 주행 중에는 말로, 멈추면 화면으로. 기어 · 남은 시간 · 지나는 지역 · 길 안내에 맞춰 게임이 멈추고 바뀌며, 운전자의 답이 느려지면 경로 위 쉼터를 먼저 권합니다.
 
-팀 **돈도아연** · 현대자동차그룹 차량용 앱 개발 공모전 2026 출품작 · 버전 1.0.0 (versionCode 1)
+팀 **돈도아연** · 현대자동차그룹 차량용 앱 개발 공모전 2026 출품작 · Version 0.1.0
 
 ## 요약
 
 | 항목 | 내용 |
 |---|---| 
 | **앱 한 줄 소개** | **놀레오(Nolleo)** 는 지루한 이동시간에 즐거움을 더해 행복한 이동이 될 수 있게 도와주는 게임 서비스로, 졸음 방지까지 가능한 차량용 엔터테인먼트 앱입니다. |
-| **APK 위치** | [`apk/돈도아연_놀레오_release.apk`](apk/돈도아연_놀레오_release.apk) — release 빌드(서명됨, `debuggable=false`), 약 24 MB |
+| **APK 위치** | [`apk/돈도아연_놀레오_release.apk`](apk/돈도아연_놀레오_release.apk) — 약 24 MB |
 | **에뮬레이터 버전** | **Pleos Connect Emulator v2.1.0** (빌드 `RELEASE.release_connect_v2.1.0`) · Android 14 (API 34) Automotive · x86_64 |
 | **화면 규격** | **2560 × 1440 (가로)** · 160 dpi · AVD RAM 4 GB · **cold boot** |
 | **실행 방법** | [§2 실행 방법](#2-실행-방법) — `adb install` 한 줄 + Virtual Console 로 기어 P/D |
 | **테스트 환경 · 필요한 설정** | [§3 테스트 환경 및 필요한 설정](#3-테스트-환경-및-필요한-설정) — 권한 2개 허용, 마이크 없이도 시연 가능(대본 응답) |
-| **시연 영상** | [YouTube](https://youtu.be/KZevBav97wQ) · 저장소 파일 [`video/Demo_video.mp4`](video/Demo_video.mp4) — 3분 26초 · 1920×1080 · 소리 포함 · 장면별 시작 시각은 [아래 시연 영상](#5-시연-영상) |
+| **시연 영상** | [YouTube](https://youtu.be/KZevBav97wQ) · [저장소 파일 `media/Demo_video.mp4`](media/Demo_video.mp4) — 3분 26초 · 1920×1080 · 소리 포함 · 장면별 시작 시각은 [§5 시연 영상](#5-시연-영상) 참고 |
 
-**주요 기능** — 자세한 내용은 [§6 주요 기능](#6-주요-기능)
+**주요 기능** — 자세한 내용은 [§6 주요 기능](#6-주요-기능) 참고
+
 - **운전자도 같은 판에** — 놀레오가 차례를 불러 주면 운전자와 동승자가 말로 답하고, 끝말잇기에는 놀레오도 참가자로 낍니다. 운전자는 화면을 보지 않습니다.
-- **주행 중엔 음성, 정차 중엔 화면** — 기어 D 면 지역 퀴즈 · 끝말잇기를 말로, P 면 사자성어 · 지역 퀴즈 · 끝말잇기를 화면으로 합니다.
+- **주행 중엔 음성, 정차 중엔 화면** — 기어 D 면 음성으로 할 수 있는 게임을, P 면 모든 게임을 화면으로 할 수 있습니다.
 - **여정에 맞춘 판 나누기** — 내비의 남은 시간과 게임 간격으로 판 수를 정하고, 지역 퀴즈는 지금 지나는 시/도의 문제를 냅니다.
 - **운전이 먼저** — 내비 안내 지점 · 통화 · 음성 비서가 오면 멈췄다가 같은 문제부터 다시 합니다.
 - **졸음 케어** — 답이 평소보다 느려지면 말을 걸고, 계속 느리면 내비 경로 위 휴게소 · 졸음쉼터를 권합니다.
@@ -34,24 +33,24 @@
     <td width="50%"><b>주행 중 음성 모드: 지역 퀴즈와 가족 점수</b></td>
   </tr>
   <tr>
-    <td><img src="video/screen_01.png" alt="홈 화면" width="100%"></td>
-    <td><img src="video/screen_02.png" alt="주행 중 지역 퀴즈 화면" width="100%"></td>
+    <td><img src="media/screen_01.png" alt="홈 화면" width="100%"></td>
+    <td><img src="media/screen_02.png" alt="주행 중 지역 퀴즈 화면" width="100%"></td>
   </tr>
   <tr>
     <td><b>주행 중 끝말잇기: 이어진 낱말 줄</b> </td>
     <td><b>졸음 케어 2단계: 경로 위 졸음쉼터 권유</b> </td>
   </tr>
   <tr>
-    <td><img src="video/screen_03.png" alt="주행 중 끝말잇기 화면" width="100%"></td>
-    <td><img src="video/screen_04.png" alt="쉬어 가기 권유 화면" width="100%"></td>
+    <td><img src="media/screen_03.png" alt="주행 중 끝말잇기 화면" width="100%"></td>
+    <td><img src="media/screen_04.png" alt="쉬어 가기 권유 화면" width="100%"></td>
   </tr>
    <tr>
     <td><b>정차 중: 화면 게임 목록</b></td>
     <td><b>도착 요약: 오늘의 기록과 가족 점수</b></td>
   </tr>
   <tr>
-    <td><img src="video/screen_05.png" alt="정차 중 게임 목록 화면" width="100%"></td>
-    <td><img src="video/screen_06.png" alt="도착 요약 화면" width="100%"></td>
+    <td><img src="media/screen_05.png" alt="정차 중 게임 목록 화면" width="100%"></td>
+    <td><img src="media/screen_06.png" alt="도착 요약 화면" width="100%"></td>
   </tr>
 </table>
 
@@ -67,7 +66,8 @@ README 만 보고 처음부터 끝까지 돌려 보는 순서입니다(에뮬레
 | 4 | 홈에서 `서울 → 부산` 고르고 함께 **1명** → **출발** (기어 P 그대로) | `4시간 10분 → n판` 으로 세션 시작, 정차 중이라 화면 게임 목록 |
 | 5 | Virtual Console **Motion > Gear Selection: D** | 음성 모드: 판 소개 → 문제를 소리로 읽고 대본이 답함 → 판정 줄 · 가족 점수 · `n / 6 문제` · `화면 조작 잠금`, 남은 시간이 30배로 줄어듦 |
 | 6 | **Gear Selection: P** → 목록에서 **사자성어** 시작하기 | 진행 중인 차례를 마친 뒤 화면 게임 목록 → 뜻을 듣고 보기 4개 중 터치, 맞히면 한자 훈·음과 유래 |
-| 7 | 패널 응답 입력 **대본 sleepy** → 닫기 → **Gear Selection: D** | 운전자 답이 점점 느려지면 1단계 말 걸기 띠 `잠깐 쉬어 갈까요?` → 이어서 2단계 `잠깐 쉬어 가요 · n km 앞 ○○졸음쉼터`(말로 네 / 괜찮아요, 또는 큰 버튼). 바로 보려면 패널 **2단계 시험 (다음 운전자 답 뒤)** |
+| 7 | 패널 응답 입력 **대본 sleepy** → 닫기 → **Gear Selection: D** | 운전자 답이 점점 느려지면 **1단계 — 묻지 않고 말 걸기**: 음성 "운전 오래 하셨죠? 다음 문제는 조금 쉬운 걸로 가 볼게요" + 문제 카드 아래 안내 띠(`잠깐 쉬어 갈까요?` · `반응이 조금 느려졌어요 · 다음 문제는 쉬운 걸로 갈게요`). 버튼 없이 난이도만 낮추고 15초 뒤 사라짐 |
+| 8 | 그대로 두면 계속 느려져 저절로 넘어감 — 바로 보려면 패널 **2단계 시험 (다음 운전자 답 뒤)** → 닫기 | **2단계 — 쉬어 갈지 묻기**: 카드 자리를 덮는 `잠깐 쉬어 가요 · n km 앞 ○○졸음쉼터`, 말로 네 / 괜찮아요 또는 큰 버튼으로 답함 |
 
 ---
 
@@ -109,12 +109,12 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 3. 기어 **D** → 음성 게임. 기어 **P** → 화면 게임 목록(사자성어 · 지역 퀴즈 · 끝말잇기)
 4. 그만하려면 음성 화면의 일시정지 → **게임 끝내기**(정차 중에는 게임 목록 머리 줄). 점수가 있으면 요약 화면
 
-**에뮬레이터에서 바로 시연하려면** — 에뮬레이터 차량은 움직이지 않고 마이크도 기본으로 꺼져 있으니, 왼쪽 위 **"Nolleo" 제목을 길게 눌러 디버그 패널**을 열고:
-- 여정 **시뮬** + 시뮬 경로 **서울 → 부산**: 남은 시간이 30배로 흐르고 지나는 지역이 바뀝니다(주행 중에만)
-- 응답 입력 **대본 normal**: 사람 대신 미리 정한 답이 들어옵니다(**대본 sleepy** 는 점점 느려져 졸음 케어가 걸림, **대본 film** 은 시연 영상 촬영 순서용)
-- 데모 모드 **켜짐**: 판당 6문제(끝말잇기는 사람마다 6번), 졸음 케어 대기 시간 단축
-- 그 밖에 TBT 분기점 300m(길 안내 일시정지 시험), 남은 5분으로(도착 요약), 내비 남은 시간으로(시뮬 여정을 내비 길 안내에 맞춤), 2단계 시험(쉼터 권유 — 다음 답 뒤 / 다음 느린 답 뒤) 버튼
-- 패널을 여는 동안에는 게임과 여정 시간이 멈추고, 닫으면 같은 문제부터 이어집니다(패널 모드 칸에서 끌 수 있음)
+**디버그 패널 버튼** — 시뮬 여정 · 대본 응답 · 데모 모드를 켜는 법은 [빠른 시연 순서](#빠른-시연-순서) 3번에 있습니다. 그 밖에 기능을 바로 시험하는 버튼:
+- **TBT 분기점 300m** — 길 안내 일시정지("길 안내 후 이어서 할게요")
+- **남은 5분으로** — 바로 도착 요약
+- **2단계 시험** (다음 운전자 답 뒤 / 다음 느린 운전자 답 뒤) — 졸음 케어 쉼터 권유
+- **내비 남은 시간으로** — 시뮬 여정을 내비 길 안내의 남은 시간에 맞춤
+- 패널을 여는 동안 게임과 여정 시간이 멈추고, 닫으면 같은 문제부터 이어집니다(패널 모드 칸에서 끌 수 있음).
 
 ---
 
@@ -129,7 +129,7 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 | AVD 설정 | RAM 4 GB, **cold boot** |
 | 개발 PC | Windows 11 |
 | 빌드 | Gradle 9.6.0 · AGP 9.5.0 (built-in Kotlin 2.2.10) · compileSdk 37 · minSdk 28 · Java 11 target · Jetpack Compose (BOM 2025.09.00) + Material3 |
-| 확인 범위 | 에뮬레이터에서만 확인(실차 미확인). 단위 테스트 237개, lint 오류 0 |
+| 확인 범위 | 에뮬레이터에서만 확인(실차 미확인). 단위 테스트 237개, lint 오류 0 — `./gradlew testDebugUnitTest lintDebug` (Windows: `gradlew.bat`) |
 
 ### 3.2 필요한 설정
 
@@ -144,31 +144,19 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 
 ### 3.3 실제 SDK 와 시뮬레이션
 
-기능은 모두 실제 SDK 를 호출합니다. Pleos SDK 5종과, 기어·속도처럼 표준 차량 데이터를 읽는 안드로이드 표준 AAOS Car API 를 씁니다(Pleos 개발 가이드 규칙 — 표준 데이터는 AAOS, OEM 데이터는 Pleos SDK).
+입력 소스 네 가지는 모두 **실제 SDK → 폴백 → 시뮬레이션** 순서로 자동 선택되고, 고른 결과는 디버그 패널 각 칸 제목과 logcat 에 보입니다. 각 SDK 에서 쓰는 API 와 코드 위치는 [§4](#4-pleos-sdk-활용-지도)에 있습니다.
 
-> **TBT (Turn-By-Turn)**: 내비가 다음 안내(좌회전·IC 진입·휴게소 진입·졸음쉼터 …)를 순서대로 알려 주는 목록(NaviHelper `onTBTInfo`).
+| 소스 | 실제 | 폴백 | 시뮬레이션 | 에뮬레이터에서 선택된 것 |
+|---|---|---|---|---|
+| **차량 상태** | AAOS `CarPropertyManager` · `CarUxRestrictionsManager` + Pleos Vehicle(브레이크 · 좌석) | — | 디버그 패널의 시뮬 기어 · 속도 | **실제** — Virtual Console 의 기어 · 속도 · 브레이크가 그대로 들어옴(좌석 착좌 값은 고정) |
+| **여정** | NaviHelper 길 안내(현재 경로 · 최근 목적지) | 시간 여정 — 내비가 없거나 60초 안에 남은 시간이 오지 않으면 예상 시간으로 시간만 셈 | 시뮬 경로(서울 → 부산 등, 30배속) | 길 안내 · TBT 는 **실제**로 받지만 차가 움직이지 않아 남은 시간이 그대로 → 시연은 **시뮬** |
+| **위치 · 지역** | FusedLocation | NaviHelper 현재 위치 주소 | 시뮬 경로의 지역 | 기본 좌표로는 국내 지역이 안 나와 **내비 주소**, `adb emu geo fix` 로 국내 좌표를 넣으면 **실제**, 시뮬 여정 중에는 **시뮬** |
+| **음성** | Pleos TTS · STT (`ON_DEVICE`) | Android TTS · SpeechRecognizer | 대본 응답(normal · sleepy · film) | TTS · STT 모두 **Pleos**(Android TTS 엔진은 없음). 마이크가 기본으로 꺼져 있어 시연 답은 **대본** |
 
-| SDK | 쓴 API · 데이터 | 놀레오에서 하는 일 |
-|---|---|---|
-| **AAOS Car API** `CarPropertyManager` | `GEAR_SELECTION` · `PERF_VEHICLE_SPEED` · `PARKING_BRAKE_ON` (`registerCallback`) | 주행/정차 판정 → 음성 게임 ↔ 화면 게임 전환 |
-| **AAOS Car API** `CarUxRestrictionsManager` | 주행 규제 (`registerListener` → `isRequiresDistractionOptimization` · `activeRestrictions`) | 규제 중에는 화면 게임 금지 · 설정 잠금 |
-| **Pleos Vehicle** 2.3.2 | 브레이크 페달 `getBrake()` (`checkBrakePedalStatusCapabilities` → `registerBrakePedalStatus`) | 신호대기(STOPPED) 판정 보조 |
-| **Pleos Vehicle** 2.3.2 | 좌석 착좌 `getSeat()` (`checkSeatOccupancyCapabilities` → `registerSeatOccupancy`) | 홈에서 함께 타는 사람 수 제안 |
-| **NaviHelper** 3.0.5 | 길 안내 `requestRoute` · `onRouteStarted` · `onDestinationInfo` / `onDrivingInfo`(남은 시간·거리) | 남은 시간에 맞춰 판 수 정하기 · 크게 바뀌면 다시 계획 · 도착 요약 |
-| **NaviHelper** 3.0.5 | 최근 목적지·예상 시간 `getRecentDestinationInfo` · `requestTrip` → `onTripInfo` | 홈 목적지 목록(길 안내 없이 예상 시간 표시) |
-| **NaviHelper** 3.0.5 | TBT `onTBTInfo` · `getTBTInfo` | 분기점·회전 안내 때 게임 일시정지 · 경로 위 휴게소·졸음쉼터(`TURN_ENTER_SERVICEAREA` · `TURN_RESTAREA`) 찾기 |
-| **NaviHelper** 3.0.5 | 현재 위치 주소 `getCurrentLocationInfo` | 위치로 지역을 못 정할 때 지역 퀴즈의 지역 대신 정하기 |
-| **FusedLocation** 1.1.3 | `isSupported` · `registerFusedLocationCallback` · `getLastKnownLocation` | 지역 퀴즈 지역(지금 지나는 시/도) · 진행 방향(상·하행 가르기) |
-| **FusedLocation** 1.1.3 | 근접 알림 `addProximityAlert` (반경 300 m) | 권한 쉼터에 도착했는지 감지 |
-| **TextToSpeech** 3.3.1 | `speak` (`Mode.ON_DEVICE`) | 문제·결과·쉼터 권유 읽기 |
-| **SpeechToText** 3.3.1 | `request` → 인식 결과 콜백 (`Mode.ON_DEVICE`) | 답 인식 · 응답 시간 측정(졸음 케어) · 쉬어 가기 "네/아니요" |
-
-**에뮬레이터에서 확인할 때** (Pleos Connect Emulator v2.1.0 — 위 API 는 모두 호출·수신을 확인했고, 다른 점만 적었습니다)
-- **좌석 착좌**: 에뮬레이터가 동승석 4곳을 늘 착좌로 보내 늘 "3명"(앱이 고를 수 있는 최대)을 제안합니다.
-- **길 안내**: 에뮬레이터 차량이 움직이지 않아 남은 시간·TBT 가 그대로입니다 → 시연은 **시뮬레이션 여정**(남은 시간이 30배로 줄고 지나는 지역이 바뀜, 디버그 패널에서 켬 — [§2.4](#24-처음-써-보기)). TBT 쉼 장소는 실제로 받습니다(예: 부산역 경로 TBT 54개 중 쉼 장소 22곳 — 휴게소 9 · 졸음쉼터 13, 가장 가까운 곳 용인졸음쉼터 18.1 km).
-- **위치**: 기본 좌표로는 국내 지역이 안 나와 `adb emu geo fix <경도> <위도>` 로 국내 좌표를 넣습니다. 쉼터 도착 감지도 쉼터 좌표로 옮겨 확인합니다. 시뮬레이션 여정 중에는 시뮬 경로의 지역이 우선입니다.
-- **음성 인식**: 호스트 마이크를 켜야 인식합니다([§3.2](#32-필요한-설정)). 끄면 8초 무응답 → 시연은 **대본 응답**(미리 정한 답, TTS 는 실제 Pleos 음성).
+**에뮬레이터에서 다른 점** (Pleos Connect Emulator v2.1.0)
+- **TBT 쉼 장소**는 실제로 받습니다 — 예: 부산역 경로 TBT 54개 중 쉼 장소 22곳(휴게소 9 · 졸음쉼터 13), 가장 가까운 곳 용인졸음쉼터 18.1 km.
 - **주행 규제**: 기어 D 에서 `requiresDO=true, active=80(NO_VIDEO+NO_SETUP)` 을 받습니다. `driving_regulation on/off` 셸 명령은 이 에뮬레이터에 없어(`hmg_car_service` 없음) 기어 D 로 확인했습니다.
+- **음성 인식**을 실제로 하려면 호스트 마이크를 켭니다([§3.2](#32-필요한-설정)). 끄면 8초 무응답입니다.
 
 **쓰지 않은 것**: NaviHelper `addWaypoint`(좌표 경유지) — 좌표로 넣으면 고속도로 옆 일반 도로로 우회 경로가 생겨, 경유지를 넣지 않고 경로 위 쉼 장소만 권합니다.
 
@@ -190,15 +178,26 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 
 ---
 
-## 4. Pleos SDK 활용 (기획서 "기술 활용성" 표와 동일)
+## 4. Pleos SDK 활용 지도
 
-| SDK | 활용 | 호출 위치 |
-|---|---|---|
-| **Vehicle** (+ AAOS Car API) | 주행·정차 상태로 음성/화면 모드 전환, 운전 집중이 필요한 순간 게임 일시정지, 좌석 착좌로 동승자 수 제안 | `core/car/AaosCarStateSource.kt` (GEAR_SELECTION·PERF_VEHICLE_SPEED·PARKING_BRAKE_ON, CarUxRestrictions) · `core/car/VehicleSdkClient.kt` (Brake·Seat) · `domain/engine/ModeArbiter.kt` |
-| **NaviHelper** | 남은 시간·경로로 게임 길이 조절, 내비에서 시작한 길 안내를 홈에 실시간 반영, 길 안내가 없을 때 **최근 목적지**(`getRecentDestinationInfo`)를 예상 시간(`requestTrip` — 길 안내 없이)과 함께 홈에 보이고 출발하면 그곳으로 길 안내(`requestRoute`), 안내 시점(TBT)에 맞춰 일시정지, 졸음 케어 2단계: **TBT 목록의 경로 위 휴게소·졸음쉼터**(`TURN_ENTER_SERVICEAREA`·`TURN_RESTAREA`, 구간 거리 누적)에서 쉬어 갈 곳 고르기 · 경로가 바뀌면 다시 조회(`getTBTInfo`) | `core/navi/NaviHelperTripSource.kt` · `core/navi/TripRepository.kt` · `app/HomeState.kt` · `domain/engine/SessionPlanner.kt` · `app/GameCoordinator.kt#observeTbt` · `domain/rest/RestStop.kt` |
-| **FusedLocation** | 현재 위치로 지역 퀴즈 선택(주행 중 음성 판 · 정차 중 화면 지역 퀴즈), 지나온 지역 기록, 졸음 케어 2단계: 진행 방향으로 상·하행 가르기(휴게소 편의시설·졸음쉼터 좌표), 쉼터 **도착 감지**(`addProximityAlert` 반경 300 m ENTER + 서거나 주차), 길 안내가 없을 때 앞쪽 졸음쉼터 탐색 | `core/location/FusedLocationSource.kt` · `core/location/RegionResolver.kt` · `domain/rest/RestStop.kt` · `app/RestCareController.kt` |
-| **SpeechToText** | 운전자·동승자의 답변 인식(주행 중 음성 판 · 정차 중 끝말잇기), 응답에 걸린 시간 측정과 끝말잇기 남은 초 표시, 쉬어 가기 질문의 "네/아니요" | `core/speech/PleosSpeechEngine.kt#listen` · `domain/engine/AnswerCollector.kt` · `domain/engine/WordChainPlay.kt` · `domain/engine/YesNo.kt` |
-| **TextToSpeech** | 문제 출제, 결과 안내, 반응 저하 시 말 걸기, 휴게소·졸음쉼터 권유(편의시설 포함)·도착·다시 출발 안내, 정차 중 화면 게임(사자성어·지역 퀴즈·끝말잇기)의 문제·결과·유래 읽기와 끝말잇기 진행 | `core/speech/PleosSpeechEngine.kt#speak` · `domain/engine/GameSession.kt` · `app/ScreenQuizController.kt` · `app/ScreenWordChainController.kt` · `domain/games/ScreenGames.kt` · `domain/games/IdiomSpeech.kt` |
+Pleos SDK 5종과, 기어 · 속도처럼 표준 차량 데이터를 읽는 안드로이드 표준 AAOS Car API 를 씁니다(Pleos 개발 가이드 규칙 — 표준 데이터는 AAOS, OEM 데이터는 Pleos SDK). 아래 API 는 모두 에뮬레이터에서 호출 · 수신을 확인했고, 코드 칸을 누르면 그 줄로 갑니다.
+
+> **TBT (Turn-By-Turn)**: 내비가 다음 안내(좌회전 · IC 진입 · 휴게소 진입 · 졸음쉼터 …)를 순서대로 알려 주는 목록(NaviHelper `onTBTInfo`).
+
+| SDK | 쓴 API | 놀레오에서 하는 일 | 코드 |
+|---|---|---|---|
+| **AAOS Car API** `CarPropertyManager` | `GEAR_SELECTION` · `PERF_VEHICLE_SPEED` · `PARKING_BRAKE_ON` (`registerCallback`) | 주행/정차 판정 → 음성 게임 ↔ 화면 게임 전환 | [AaosCarStateSource.kt:101](app/src/main/java/com/nolleo/app/core/car/AaosCarStateSource.kt#L101) · [ModeArbiter.kt:49](app/src/main/java/com/nolleo/app/domain/engine/ModeArbiter.kt#L49) |
+| **AAOS Car API** `CarUxRestrictionsManager` | 주행 규제 `registerListener` → `isRequiresDistractionOptimization` · `activeRestrictions` | 규제 중에는 화면 게임 금지 · 설정 잠금 | [AaosCarStateSource.kt:107](app/src/main/java/com/nolleo/app/core/car/AaosCarStateSource.kt#L107) |
+| **Pleos Vehicle** 2.3.2 | 브레이크 페달 `getBrake()` → `registerBrakePedalStatus` | 신호대기(STOPPED) 판정 보조 | [VehicleSdkClient.kt:113](app/src/main/java/com/nolleo/app/core/car/VehicleSdkClient.kt#L113) |
+| **Pleos Vehicle** 2.3.2 | 좌석 착좌 `getSeat()` → `registerSeatOccupancy` | 홈에서 함께 타는 사람 수 제안 | [VehicleSdkClient.kt:171](app/src/main/java/com/nolleo/app/core/car/VehicleSdkClient.kt#L171) |
+| **NaviHelper** 3.0.5 | 길 안내 `requestRoute` · `onRouteStarted` · `onDestinationInfo` · `onDrivingInfo`(남은 시간 · 거리) | 남은 시간에 맞춰 판 수 정하기 · 크게 바뀌면 다시 계획 · 도착 요약 | [NaviHelperTripSource.kt:336](app/src/main/java/com/nolleo/app/core/navi/NaviHelperTripSource.kt#L336) · [NaviHelperTripSource.kt:129](app/src/main/java/com/nolleo/app/core/navi/NaviHelperTripSource.kt#L129) · [SessionPlanner.kt:35](app/src/main/java/com/nolleo/app/domain/engine/SessionPlanner.kt#L35) |
+| **NaviHelper** 3.0.5 | 최근 목적지 `getRecentDestinationInfo` · 예상 시간 `requestTrip` → `onTripInfo` | 홈 목적지 목록(길 안내 없이 예상 시간 표시), 출발하면 그곳으로 길 안내 | [NaviHelperTripSource.kt:353](app/src/main/java/com/nolleo/app/core/navi/NaviHelperTripSource.kt#L353) · [NaviHelperTripSource.kt:367](app/src/main/java/com/nolleo/app/core/navi/NaviHelperTripSource.kt#L367) |
+| **NaviHelper** 3.0.5 | TBT `onTBTInfo` · `getTBTInfo` | 분기점 · 회전 안내 때 게임 일시정지 · 경로 위 휴게소 · 졸음쉼터(`TURN_ENTER_SERVICEAREA` · `TURN_RESTAREA`) 고르기 | [NaviHelperTripSource.kt:175](app/src/main/java/com/nolleo/app/core/navi/NaviHelperTripSource.kt#L175) · [GameCoordinator.kt:764](app/src/main/java/com/nolleo/app/app/GameCoordinator.kt#L764) · [RestStop.kt:75](app/src/main/java/com/nolleo/app/domain/rest/RestStop.kt#L75) |
+| **NaviHelper** 3.0.5 | 현재 위치 주소 `getCurrentLocationInfo` | 위치로 지역을 못 정할 때 지역 퀴즈의 지역 대신 정하기 | [NaviHelperTripSource.kt:296](app/src/main/java/com/nolleo/app/core/navi/NaviHelperTripSource.kt#L296) · [RegionResolver.kt:30](app/src/main/java/com/nolleo/app/core/location/RegionResolver.kt#L30) |
+| **FusedLocation** 1.1.3 | `isSupported` · `registerFusedLocationCallback` · `getLastKnownLocation` | 지역 퀴즈 지역(지금 지나는 시/도) · 지나온 지역 · 진행 방향(상 · 하행 가르기) | [FusedLocationSource.kt:98](app/src/main/java/com/nolleo/app/core/location/FusedLocationSource.kt#L98) · [RegionResolver.kt:16](app/src/main/java/com/nolleo/app/core/location/RegionResolver.kt#L16) |
+| **FusedLocation** 1.1.3 | 근접 알림 `addProximityAlert`(반경 300 m) | 권한 쉼터에 도착했는지 감지 | [FusedLocationSource.kt:123](app/src/main/java/com/nolleo/app/core/location/FusedLocationSource.kt#L123) |
+| **TextToSpeech** 3.3.1 | `speak` (`Mode.ON_DEVICE`) | 문제 · 결과 · 말 걸기 · 쉼터 권유 · 정차 중 화면 게임 읽기 | [PleosSpeechEngine.kt:282](app/src/main/java/com/nolleo/app/core/speech/PleosSpeechEngine.kt#L282) |
+| **SpeechToText** 3.3.1 | `request` → 인식 결과 콜백 (`Mode.ON_DEVICE`) | 답 인식 · 응답 시간 측정(졸음 케어) · 쉬어 가기 "네/아니요" | [PleosSpeechEngine.kt:322](app/src/main/java/com/nolleo/app/core/speech/PleosSpeechEngine.kt#L322) · [DrowsinessMonitor.kt:108](app/src/main/java/com/nolleo/app/domain/drowsy/DrowsinessMonitor.kt#L108) |
 
 매니페스트 퍼미션은 실제로 호출하는 API 의 것만 선언했습니다: `pleos.car.permission.CAR_DRIVE, CAR_SEATS, NAVI_ROUTE, NAVI_ROUTE_SEARCH, TTS_SERVICE, STT_SERVICE, FUSED_LOCATION`, `android.car.permission.CAR_POWERTRAIN, CAR_SPEED`, `android.permission.RECORD_AUDIO`(폴백). TBT 목록(`getTBTInfo`)과 최근 목적지·예상 시간(`getRecentDestinationInfo`·`requestTrip`)은 `NAVI_ROUTE`, 근접 알림(`addProximityAlert`)은 `FUSED_LOCATION` 으로 동작해 퍼미션을 새로 늘리지 않았습니다. `INTERNET`·`*_BINDING` 은 Pleos SDK AAR 이 병합하는 것으로, 앱 자체의 네트워크 호출은 없습니다(퀴즈·사자성어·사전·졸음쉼터·휴게소 자료 모두 assets).
 
@@ -206,9 +205,9 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 
 ## 5. 시연 영상
 
-![놀레오 시연 영상 gif](video/Demo_video_low.gif)
+![놀레오 시연 영상 gif](media/Demo_video_low.gif)
 
-### ▶ 시연 영상은 [YouTube](https://youtu.be/KZevBav97wQ) · [저장소 파일](video/Demo_video.mp4) 에서 시청하실 수 있습니다.
+- 시연 영상은 [YouTube](https://youtu.be/KZevBav97wQ) · [저장소 파일](media/Demo_video.mp4) 에서 시청하실 수 있습니다.
 
 | 시각 | 장면 |
 |---|---|
@@ -284,7 +283,7 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 | 단계 | 언제 | 무엇을 |
 |---|---|---|
 | 감지 | 운전자 본인의 평소 속도 기준으로 최근 5번 중 3번 이상 느려지면 | 작동을 시작합니다. 한두 번 늦은 건 넘어갑니다. |
-| 1단계 | 처음 느려졌을 때 | 가볍게 말을 걸고 쉬운 문제로 바꿉니다. |
+| 1단계 | 처음 느려졌을 때 | 묻지 않고 가볍게 말을 건 뒤 쉬운 문제로 바꿉니다. 화면 안내 띠는 답을 받지 않고 15초 뒤 사라집니다. |
 | 2단계 | 15분 안에 다시 느려지거나 정답률까지 떨어지면 | 쉬어 갈지 묻습니다. "네"/"괜찮아요" 한마디나 큰 버튼 하나로 답합니다. |
 | 쉼터 안내 | "네"라고 하면 | **지금 가는 내비 경로 위**의 휴게소·졸음쉼터를 편의시설(수유실·수면실·가족사랑 화장실·대표 음식)과 함께 안내합니다. 경로를 벗어나지 않습니다. |
 | 휴식 정차 | 도착해 P로 세우면 | 게임 목록 대신 휴식 안내 화면을 먼저 띄웁니다. 다시 출발하면 인사와 함께 다음 판으로 갑니다. |
@@ -305,28 +304,38 @@ adb forward tcp:8088 tcp:8088   # 브라우저로 http://127.0.0.1:8088/ 열기
 
 ```
 com.nolleo.app
-├─ app/        NolleoApp · AppContainer(수동 DI) · MainActivity(단일 액티비티) · GameCoordinator · HomeState(홈 목적지 고르기: 현재 경로 · 최근 목적지 · 목적지 없이) · SessionFocusPolicy(음성 세션의 오디오 포커스 대응 판단) · RestCareController(쉬어 가기) · ScreenGameController(정차 중 화면 게임 공통: 멈춤·정리·포커스) · ScreenQuizController(사자성어·지역 퀴즈의 읽기·넘김) · ScreenWordChainController(정차 끝말잇기의 말하기·듣기) · WindowPlacement(3분할 창 위치)
-├─ core/
-│  ├─ car/       CarStateSource · AaosCarStateSource · VehicleSdkClient · SimulatedCarStateSource · CarStateRepository
-│  ├─ navi/      TripSource(TripTarget) · NaviHelperTripSource(최근 목적지·예상 시간 포함) · NaviPlace · TimerTripSource(목적지 없이 — 시간만) · SimulatedTripSource · TripRepository · TripUnits · DestinationPreset(시연용 시뮬 경로)
-│  ├─ location/  FusedLocationSource · RegionResolver · LocationRepository(Fused → 내비 주소 → 시뮬)
-│  ├─ speech/    SpeechEngine · PleosSpeechEngine · AndroidSpeechEngine · ScriptedSpeechEngine · SpeechRouter · AudioFocusHelper
-│  └─ log/       AppLog(PII 마스킹, 디버그 패널 링버퍼)
-├─ domain/
-│  ├─ model/     DriveState · UxState · GameMode · PauseReason · TurnHint · SessionPlan · Player · Question · GeoMath(거리·방위각 — 거리 계산은 여기 하나) …
-│  ├─ engine/    DriveStateDeriver · ModeArbiter · ModeController · SessionPlanner(랜덤 게임 순서 포함) · GameSession · WordChainPlay(정차 끝말잇기 한 판) · AnswerMatcher · AnswerCollector · YesNo
-│  ├─ games/     VoiceGame · RegionQuizGame · WordChainGame · IdiomQuizGame · IdiomSpeech(읽기용 문장) · ScreenGames(정차 중 보기 고르기: 사자성어 · 지역 퀴즈) · WordDictionary(출제용·검증용) · WordBlocklist(금칙어) · Hangul(두음법칙)
-│  ├─ drowsy/    DrowsinessMonitor (1단계 말 걸기 · 2단계 쉬어 가기 · 이어서 하기용 SavedState)
-│  └─ rest/      RouteRestStops(TBT → 경로 위 쉼 장소) · RestStopFinder(고르기·상하행 맞추기) · RestArea · ServiceAreaInfo · MotionHeading
-├─ data/       ContentRepository(assets) · ContentParser · AppPreferences(DataStore) · SnapshotCodec(저장본 v3 — v1·v2 도 읽음)
-└─ ui/         theme(NolleoTheme · 색 Nl · 간격 Sp · 모서리 Radius) · common(주/보조 버튼 · 즉시 눌림 표시 pressable · 선택 막대 · 설정 줄 · 목록 줄 · 카드 · 안내 카드 · 칩 · 아바타 · 로고 · 마이크 상태 · 끝말잇기 남은 초 · 끝말잇기 낱말 줄 · 넓은 창 기준 isWideLayout) · home · voice · screen(게임 목록 · 보기 고르기 판 · 끝말잇기 판) · summary · debug
+├─ app/                  앱 조립 · 화면 흐름
+│  ├─ MainActivity       단일 액티비티
+│  ├─ AppContainer       수동 DI
+│  ├─ GameCoordinator    세션 · 모드 · 일시정지 · 오디오 포커스 조정
+│  ├─ HomeState          홈 목적지(현재 경로 · 최근 목적지 · 목적지 없이)
+│  ├─ RestCareController 졸음 케어 쉬어 가기
+│  ├─ Screen*Controller  정차 중 화면 게임(공통 · 퀴즈 · 끝말잇기)
+│  └─ WindowPlacement    3분할 창 위치
+├─ core/                 입력 소스마다 실제 → 폴백 → 시뮬
+│  ├─ car/        AaosCarStateSource · VehicleSdkClient · SimulatedCarStateSource
+│  ├─ navi/       NaviHelperTripSource · TimerTripSource · SimulatedTripSource
+│  ├─ location/   FusedLocationSource · RegionResolver · LocationRepository
+│  ├─ speech/     PleosSpeechEngine · AndroidSpeechEngine · ScriptedSpeechEngine
+│  └─ log/        AppLog(PII 마스킹)
+├─ domain/               게임 규칙 · 판정 · 졸음 케어
+│  ├─ engine/     ModeArbiter · SessionPlanner · GameSession · AnswerCollector
+│  ├─ games/      RegionQuizGame · WordChainGame · IdiomQuizGame · WordDictionary
+│  ├─ drowsy/     DrowsinessMonitor(1단계 말 걸기 · 2단계 쉬어 가기)
+│  ├─ rest/       RestStop(TBT → 경로 위 쉼 장소 · 고르기)
+│  └─ model/      DriveState · GameMode · SessionPlan · GeoMath …
+├─ data/                 ContentRepository(assets) · AppPreferences · SnapshotCodec
+└─ ui/                   theme · common · home · voice · screen · summary · debug
 ```
+입력 소스 네 가지(차량 · 여정 · 위치 · 음성)의 실제 → 폴백 → 시뮬 선택은 [§3.3](#33-실제-sdk-와-시뮬레이션) 표에 있습니다.
 
 ---
 
 ## 8. 콘텐츠 출처와 라이선스
 
 모든 게임 콘텐츠와 졸음쉼터·휴게소 자료는 `app/src/main/assets/content/` 에 들어 있고, 실행 중 네트워크로 받지 않습니다. CC BY-SA 자료는 원저작물 조건에 따라 출처와 변경 사항을 함께 밝힙니다.
+
+**앱 코드**: © 2026 팀 돈도아연 — 모든 권리 보유(All rights reserved). 공모전 심사와 열람을 위해 공개하며, 복제 · 수정 · 재배포는 팀의 허락이 필요합니다. 아래 표의 "앱 코드와 같음"은 이 조건을 따르고, CC BY-SA 자료는 각 라이선스를 따릅니다.
 
 | 파일 | 내용 · 규모 | 출처 | 배포 조건 |
 |---|---|---|---|
