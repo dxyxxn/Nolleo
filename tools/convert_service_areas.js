@@ -7,7 +7,7 @@
 //  2) 공공데이터포털 15142833 "한국도로공사_장애인 및 가족사랑 화장실 운영여부 및 위치" CSV(CP949) — 이용허락범위 제한 없음
 //     휴게소명 "구정(속초)" 형식 + 가족사랑 화장실 운영여부
 // 좌표는 어느 자료에도 없다 → 앱은 내비 TBT 의 경로 위 휴게소 이름으로 맞춘다. 같은 이름의 상·하행 중에는
-// 방향 도시(dirLat/dirLng, 아래 대략 좌표) 쪽이 진행 방향과 맞는 것을 고른다.
+// 방향 도시(dirLat/dirLng, 아래 대략 좌표) 쪽이 진행 방향과 맞는 것을 고른다
 const fs = require('fs');
 const [, , lodPath, toiletPath, output] = process.argv;
 if (!lodPath || !toiletPath || !output) { console.error('usage: node convert_service_areas.js <lod.json> <toilet.csv> <out.json>'); process.exit(1); }

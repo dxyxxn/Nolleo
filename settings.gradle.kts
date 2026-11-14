@@ -19,7 +19,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // Pleos Playground SDK (Vehicle / NaviHelper / TextToSpeech / SpeechToText / FusedLocation)
+        // Pleos Playground SDK(Vehicle / NaviHelper / TextToSpeech / SpeechToText / FusedLocation)
         maven("https://nexus-playground.pleos.ai/repository/maven-releases/")
     }
 }

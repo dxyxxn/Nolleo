@@ -1,6 +1,6 @@
 [versions]
 agp = "9.5.0"
-# AGP 9.5.0 의 built-in Kotlin 이 런타임으로 끌어오는 KGP 버전과 반드시 같아야 한다 (compose 컴파일러 플러그인).
+# AGP 9.5.0 의 built-in Kotlin 이 런타임으로 끌어오는 KGP 버전과 반드시 같아야 한다 (compose 컴파일러 플러그인)
 kotlin = "2.2.10"
 coreKtx = "1.17.0"
 junit = "4.13.2"

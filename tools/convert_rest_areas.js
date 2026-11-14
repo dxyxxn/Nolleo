@@ -2,7 +2,7 @@
 //   → app/src/main/assets/content/rest_areas.json
 // 사용: node tools/convert_rest_areas.js <내려받은 CSV> app/src/main/assets/content/rest_areas.json
 //
-// - 도로노선방향 "A기점 + B종점" 을 A → B 방향 차로의 쉼터로 읽는다 (자료에 공식 정의 문장이 없어 일반적인 해석을 따름).
+// - 도로노선방향 "A기점 + B종점" 을 A → B 방향 차로의 쉼터로 읽는다 (자료에 공식 정의 문장이 없어 일반적인 해석을 따름)
 // - routeHeading: 기점·종점 도시 중심(아래 표, 대략 좌표) 사이 방위각 — 방향을 정하는 데만 쓴다.
 // - heading: 같은 노선의 이웃 쉼터(3~60km)로 구한 그 지점의 도로 축을 routeHeading 쪽으로 맞춘 값 (앱이 쓰는 진행 방향).
 //   이웃이 없으면 routeHeading.
