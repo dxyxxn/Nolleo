@@ -1,6 +1,6 @@
 # 놀레오 (Nolleo)
 
-> **가는 길이 놀이가 되는 가족 게임** — 차가 아는 주행 상태·남은 시간·위치·길 안내로, 운전자와 가족이 함께 노는 차량용 게임 앱
+> **가는 길이 놀이가 되는 앱** — **놀레오(Nolleo)** 는 지루한 이동시간에 즐거움을 더해 행복한 이동이 될 수 있게 도와주는 게임 서비스로, 졸음 방지까지 가능한 차량용 엔터테인먼트 앱입니다.
 
 팀 **돈도아연** · 현대자동차그룹 차량용 앱 개발 공모전 2026 출품작 · 버전 1.0.0 (versionCode 1)
 
@@ -14,7 +14,22 @@
 | **화면 규격** | **2560 × 1440 (가로)** · 160 dpi · AVD RAM 4 GB · **cold boot** |
 | **실행 방법** | [§2 실행 방법](#2-실행-방법) — `adb install` 한 줄 + Virtual Console 로 기어 P/D |
 | **테스트 환경 · 필요한 설정** | [§3 테스트 환경 및 필요한 설정](#3-테스트-환경-및-필요한-설정) — 권한 2개 허용, 마이크 없이도 시연 가능(대본 응답) |
-| **시연 영상** | _(링크 자리 — 편집 후 추가)_ |
+| **시연 영상** | [YouTube](https://youtu.be/KZevBav97wQ) · 저장소 파일 [`video/Demo_video.mp4`](video/Demo_video.mp4) — 3분 26초 · 1920×1080 · 소리 포함 · 장면별 시작 시각은 [아래 시연 영상](#시연-영상) |
+
+## 시연 영상
+
+[![놀레오 시연 영상 — 정차 중 화면 게임 고르기(사자성어 · 지역 퀴즈 · 끝말잇기)](video/Demo_thumbnail.jpg)](https://youtu.be/KZevBav97wQ)
+
+▶ [YouTube 에서 보기](https://youtu.be/KZevBav97wQ) · 저장소 파일 [`video/Demo_video.mp4`](video/Demo_video.mp4) (둘 다 같은 3분 26초 영상) — Pleos Connect 에뮬레이터 v2.1.0 화면 녹화입니다. 에뮬레이터 차량은 움직이지 않아 주행은 Virtual Console(기어 D · 시속 80 km)과 시뮬레이션 여정으로, 답은 미리 정한 대본 응답으로 보여 줍니다([§3.3](#33-실제-sdk-와-시뮬레이션)).
+
+| 시작 (누르면 YouTube 그 시점) | 장면 |
+|---|---|
+| [0:00](https://youtu.be/KZevBav97wQ?t=0) | 목적지 · 게임 설정 — 내비 최근 목적지로 출발 |
+| [0:18](https://youtu.be/KZevBav97wQ?t=18) | 끝말잇기 — 주행 중에는 화면 조작 없이 말로만 |
+| [1:16](https://youtu.be/KZevBav97wQ?t=76) | 지역 퀴즈 — 지금 지나는 지역(서울)의 문제 |
+| [1:57](https://youtu.be/KZevBav97wQ?t=117) | 반응 지연 감지 · 휴식 안내 — 경로 위 졸음쉼터 권유와 도착 |
+| [2:32](https://youtu.be/KZevBav97wQ?t=152) | 정차 중 게임 — 사자성어 · 지역 퀴즈(경기도) |
+| [3:14](https://youtu.be/KZevBav97wQ?t=194) | 다크모드 · 3분할 화면 — 내비 길 안내 옆에서 이어 하기 |
 
 ## 무엇을 하나요
 
@@ -40,8 +55,8 @@
 ## 2. 실행 방법
 
 ### 2.1 에뮬레이터 준비
-1. Android Studio → SDK Manager 에서 **Pleos Connect Emulator 2.1.0** 시스템 이미지(API 34 Automotive) 설치
-2. AVD 생성: 기기 정의 `Pleos_Connect_v2_0`(2560 × 1440, 160 dpi), RAM **4 GB**, Boot option **Cold boot** — Quick boot 면 차량 HAL(VHAL)을 쓸 수 없습니다
+1. **Pleos Connect Emulator 2.1.0** 설치 — Pleos 공식 가이드 [SDK · 에뮬레이터 설정](https://document.pleos.ai/docs/connect/guide/getting-started/application-development/setup-connect-sdk-emulator)을 따릅니다(Android Studio SDK Manager 에 Pleos 시스템 이미지 주소를 추가해 설치)
+2. AVD 생성: **Device Manager > Create device** → Automotive **Pleos Connect v2.1.0**(2560 × 1440, 160 dpi) → 시스템 이미지 **Pleos Connect v2.1.0 APIs**(API 34), RAM **4 GB**, 부팅 **Cold**(Startup > Default boot) — Quick boot 면 차량 HAL(VHAL)을 쓸 수 없습니다
 3. AVD 를 켜고 `adb devices` 로 연결 확인
 
 ### 2.2 설치
